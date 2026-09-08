@@ -3,6 +3,8 @@ import time
 from uuid import uuid4
 
 from fastapi import FastAPI
+from fastapi.exception_handlers import request_validation_exception_handler
+from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 from sqlalchemy import text
 
@@ -25,9 +27,30 @@ for router in (projects, files, jobs, settings, creation, retries, stages):
     app.include_router(router, prefix="/api/v1")
 
 
+@app.exception_handler(RequestValidationError)
+async def validation_error(request, exc):
+    if request.url.path.startswith("/api/v1/settings/model-credentials/"):
+        return JSONResponse({"detail": "凭据请求格式无效"}, status_code=422)
+    return await request_validation_exception_handler(request, exc)
+
+
 @app.middleware("http")
 async def trace(request, call_next):
     trace_id, start = str(uuid4()), time.monotonic()
+    sensitive = request.url.path.startswith("/api/v1/settings/model-credentials/")
+    # Model route writes also control where a later authenticated request is sent.
+    model_write = "/settings/bindings/" in request.url.path and "/model:" in request.url.path
+    if (sensitive or model_write) and request.method not in ("GET", "HEAD"):
+        allowed = {
+            f"http://{host}:{port}"
+            for host in ("localhost", "127.0.0.1", "[::1]")
+            for port in (5180, 5181, 8010)
+        }
+        origin = request.headers.get("origin")
+        if (origin is not None and origin not in allowed) or request.headers.get(
+            "sec-fetch-site"
+        ) == "cross-site":
+            return JSONResponse({"detail": "仅允许本机应用操作模型凭据与连接"}, status_code=403)
     try:
         response = await call_next(request)
     except Exception:

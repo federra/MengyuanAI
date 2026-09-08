@@ -23,6 +23,7 @@ try:
             **os.environ,
             "SHORTFILM_DATABASE_URL": url.set(database=name).render_as_string(hide_password=False),
             "SHORTFILM_STORAGE_ROOT": media,
+            "SHORTFILM_CREDENTIAL_ROOT": str(Path(media) / "credential-vault"),
         }
         for cmd in [
             [

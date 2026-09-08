@@ -376,3 +376,47 @@ def test_output_video_capability_and_route_inheritance(client):
     finally:
         current = client.get(category).json()["revision"]
         client.put(category, json={"base_version": current, "value": previous["value"]})
+
+
+def test_page_credential_uses_saved_pg_route_without_plaintext_snapshot(client):
+    from uuid import UUID
+
+    from shortfilm.creation.snapshots import configuration
+    from shortfilm.db import Session
+    from shortfilm.projects.router import owned_project
+
+    p = project(client)
+    path = "/api/v1/settings/bindings/system/model:category:text"
+    prior = client.get(path).json()
+    route = {
+        "provider": "fixture",
+        "model": "fixture",
+        "endpoint": "https://example.com",
+        "capability": "text",
+        "credential_ref": "PAGE_PG_DUMMY_KEY",
+        "timeout_seconds": 5,
+    }
+    saved = client.put(path, json={"base_version": prior["revision"], "value": route}).json()
+    credential_path = "/api/v1/settings/model-credentials/model:category:text"
+    try:
+        result = client.put(
+            credential_path,
+            json={
+                "secret": "dummy-pg-secret",
+                "base_version": 0,
+                "binding_revision": saved["revision"],
+            },
+        )
+        assert result.status_code == 200, result.text
+        with Session() as db:
+            snapshot = configuration(
+                db, owned_project(db, UUID(p["id"])), "story.generate", {}, render=False
+            )
+        assert snapshot["model"]["credential_ref"] == "PAGE_PG_DUMMY_KEY"
+        import json
+
+        assert "dummy-pg-secret" not in json.dumps(snapshot)
+        assert "dummy-pg-secret" not in client.get(path + "/history").text
+        assert "dummy-pg-secret" not in client.get(credential_path).text
+    finally:
+        client.put(path, json={"base_version": saved["revision"], "value": prior["value"]})

@@ -1,12 +1,12 @@
 """OpenAI-compatible text transport. No automatic HTTP retries or secret logging."""
 
 import json
-import os
 from urllib.parse import urlsplit
 
 import httpx
 
 from shortfilm.config import settings
+from shortfilm.configuration.credentials import CredentialError, resolve
 
 
 class ProviderFailure(Exception):
@@ -27,8 +27,12 @@ def model_snapshot():
         or parts.fragment
     ):
         raise ProviderFailure("text_endpoint_not_configured")
-    if not settings.text_model or not os.environ.get(settings.text_credential_ref):
+    if not settings.text_model:
         raise ProviderFailure("text_model_or_credential_missing")
+    try:
+        resolve(settings.text_credential_ref, endpoint)
+    except CredentialError as exc:
+        raise ProviderFailure(str(exc)) from None
     if settings.text_json_mode not in ("json_object", "json_schema", "text"):
         raise ProviderFailure("unsupported_json_mode")
     return {
@@ -44,9 +48,12 @@ def model_snapshot():
 
 
 def request_json(config, messages, schema):
-    credential = os.environ.get(config["credential_ref"])
-    if not credential:
-        raise ProviderFailure("text_credential_missing")
+    try:
+        credential = resolve(
+            config["credential_ref"], config["endpoint"], config.get("credential_revision")
+        )
+    except CredentialError as exc:
+        raise ProviderFailure(str(exc)) from None
     payload = {
         "model": config["model"],
         "messages": messages,
@@ -73,7 +80,9 @@ def request_json(config, messages, schema):
             )
     except httpx.ConnectError:
         raise ProviderFailure("provider_connection_failed") from None
-    except (httpx.TimeoutException, httpx.TransportError):
+    except httpx.TimeoutException:
+        raise ProviderFailure("provider_timeout", unknown=True) from None
+    except httpx.TransportError:
         raise ProviderFailure("provider_acceptance_unknown", unknown=True) from None
     if response.status_code >= 500:
         raise ProviderFailure("provider_acceptance_unknown", unknown=True)

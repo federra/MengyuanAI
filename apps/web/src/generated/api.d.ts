@@ -300,6 +300,41 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/settings/model-credentials/{key}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Credential */
+        get: operations["get_credential_api_v1_settings_model_credentials__key__get"];
+        /** Put Credential */
+        put: operations["put_credential_api_v1_settings_model_credentials__key__put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/settings/model-credentials/{key}/test": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Test Connection */
+        post: operations["test_connection_api_v1_settings_model_credentials__key__test_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/projects/{pid}/idea": {
         parameters: {
             query?: never;
@@ -734,6 +769,21 @@ export interface components {
              */
             created_at: string;
         };
+        /** ConnectionResult */
+        ConnectionResult: {
+            /** State */
+            state: string;
+            /** Latency Ms */
+            latency_ms: number;
+            /** Usage */
+            usage: {
+                [key: string]: number;
+            };
+            /** Binding Revision */
+            binding_revision: number;
+            /** Credential Revision */
+            credential_revision: number;
+        };
         /** ContentOut */
         ContentOut: {
             /**
@@ -772,6 +822,39 @@ export interface components {
             messages: components["schemas"]["MessageOut"][];
             /** Proposals */
             proposals: components["schemas"]["ProposalOut"][];
+        };
+        /** CredentialSave */
+        CredentialSave: {
+            /** Base Version */
+            base_version: number;
+            /** Binding Revision */
+            binding_revision: number;
+            /**
+             * Secret
+             * Format: password
+             */
+            secret: string;
+        };
+        /** CredentialStatus */
+        CredentialStatus: {
+            /** Configured */
+            configured: boolean;
+            /**
+             * Source
+             * @enum {string}
+             */
+            source: "stored" | "environment" | "none" | "endpoint_mismatch";
+            /** Revision */
+            revision: number;
+            /** Binding Revision */
+            binding_revision: number;
+        };
+        /** CredentialVersion */
+        CredentialVersion: {
+            /** Base Version */
+            base_version: number;
+            /** Binding Revision */
+            binding_revision: number;
         };
         /** Dialogue */
         Dialogue: {
@@ -2229,6 +2312,107 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["PreviewOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_credential_api_v1_settings_model_credentials__key__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                key: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CredentialStatus"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    put_credential_api_v1_settings_model_credentials__key__put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                key: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CredentialSave"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CredentialStatus"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    test_connection_api_v1_settings_model_credentials__key__test_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                key: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CredentialVersion"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ConnectionResult"];
                 };
             };
             /** @description Validation Error */

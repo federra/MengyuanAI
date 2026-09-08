@@ -1,3 +1,4 @@
+import { ModelCredentials } from "./ModelCredentials";
 import { useEffect, useState } from "react";
 import { api, unwrap, type Project } from "./api";
 import type { components } from "./generated/api";
@@ -804,6 +805,16 @@ function ModelSettings() {
               >
                 读取最新配置基准
               </button>
+              <ModelCredentials
+                key={node}
+                node={node}
+                revision={draft.revision}
+                value={
+                  draft.inherit
+                    ? null
+                    : { ...draft.value, capability: category }
+                }
+              />
             </fieldset>
           )}
           {error && <p role="alert">{error}</p>}

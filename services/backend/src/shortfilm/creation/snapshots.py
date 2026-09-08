@@ -1,12 +1,13 @@
 """Freeze effective configuration at submission; no secret is persisted."""
 
 import json
-import os
 from urllib.parse import urlsplit
 
 from fastapi import HTTPException
 
 from shortfilm.config import settings
+from shortfilm.configuration.credentials import CredentialError
+from shortfilm.configuration.credentials import resolve as resolve_credential
 from shortfilm.configuration.service import render_template, resolve
 from shortfilm.creation.kinds import KEYS
 
@@ -27,8 +28,10 @@ def configuration(db, project, kind, context, render=True):
     model = resolved["model"]["value"]
     if not model or model.get("capability") != "text" or not model.get("model"):
         raise HTTPException(422, "请先配置文本模型")
-    if not os.environ.get(model.get("credential_ref", "")):
-        raise HTTPException(422, "文本模型凭据尚未配置")
+    try:
+        resolve_credential(model.get("credential_ref", ""), model["endpoint"])
+    except CredentialError:
+        raise HTTPException(422, "文本模型凭据未配置、地址不匹配或安全存储不可用") from None
     model = {
         **model,
         "endpoint": model["endpoint"].rstrip("/"),

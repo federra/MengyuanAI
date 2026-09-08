@@ -13,6 +13,7 @@ dependencies = [
     "python-multipart>=0.0.20,<1",
     "pillow>=11,<13",
     "httpx>=0.28,<1",
+    "cryptography>=46,<48",
 ]
 [dependency-groups]
 dev = ["pytest>=8,<10", "httpx>=0.28,<1", "ruff>=0.11,<1"]

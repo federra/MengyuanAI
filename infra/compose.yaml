@@ -7,8 +7,10 @@ x-backend: &backend
     SHORTFILM_DATABASE_URL: postgresql+psycopg://shortfilm@postgres:5432/shortfilm
     SHORTFILM_REDIS_URL: redis://redis:6379/0
     SHORTFILM_STORAGE_ROOT: /data/media
+    SHORTFILM_CREDENTIAL_ROOT: /data/credentials/vault
   volumes:
     - media:/data/media
+    - credentials:/data/credentials
   restart: unless-stopped
 services:
   postgres:
@@ -91,3 +93,4 @@ volumes:
   postgres:
   redis:
   media:
+  credentials:

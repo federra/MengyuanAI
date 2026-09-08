@@ -1099,3 +1099,161 @@ for (const stage of ["script", "board"] as const) {
     expect(saved[1].revision).toBe(3);
   });
 }
+
+test("model credentials stay out of drafts and test only the saved route", async ({
+  page,
+}) => {
+  let binding = {
+    revision: 1,
+    value: {
+      provider: "deepseek",
+      model: "fixture",
+      endpoint: "https://api.deepseek.com",
+      credential_ref: "DUMMY_UI_KEY",
+      capability: "text",
+      timeout_seconds: 10,
+    },
+  };
+  let credential = {
+    configured: false,
+    source: "none",
+    revision: 0,
+    binding_revision: 1,
+  };
+  const writes: any[] = [],
+    tests: any[] = [];
+  await page.route("**/bindings/**", async (route) => {
+    if (route.request().method() === "PUT")
+      binding = {
+        revision: binding.revision + 1,
+        value: route.request().postDataJSON().value,
+      };
+    await route.fulfill({ json: binding });
+  });
+  await page.route("**/model-credentials/**", async (route) => {
+    if (route.request().url().endsWith("/test")) {
+      tests.push(route.request().postDataJSON());
+      await route.fulfill({
+        json: {
+          state: "ok",
+          latency_ms: 12,
+          usage: { total_tokens: 8 },
+          binding_revision: binding.revision,
+          credential_revision: credential.revision,
+        },
+      });
+      return;
+    }
+    if (route.request().method() === "PUT") {
+      writes.push(route.request().postDataJSON());
+      credential = {
+        configured: true,
+        source: "stored",
+        revision: 1,
+        binding_revision: binding.revision,
+      };
+    }
+    await route.fulfill({
+      json: { ...credential, binding_revision: binding.revision },
+    });
+  });
+  await page.getByRole("button", { name: "系统设置", exact: true }).click();
+  const password = page.getByLabel("API 密钥", { exact: true });
+  await expect(password).toHaveAttribute("type", "password");
+  await password.fill("dummy-ui-secret");
+  expect(await page.evaluate(() => JSON.stringify(localStorage))).not.toContain(
+    "dummy-ui-secret",
+  );
+  await page
+    .getByRole("button", { name: "保存 API 密钥", exact: true })
+    .click();
+  await expect(password).toHaveValue("");
+  expect(writes[0]).toEqual({
+    secret: "dummy-ui-secret",
+    base_version: 0,
+    binding_revision: 1,
+  });
+  await page
+    .getByRole("button", { name: "测试已保存的连接", exact: true })
+    .click();
+  await expect(page.getByText(/连接成功/)).toBeVisible();
+  expect(tests[0]).toEqual({ base_version: 1, binding_revision: 1 });
+  await page
+    .getByLabel("服务地址", { exact: true })
+    .fill("https://other.example");
+  await expect(
+    page.getByRole("button", { name: "测试已保存的连接", exact: true }),
+  ).toBeDisabled();
+  await expect(page.getByText(/连接成功/)).toHaveCount(0);
+  await expect(
+    page.getByRole("button", { name: "保存 API 密钥", exact: true }),
+  ).toBeDisabled();
+  expect(await page.evaluate(() => JSON.stringify(localStorage))).not.toContain(
+    "dummy-ui-secret",
+  );
+});
+
+test("late connection response is discarded after model route changes", async ({
+  page,
+}) => {
+  let binding = {
+    revision: 1,
+    value: {
+      provider: "deepseek",
+      model: "fixture",
+      endpoint: "https://api.deepseek.com",
+      credential_ref: "DUMMY_LATE_KEY",
+      capability: "text",
+      timeout_seconds: 10,
+    },
+  };
+  let finish: (() => void) | undefined;
+  await page.route("**/bindings/**", async (route) => {
+    if (route.request().method() === "PUT")
+      binding = {
+        revision: binding.revision + 1,
+        value: route.request().postDataJSON().value,
+      };
+    await route.fulfill({ json: binding });
+  });
+  await page.route("**/model-credentials/**", async (route) => {
+    if (route.request().url().endsWith("/test")) {
+      await new Promise<void>((resolve) => {
+        finish = resolve;
+      });
+      await route.fulfill({
+        json: {
+          state: "ok",
+          latency_ms: 12,
+          usage: {},
+          binding_revision: 1,
+          credential_revision: 1,
+        },
+      });
+    } else
+      await route.fulfill({
+        json: {
+          configured: true,
+          source: "stored",
+          revision: 1,
+          binding_revision: binding.revision,
+        },
+      });
+  });
+  await page.getByRole("button", { name: "系统设置", exact: true }).click();
+  await page
+    .getByRole("button", { name: "测试已保存的连接", exact: true })
+    .click();
+  await expect.poll(() => !!finish).toBe(true);
+  await page.getByLabel("模型名称", { exact: true }).fill("new-model");
+  await page.getByRole("button", { name: "保存模型配置", exact: true }).click();
+  await expect.poll(() => binding.revision).toBe(2);
+  await expect(
+    page.getByText("模型有未保存修改或版本已变化，请先保存模型配置。"),
+  ).toHaveCount(0);
+  finish!();
+  await expect(
+    page.getByRole("button", { name: "测试已保存的连接", exact: true }),
+  ).toBeEnabled();
+  await expect(page.getByText(/连接成功/)).toHaveCount(0);
+});

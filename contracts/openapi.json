@@ -1202,6 +1202,150 @@
         }
       }
     },
+    "/api/v1/settings/model-credentials/{key}": {
+      "get": {
+        "tags": [
+          "settings"
+        ],
+        "summary": "Get Credential",
+        "operationId": "get_credential_api_v1_settings_model_credentials__key__get",
+        "parameters": [
+          {
+            "name": "key",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Key"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CredentialStatus"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "settings"
+        ],
+        "summary": "Put Credential",
+        "operationId": "put_credential_api_v1_settings_model_credentials__key__put",
+        "parameters": [
+          {
+            "name": "key",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Key"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CredentialSave"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CredentialStatus"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/settings/model-credentials/{key}/test": {
+      "post": {
+        "tags": [
+          "settings"
+        ],
+        "summary": "Test Connection",
+        "operationId": "test_connection_api_v1_settings_model_credentials__key__test_post",
+        "parameters": [
+          {
+            "name": "key",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Key"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CredentialVersion"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ConnectionResult"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/projects/{pid}/idea": {
       "get": {
         "tags": [
@@ -2640,6 +2784,43 @@
         ],
         "title": "ConfirmationOut"
       },
+      "ConnectionResult": {
+        "properties": {
+          "state": {
+            "type": "string",
+            "title": "State"
+          },
+          "latency_ms": {
+            "type": "integer",
+            "title": "Latency Ms"
+          },
+          "usage": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "type": "object",
+            "title": "Usage"
+          },
+          "binding_revision": {
+            "type": "integer",
+            "title": "Binding Revision"
+          },
+          "credential_revision": {
+            "type": "integer",
+            "title": "Credential Revision"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "state",
+          "latency_ms",
+          "usage",
+          "binding_revision",
+          "credential_revision"
+        ],
+        "title": "ConnectionResult"
+      },
       "ContentOut": {
         "properties": {
           "id": {
@@ -2744,6 +2925,92 @@
           "proposals"
         ],
         "title": "ConversationOut"
+      },
+      "CredentialSave": {
+        "properties": {
+          "base_version": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Base Version"
+          },
+          "binding_revision": {
+            "type": "integer",
+            "minimum": 1.0,
+            "title": "Binding Revision"
+          },
+          "secret": {
+            "type": "string",
+            "maxLength": 4096,
+            "minLength": 1,
+            "format": "password",
+            "title": "Secret",
+            "writeOnly": true
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "base_version",
+          "binding_revision",
+          "secret"
+        ],
+        "title": "CredentialSave"
+      },
+      "CredentialStatus": {
+        "properties": {
+          "configured": {
+            "type": "boolean",
+            "title": "Configured"
+          },
+          "source": {
+            "type": "string",
+            "enum": [
+              "stored",
+              "environment",
+              "none",
+              "endpoint_mismatch"
+            ],
+            "title": "Source"
+          },
+          "revision": {
+            "type": "integer",
+            "title": "Revision"
+          },
+          "binding_revision": {
+            "type": "integer",
+            "title": "Binding Revision"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "configured",
+          "source",
+          "revision",
+          "binding_revision"
+        ],
+        "title": "CredentialStatus"
+      },
+      "CredentialVersion": {
+        "properties": {
+          "base_version": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Base Version"
+          },
+          "binding_revision": {
+            "type": "integer",
+            "minimum": 1.0,
+            "title": "Binding Revision"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "base_version",
+          "binding_revision"
+        ],
+        "title": "CredentialVersion"
       },
       "Dialogue": {
         "properties": {
