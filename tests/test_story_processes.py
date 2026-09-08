@@ -24,6 +24,15 @@ def test_text_worker_unknown_requires_explicit_retry(tmp_path, monkeypatch):
     monkeypatch.setenv("STORY_PROCESS_KEY", "test-only-value")
     monkeypatch.setattr(settings, "text_credential_ref", "STORY_PROCESS_KEY")
     client = TestClient(app)
+    binding_url = "/api/v1/settings/bindings/system/model:category:text"
+    saved_binding = client.get(binding_url).json()
+    value = {**saved_binding["value"], "credential_ref": "STORY_PROCESS_KEY"}
+    assert (
+        client.put(
+            binding_url, json={"base_version": saved_binding["revision"], "value": value}
+        ).status_code
+        == 200
+    )
     pid = client.post("/api/v1/projects", json={"name": "文本进程恢复验收"}).json()["id"]
     base = f"/api/v1/projects/{pid}"
     idea = client.put(

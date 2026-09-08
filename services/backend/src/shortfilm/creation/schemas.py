@@ -70,6 +70,7 @@ class ContentOut(DTO):
     batch_id: UUID | None
     source_version_id: UUID | None
     stale: bool = False
+    previous_version_id: UUID | None = None
 
 
 class VersionOut(DTO):

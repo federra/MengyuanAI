@@ -5,7 +5,7 @@ import json
 from uuid import uuid4
 
 from fastapi import HTTPException
-from sqlalchemy import select
+from sqlalchemy import func, select
 
 from shortfilm.config import settings
 from shortfilm.jobs.service import now
@@ -40,11 +40,11 @@ def selection(db, pid):
 
 def content_out(db, item):
     v = current_version(db, item)
-    stale = False
-    if item.kind == "story" and item.batch_id:
-        snapshot = db.get(Job, item.batch_id).snapshot
-        source = db.get(ContentVersion, snapshot["idea_version_id"])
-        stale = db.get(ContentItem, source.item_id).revision != source.revision
+    from shortfilm.creation.stage_service import is_stale, upstream
+
+    stale = is_stale(db, v)
+    parent = upstream(db, v)
+    immediate = db.get(ContentVersion, v.source_version_id) if v.source_version_id else None
     return dict(
         id=item.id,
         kind=item.kind,
@@ -52,13 +52,19 @@ def content_out(db, item):
         version_id=v.id,
         body=v.body,
         batch_id=item.batch_id,
-        source_version_id=v.source_version_id,
+        source_version_id=parent.id if parent else None,
+        previous_version_id=immediate.id if immediate and immediate.item_id == item.id else None,
         stale=stale,
     )
 
 
 def append_version(db, project, item, body, origin, source=None, job_id=None):
-    item.revision += 1
+    item.revision = (
+        db.scalar(
+            select(func.max(ContentVersion.revision)).where(ContentVersion.item_id == item.id)
+        )
+        or 0
+    ) + 1
     v = ContentVersion(
         id=uuid4(),
         item_id=item.id,

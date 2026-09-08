@@ -8,10 +8,12 @@ from sqlalchemy import select
 
 from shortfilm.config import settings
 from shortfilm.creation import provider
-from shortfilm.creation.schemas import BatchOutput, RevisionOutput
+from shortfilm.creation.schemas import BatchOutput
+from shortfilm.creation.stage_execution import save_stage_output, schema_for, validate_output
+from shortfilm.creation.stage_service import enqueue_review
 from shortfilm.db import Session
 from shortfilm.jobs.service import finish_job, heartbeat
-from shortfilm.models import ContentItem, ContentVersion, JobAttempt, Message, Project, Proposal
+from shortfilm.models import ContentItem, ContentVersion, JobAttempt, Project
 
 
 def execute_text(job_id, token, snapshot):
@@ -31,10 +33,23 @@ def execute_text(job_id, token, snapshot):
     thread = threading.Thread(target=pulse, daemon=True)
     thread.start()
     try:
-        schema = BatchOutput if snapshot["kind"] == "story.generate" else RevisionOutput
+        schema = schema_for(snapshot["kind"])
         context = {
             k: snapshot[k]
-            for k in ("input", "market", "instruction", "style", "history", "text")
+            for k in (
+                "input",
+                "market",
+                "instruction",
+                "style",
+                "history",
+                "text",
+                "source",
+                "source_version_id",
+                "base_version_id",
+                "base_revision",
+                "report",
+                "specification",
+            )
             if k in snapshot
         }
         messages = [
@@ -64,11 +79,16 @@ def execute_text(job_id, token, snapshot):
                     },
                 ]
             try:
-                output = schema.model_validate(raw).model_dump()
+                with Session() as db:
+                    output = validate_output(db, snapshot, raw)
                 finish_job(job_id, token, output)
                 return
-            except ValidationError as e:
-                errors = [{"path": list(err["loc"]), "type": err["type"]} for err in e.errors()]
+            except (ValidationError, ValueError) as e:
+                errors = (
+                    [{"path": list(err["loc"]), "type": err["type"]} for err in e.errors()]
+                    if isinstance(e, ValidationError)
+                    else [{"semantic": str(e)}]
+                )
                 # Preserve invalid data as quoted assistant content, never instructions.
                 messages += [
                     {"role": "assistant", "content": json.dumps(raw, ensure_ascii=False)},
@@ -90,7 +110,7 @@ def execute_text(job_id, token, snapshot):
 
 def save_output(db, job, output):
     # Called inside finish_job transaction: content and succeeded commit together.
-    db.scalar(select(Project).where(Project.id == job.project_id).with_for_update())
+    project = db.scalar(select(Project).where(Project.id == job.project_id).with_for_update())
     if job.kind == "story.generate":
         validated = BatchOutput.model_validate(output)
         for story in validated.stories:
@@ -99,27 +119,24 @@ def save_output(db, job, output):
             )
             db.add(item)
             db.flush()
-            db.add(
-                ContentVersion(
-                    item_id=item.id,
-                    revision=1,
-                    body=story.model_dump(),
-                    source_version_id=UUID(job.snapshot["idea_version_id"]),
-                    job_id=job.id,
-                    origin="generation",
-                )
+            version = ContentVersion(
+                item_id=item.id,
+                revision=1,
+                body=story.model_dump(),
+                source_version_id=UUID(job.snapshot["idea_version_id"]),
+                job_id=job.id,
+                origin="generation",
+            )
+            db.add(version)
+            db.flush()
+            enqueue_review(
+                db,
+                project,
+                item,
+                version,
+                job.snapshot.get(
+                    "review_configuration", {"configuration_error": "历史任务未冻结质检配置"}
+                ),
             )
     else:
-        validated = RevisionOutput.model_validate(output)
-        item_id = UUID(job.snapshot["item_id"])
-        db.add(
-            Proposal(
-                item_id=item_id,
-                job_id=job.id,
-                base_version_id=UUID(job.snapshot["base_version_id"]),
-                output=validated.model_dump(),
-            )
-        )
-        db.add(
-            Message(item_id=item_id, job_id=job.id, role="assistant", text=validated.changeSummary)
-        )
+        save_stage_output(db, project, job, output)

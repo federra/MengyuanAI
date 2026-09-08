@@ -43,7 +43,7 @@ def test_idea_versions_conflict_and_owner_isolation(client):
 
 
 @pytest.fixture
-def model(monkeypatch):
+def model(monkeypatch, client):
     from shortfilm.config import settings
     from shortfilm.creation import provider
 
@@ -82,7 +82,26 @@ def model(monkeypatch):
         }, {"provider_request_id": "fixture-revision", "usage": {}}
 
     monkeypatch.setattr(provider, "request_json", response)
-    return provider
+    binding_url = "/api/v1/settings/bindings/system/model:category:text"
+    old = client.get(binding_url).json()
+    saved = client.put(
+        binding_url,
+        json={
+            "base_version": old["revision"],
+            "value": {
+                "provider": "openai-compatible",
+                "endpoint": "https://model.example/v1",
+                "model": "test-model",
+                "capability": "text",
+                "credential_ref": "STORY_TEST_KEY",
+                "timeout_seconds": 120,
+            },
+        },
+    )
+    assert saved.status_code == 200, saved.text
+    yield provider
+    current = client.get(binding_url).json()
+    client.put(binding_url, json={"base_version": current["revision"], "value": old["value"]})
 
 
 def generate(client, pid):

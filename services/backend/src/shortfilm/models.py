@@ -122,6 +122,8 @@ class ContentItem(Identity, Base):
     revision: Mapped[int] = mapped_column(default=0)
     __table_args__ = (
         Index("uq_project_idea", "project_id", unique=True, postgresql_where=(kind == "idea")),
+        Index("uq_project_script", "project_id", unique=True, postgresql_where=(kind == "script")),
+        Index("uq_project_board", "project_id", unique=True, postgresql_where=(kind == "board")),
     )
 
 
@@ -160,3 +162,33 @@ class Proposal(Identity, Base):
     base_version_id: Mapped[UUID] = mapped_column(ForeignKey("content_versions.id"))
     output: Mapped[dict] = mapped_column(JSONB)
     applied_version_id: Mapped[UUID | None] = mapped_column(ForeignKey("content_versions.id"))
+
+
+class ContentReview(Identity, Base):
+    __tablename__ = "content_reviews"
+    item_id: Mapped[UUID] = mapped_column(ForeignKey("content_items.id"), index=True)
+    version_id: Mapped[UUID] = mapped_column(ForeignKey("content_versions.id"))
+    source_version_id: Mapped[UUID | None] = mapped_column(ForeignKey("content_versions.id"))
+    job_id: Mapped[UUID | None] = mapped_column(ForeignKey("generation_jobs.id"), unique=True)
+    output: Mapped[dict | None] = mapped_column(JSONB)
+    error: Mapped[str | None] = mapped_column(String(200))
+
+
+class ContentConfirmation(Identity, Base):
+    __tablename__ = "content_confirmations"
+    item_id: Mapped[UUID] = mapped_column(ForeignKey("content_items.id"), index=True)
+    version_id: Mapped[UUID] = mapped_column(ForeignKey("content_versions.id"))
+    source_version_id: Mapped[UUID | None] = mapped_column(ForeignKey("content_versions.id"))
+    decision: Mapped[str] = mapped_column(String(30))
+    report_id: Mapped[UUID | None] = mapped_column(ForeignKey("content_reviews.id"))
+    report_state: Mapped[str] = mapped_column(String(30))
+
+
+class ContentIdentity(Base):
+    """Global reservation stops shot/line IDs being borrowed from another project."""
+
+    __tablename__ = "content_identities"
+    id: Mapped[UUID] = mapped_column(primary_key=True)
+    item_id: Mapped[UUID] = mapped_column(ForeignKey("content_items.id"))
+    parent_id: Mapped[UUID | None]
+    kind: Mapped[str] = mapped_column(String(10))

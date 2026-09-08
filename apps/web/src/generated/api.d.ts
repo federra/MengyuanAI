@@ -471,6 +471,109 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/projects/{pid}/stages/{stage}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Stage */
+        get: operations["get_stage_api_v1_projects__pid__stages__stage__get"];
+        /** Save Stage */
+        put: operations["save_stage_api_v1_projects__pid__stages__stage__put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/projects/{pid}/stages/{stage}/generate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Generate Stage */
+        post: operations["generate_stage_api_v1_projects__pid__stages__stage__generate_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/projects/{pid}/contents/{iid}/reports": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Reports */
+        get: operations["list_reports_api_v1_projects__pid__contents__iid__reports_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/projects/{pid}/contents/{iid}/confirm": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Confirm Content */
+        post: operations["confirm_content_api_v1_projects__pid__contents__iid__confirm_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/projects/{pid}/contents/{iid}/review": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Review Content */
+        post: operations["review_content_api_v1_projects__pid__contents__iid__review_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/projects/{pid}/contents/{iid}/repair": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Repair Content */
+        post: operations["repair_content_api_v1_projects__pid__contents__iid__repair_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/health/live": {
         parameters: {
             query?: never;
@@ -551,6 +654,21 @@ export interface components {
                 [key: string]: unknown;
             } | null;
         };
+        /** BoardBody */
+        BoardBody: {
+            /**
+             * Schemaversion
+             * @constant
+             */
+            schemaVersion: 2;
+            /**
+             * Scriptid
+             * Format: uuid
+             */
+            scriptId: string;
+            /** Shots */
+            shots: components["schemas"]["Shot"][];
+        };
         /** Body_import_resource_api_v1_settings_resources_import_post */
         Body_import_resource_api_v1_settings_resources_import_post: {
             /** Name */
@@ -564,6 +682,40 @@ export interface components {
         Body_upload_api_v1_projects__pid__files_post: {
             /** File */
             file: string;
+        };
+        /** ConfirmCreate */
+        ConfirmCreate: {
+            /**
+             * Version Id
+             * Format: uuid
+             */
+            version_id: string;
+        };
+        /** ConfirmationOut */
+        ConfirmationOut: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /**
+             * Version Id
+             * Format: uuid
+             */
+            version_id: string;
+            /** Source Version Id */
+            source_version_id: string | null;
+            /** Decision */
+            decision: string;
+            /** Report Id */
+            report_id: string | null;
+            /** Report State */
+            report_state: string;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
         };
         /** ContentOut */
         ContentOut: {
@@ -594,6 +746,8 @@ export interface components {
              * @default false
              */
             stale: boolean;
+            /** Previous Version Id */
+            previous_version_id?: string | null;
         };
         /** ConversationOut */
         ConversationOut: {
@@ -601,6 +755,31 @@ export interface components {
             messages: components["schemas"]["MessageOut"][];
             /** Proposals */
             proposals: components["schemas"]["ProposalOut"][];
+        };
+        /** Dialogue */
+        Dialogue: {
+            /** Id */
+            id: string;
+            /**
+             * Speaker
+             * @default
+             */
+            speaker: string;
+            /**
+             * Emotion
+             * @default
+             */
+            emotion: string;
+            /**
+             * Text
+             * @default
+             */
+            text: string;
+            /**
+             * Voice
+             * @default
+             */
+            voice: string;
         };
         /** FileOut */
         FileOut: {
@@ -851,6 +1030,67 @@ export interface components {
              */
             created_at: string;
         };
+        /** References */
+        References: {
+            /** Characters */
+            characters?: string[];
+            /** Scenes */
+            scenes?: string[];
+            /** Props */
+            props?: string[];
+            /** Positions */
+            positions?: string[];
+        };
+        /** RepairCreate */
+        RepairCreate: {
+            /**
+             * Base Version Id
+             * Format: uuid
+             */
+            base_version_id: string;
+            /**
+             * Report Id
+             * Format: uuid
+             */
+            report_id: string;
+            /**
+             * Text
+             * @default
+             */
+            text: string;
+        };
+        /** ReportOut */
+        ReportOut: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /**
+             * Version Id
+             * Format: uuid
+             */
+            version_id: string;
+            /** Source Version Id */
+            source_version_id: string | null;
+            /** Job Id */
+            job_id: string | null;
+            /** State */
+            state: string;
+            /** Output */
+            output: {
+                [key: string]: unknown;
+            } | null;
+            /** Error */
+            error: string | null;
+            /** Stale */
+            stale: boolean;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+        };
         /** ResolvedConfiguration */
         ResolvedConfiguration: {
             /** Schema Version */
@@ -962,6 +1202,46 @@ export interface components {
              */
             confirm_unknown: boolean;
         };
+        /** ReviewCreate */
+        ReviewCreate: {
+            /**
+             * Base Version Id
+             * Format: uuid
+             */
+            base_version_id: string;
+        };
+        /** Scene */
+        Scene: {
+            /** Id */
+            id: string;
+            /** Heading */
+            heading: string;
+            /** Actions */
+            actions?: string[];
+            /** Dialogues */
+            dialogues?: components["schemas"]["ScriptDialogue"][];
+        };
+        /** ScriptBody */
+        ScriptBody: {
+            /** Text */
+            text: string;
+            /** Scenes */
+            scenes: components["schemas"]["Scene"][];
+            /** Estimatedseconds */
+            estimatedSeconds: number;
+        };
+        /** ScriptDialogue */
+        ScriptDialogue: {
+            /** Speaker */
+            speaker: string;
+            /**
+             * Emotion
+             * @default
+             */
+            emotion: string;
+            /** Text */
+            text: string;
+        };
         /** SelectStory */
         SelectStory: {
             /**
@@ -1017,6 +1297,20 @@ export interface components {
              */
             text_configured: boolean;
         };
+        /** Shot */
+        Shot: {
+            /** Id */
+            id: string;
+            /** Dialogue */
+            dialogue: string;
+            /** Dialogues */
+            dialogues: components["schemas"]["Dialogue"][];
+            /** Prompt */
+            prompt: string;
+            refs: components["schemas"]["References"];
+            /** Duration */
+            duration: number;
+        };
         /** SpecificationUpdate */
         SpecificationUpdate: {
             /**
@@ -1036,6 +1330,40 @@ export interface components {
             style_resource_id?: string | null;
             /** Base Version */
             base_version: number;
+        };
+        /** StageGenerate */
+        StageGenerate: {
+            /**
+             * Source Version Id
+             * Format: uuid
+             */
+            source_version_id: string;
+            /** Target Revision */
+            target_revision: number;
+            /**
+             * Instruction
+             * @default
+             */
+            instruction: string;
+        };
+        /** StageOut */
+        StageOut: {
+            item: components["schemas"]["ContentOut"] | null;
+            confirmation: components["schemas"]["ConfirmationOut"] | null;
+            /** Reports */
+            reports: components["schemas"]["ReportOut"][];
+        };
+        /** StageSave */
+        StageSave: {
+            /** Revision */
+            revision: number;
+            /**
+             * Source Version Id
+             * Format: uuid
+             */
+            source_version_id: string;
+            /** Body */
+            body: components["schemas"]["ScriptBody"] | components["schemas"]["BoardBody"];
         };
         /** StoriesOut */
         StoriesOut: {
@@ -2253,6 +2581,256 @@ export interface operations {
         requestBody: {
             content: {
                 "application/json": components["schemas"]["RetryJob"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["JobOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_stage_api_v1_projects__pid__stages__stage__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                pid: string;
+                stage: "script" | "board";
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StageOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    save_stage_api_v1_projects__pid__stages__stage__put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                pid: string;
+                stage: "script" | "board";
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["StageSave"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ContentOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    generate_stage_api_v1_projects__pid__stages__stage__generate_post: {
+        parameters: {
+            query?: never;
+            header: {
+                "idempotency-key": string;
+            };
+            path: {
+                pid: string;
+                stage: "script" | "board";
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["StageGenerate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["JobOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_reports_api_v1_projects__pid__contents__iid__reports_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                pid: string;
+                iid: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReportOut"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    confirm_content_api_v1_projects__pid__contents__iid__confirm_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                pid: string;
+                iid: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ConfirmCreate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ConfirmationOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    review_content_api_v1_projects__pid__contents__iid__review_post: {
+        parameters: {
+            query?: never;
+            header: {
+                "idempotency-key": string;
+            };
+            path: {
+                pid: string;
+                iid: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ReviewCreate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["JobOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    repair_content_api_v1_projects__pid__contents__iid__repair_post: {
+        parameters: {
+            query?: never;
+            header: {
+                "idempotency-key": string;
+            };
+            path: {
+                pid: string;
+                iid: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RepairCreate"];
             };
         };
         responses: {

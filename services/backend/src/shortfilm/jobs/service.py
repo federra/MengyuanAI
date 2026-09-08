@@ -11,6 +11,7 @@ from uuid import UUID, uuid4
 from sqlalchemy import select, update
 
 from shortfilm.config import settings
+from shortfilm.creation.kinds import is_text
 from shortfilm.db import Session
 from shortfilm.media.storage import LocalStorage
 from shortfilm.models import Job, JobAttempt, JobEvent, JobResult, MediaFile, Outbox
@@ -63,7 +64,7 @@ def finish_job(job_id, token, output=None, error=None, unknown=False):
         attempt = db.scalar(select(JobAttempt).where(JobAttempt.token == token))
         attempt.state, attempt.finished_at = j.state, now()
         if not error:
-            if j.kind.startswith("story."):
+            if is_text(j.kind):
                 from shortfilm.creation.execution import save_output
 
                 save_output(db, j, output)
@@ -79,7 +80,7 @@ def execute_job(job_id):
     try:
         with Session() as db:
             j = db.get(Job, as_uuid(job_id))
-            if j.kind.startswith("story."):
+            if is_text(j.kind):
                 snapshot = j.snapshot
             else:
                 snapshot = None

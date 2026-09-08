@@ -3,6 +3,7 @@ import time
 
 from sqlalchemy import select, update
 
+from shortfilm.creation.kinds import is_text
 from shortfilm.db import Session
 from shortfilm.jobs.service import now, recover_jobs
 from shortfilm.jobs.worker import celery
@@ -28,7 +29,7 @@ def dispatch_once():
         celery.send_task(
             "shortfilm.execute",
             args=[str(jid)],
-            queue="ai" if kind.startswith("story.") else "media",
+            queue="ai" if is_text(kind) else "media",
             retry=False,
         )
         with Session.begin() as db:

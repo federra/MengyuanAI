@@ -4,7 +4,6 @@ from fastapi import APIRouter, Depends, Header, HTTPException, Query
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
-from shortfilm.creation import provider
 from shortfilm.creation.schemas import (
     BatchCreate,
     ContentOut,
@@ -25,13 +24,21 @@ from shortfilm.creation.service import (
     owned_item,
     selection,
 )
+from shortfilm.creation.snapshots import automatic_configuration, configuration
+from shortfilm.creation.stage_service import (
+    canonical_script,
+    enqueue_review,
+    is_stale,
+    upstream,
+    validate_board,
+)
+from shortfilm.creation.stages import content_command
 from shortfilm.db import session
 from shortfilm.jobs.service import now
 from shortfilm.models import (
     ContentItem,
     ContentVersion,
     Message,
-    PromptVersion,
     Proposal,
     StorySelection,
 )
@@ -129,34 +136,13 @@ def select_story(pid: UUID, iid: UUID, body: SelectStory, db: Session = Depends(
             project_id=pid, revision=body.selection_revision + 1, version_id=body.version_id
         )
     )
+    db.flush()
+    from shortfilm.creation.stage_service import confirm
+
+    confirm(db, p, item, body.version_id)
     p.stage, p.updated_at, p.revision = "story", now(), p.revision + 1
     db.commit()
     return list_stories(pid, 0, db)
-
-
-def config_or_error():
-    try:
-        return provider.model_snapshot()
-    except provider.ProviderFailure as e:
-        raise HTTPException(422, "请先配置服务端文本模型、API 地址和凭据引用：" + e.code) from None
-
-
-def prompt_snapshot(db, key):
-    prompt = db.scalar(
-        select(PromptVersion)
-        .where(PromptVersion.interaction_key == key)
-        .order_by(PromptVersion.revision.desc())
-        .limit(1)
-    )
-    if not prompt or prompt.revision < 2:
-        raise HTTPException(422, "请运行种子迁移以安装故事提示词 v2")
-    return {
-        "id": str(prompt.id),
-        "key": key,
-        "revision": prompt.revision,
-        "template": prompt.template,
-        "output_schema": prompt.specification["output_schema"],
-    }
 
 
 @router.post("/story-batches", response_model=JobOut, status_code=202)
@@ -180,9 +166,9 @@ def generate(
         **command,
         "input": version.body,
         "market": p.market,
-        "model": config_or_error(),
-        "prompt": prompt_snapshot(db, "novel"),
     }
+    snapshot.update(configuration(db, p, "story.generate", snapshot))
+    snapshot["review_configuration"] = automatic_configuration(db, p, "story", snapshot)
     job = enqueue(db, p, idempotency_key, command, "story.generate", snapshot)
     db.commit()
     return job
@@ -212,12 +198,17 @@ def send_message(
 ):
     p = owned_project(db, pid, lock=True)
     item = owned_item(db, pid, iid)
-    command = {"kind": "story.revise", "item_id": str(iid), **body.model_dump(mode="json")}
+    command = {"kind": item.kind + ".revise", "item_id": str(iid), **body.model_dump(mode="json")}
     existing = existing_job(db, pid, idempotency_key, command)
     if existing:
         return existing
     version = current_version(db, item)
-    if item.kind != "story" or version.id != body.base_version_id:
+    if (
+        version is None
+        or item.kind not in ("idea", "story", "script", "board")
+        or version.id != body.base_version_id
+        or is_stale(db, version)
+    ):
         raise HTTPException(409, "故事版本已变化，请读取最新内容")
     history = conversation(pid, iid, db)["messages"]
     history_data = [{"role": m.role, "content": m.text} for m in history]
@@ -229,10 +220,12 @@ def send_message(
         "input": version.body,
         "market": p.market,
         "history": history_data,
-        "model": config_or_error(),
-        "prompt": prompt_snapshot(db, "novelRevision"),
     }
-    job = enqueue(db, p, idempotency_key, command, "story.revise", snapshot)
+    snapshot.update(content_command(db, p, item, body.base_version_id, command["kind"], body.text))
+    snapshot.update(configuration(db, p, command["kind"], snapshot))
+    if item.kind != "idea":
+        snapshot["review_configuration"] = automatic_configuration(db, p, item.kind, snapshot)
+    job = enqueue(db, p, idempotency_key, command, command["kind"], snapshot)
     db.add(Message(item_id=iid, job_id=job.id, role="user", text=body.text))
     db.commit()
     return job
@@ -250,17 +243,45 @@ def apply_proposal(pid: UUID, proposal_id: UUID, db: Session = Depends(session))
         result = content_out(db, item)
         return result
     version = current_version(db, item)
-    if version.id != proposal.base_version_id:
+    if version.id != proposal.base_version_id or is_stale(db, version):
         raise HTTPException(409, "建议已过期，正文和草稿保留，请重新生成建议")
-    v = append_version(
-        db,
-        p,
-        item,
-        {**version.body, "text": proposal.output["text"]},
-        "proposal",
-        version.id,
-        proposal.job_id,
-    )
+    value = proposal.output.get("body", {**version.body, "text": proposal.output.get("text", "")})
+    try:
+        if item.kind == "script":
+            value = canonical_script(value)
+        elif item.kind == "board":
+            value = validate_board(
+                db, item, value, upstream(db, version).id, preserve=version.body, reserve=True
+            )
+    except ValueError as exc:
+        raise HTTPException(422, str(exc)) from None
+    v = append_version(db, p, item, value, "apply_suggestion", version.id, proposal.job_id)
+    from shortfilm.models import ContentConfirmation, Job
+
+    source = upstream(db, version)
+    job = db.get(Job, proposal.job_id)
+    if job.kind.endswith(".repair"):
+        report_id = UUID(job.snapshot["report_id"])
+        db.add(
+            ContentConfirmation(
+                item_id=item.id,
+                version_id=version.id,
+                source_version_id=source.id if source else None,
+                decision="apply_suggestion",
+                report_id=report_id,
+                report_state="succeeded",
+            )
+        )
+    if item.kind != "idea":
+        enqueue_review(
+            db,
+            p,
+            item,
+            v,
+            job.snapshot.get(
+                "review_configuration", {"configuration_error": "历史任务未冻结质检配置"}
+            ),
+        )
     proposal.applied_version_id = v.id
     db.commit()
     return content_out(db, item)
