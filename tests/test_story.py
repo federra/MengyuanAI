@@ -261,3 +261,22 @@ def test_concurrent_story_edit_only_one_version_wins(client, model):
     assert sorted(r.status_code for r in results) == [200, 409]
     history = client.get(base + f"/contents/{story['id']}/versions").json()
     assert [v["revision"] for v in history] == [2, 1]
+
+
+def test_immutable_version_lookup_is_project_and_owner_scoped(client, monkeypatch):
+    from shortfilm.config import settings
+
+    pid = new_project(client)
+    idea_url = f"/api/v1/projects/{pid}/idea"
+    first = client.put(idea_url, json={"revision": 0, "text": "生成时的原始内容"}).json()
+    client.put(idea_url, json={"revision": 1, "text": "后来更新的内容"})
+    lookup = f"/api/v1/projects/{pid}/versions/{first['version_id']}"
+    result = client.get(lookup)
+    assert result.status_code == 200
+    assert result.json()["body"]["text"] == "生成时的原始内容"
+    assert result.json()["revision"] == 1
+    other = new_project(client)
+    assert client.get(f"/api/v1/projects/{other}/versions/{first['version_id']}").status_code == 404
+    assert client.get(f"/api/v1/projects/{pid}/versions/{uuid4()}").status_code == 404
+    monkeypatch.setattr(settings, "local_owner_id", str(uuid4()))
+    assert client.get(lookup).status_code == 404

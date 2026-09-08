@@ -815,6 +815,11 @@ function ModelSettings() {
 }
 function PromptSettings({ pid }: { pid?: string }) {
   const [loaded, setLoaded] = useState(false);
+  const [resolvedResource, setResolvedResource] = useState<Resource | null>(
+    null,
+  );
+  const [pinnedRevision, setPinnedRevision] = useState<number | null>(null);
+  const [savedIdentity, setSavedIdentity] = useState("");
   const [scenario, setScenario] = useState("novel"),
     [scope, setScope] = useState("system"),
     [resources, setResources] = useState<Resource[]>([]),
@@ -827,8 +832,12 @@ function PromptSettings({ pid }: { pid?: string }) {
     [error, setError] = useState(""),
     [busy, setBusy] = useState(false),
     [notice, setNotice] = useState("");
-  const resource = resources.find((r) => r.id === rid);
-  const dirty = content !== saved;
+  const latestResource = resources.find((r) => r.id === rid);
+  const resource = resolvedResource || latestResource;
+  const dirty =
+    loaded &&
+    (content !== saved ||
+      JSON.stringify([rid, pinnedRevision]) !== savedIdentity);
   useEffect(() => {
     let live = true;
     setLoaded(false);
@@ -839,17 +848,28 @@ function PromptSettings({ pid }: { pid?: string }) {
       getBinding(scope, "scenario:" + scenario),
       getBinding("system", "scenario:" + scenario),
     ])
-      .then(([result, b, system]) => {
+      .then(async ([result, b, system]) => {
         if (!live) return;
         const list = unwrap(result);
         setResources(list);
         setBinding(b);
         const value = b.value || system.value;
         const id = String(value?.resource_id || "");
+        const pin = typeof value?.revision === "number" ? value.revision : null;
+        const resolved =
+          pin !== null && id
+            ? unwrap(
+                await api.GET("/api/v1/settings/resources/{rid}", {
+                  params: { path: { rid: id }, query: { revision: pin } },
+                }),
+              )
+            : list.find((r) => r.id === id) || null;
+        if (!live) return;
         setRid(id);
-        const text = String(
-          value?.content ?? list.find((r) => r.id === id)?.content ?? "",
-        );
+        setPinnedRevision(pin);
+        setResolvedResource(resolved);
+        setSavedIdentity(JSON.stringify([id, pin]));
+        const text = String(value?.content ?? resolved?.content ?? "");
         setContent(text);
         setSaved(text);
         setPreview("");
@@ -883,10 +903,12 @@ function PromptSettings({ pid }: { pid?: string }) {
       setBinding(
         await putBinding(scope, "scenario:" + scenario, binding.revision, {
           resource_id: rid,
+          ...(pinnedRevision !== null ? { revision: pinnedRevision } : {}),
           content,
         }),
       );
       setSaved(content);
+      setSavedIdentity(JSON.stringify([rid, pinnedRevision]));
       setNotice("场景绑定已保存；资源正文请在共享资源库编辑。");
     } catch (e) {
       setError(e instanceof Error ? e.message : "保存失败");
@@ -939,6 +961,8 @@ function PromptSettings({ pid }: { pid?: string }) {
               onChange={(e) => {
                 const r = resources.find((r) => r.id === e.target.value);
                 setRid(e.target.value);
+                setResolvedResource(r || null);
+                setPinnedRevision(null);
                 setContent(r?.content || "");
               }}
             >
@@ -950,6 +974,26 @@ function PromptSettings({ pid }: { pid?: string }) {
               ))}
             </select>
           </label>
+          <p>
+            {pinnedRevision !== null
+              ? `固定模板版本 v${pinnedRevision}`
+              : `跟随最新模板（当前 v${resource?.revision || "—"}）`}
+          </p>
+          {pinnedRevision !== null &&
+            latestResource &&
+            latestResource.revision > pinnedRevision && (
+              <button
+                onClick={() => {
+                  setResolvedResource(latestResource);
+                  setPinnedRevision(latestResource.revision);
+                  setContent(latestResource.content);
+                  setVariables({});
+                  setPreview("");
+                }}
+              >
+                升级为最新模板版本
+              </button>
+            )}
           <label className="field">
             场景提示词正文
             <textarea

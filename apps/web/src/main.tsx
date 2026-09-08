@@ -199,7 +199,7 @@ function App() {
           ))}
         </nav>
         <div className="local">
-          <i /> 本地工作空间<small>故事创作 · M1</small>
+          <i /> 本地工作空间<small>文本创作 · M1</small>
         </div>
       </aside>
       <div className="workspace">

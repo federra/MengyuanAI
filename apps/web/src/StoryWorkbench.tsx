@@ -30,6 +30,9 @@ export function StoryWorkbench({ pid }: { pid: string }) {
     storeDraft(`sf.${pid}.stage`, next);
     updateStage(next);
   }
+  const [ideaMode, setIdeaMode] = useState<"fixed" | "closed" | "floating">(
+    "fixed",
+  );
   const [idea, setIdea] = useState<Content | null>(null);
   const [text, setText] = useState("");
   const [revision, setRevision] = useState(0);
@@ -197,78 +200,80 @@ export function StoryWorkbench({ pid }: { pid: string }) {
         </div>
       )}
       {stage === "创意" && (
-        <section className="panel">
-          <h2>创意工作台</h2>
-          <label className="field">
-            一句话创意
-            <textarea
-              disabled={busy || !loaded}
-              aria-label="一句话创意"
-              rows={5}
-              value={text}
-              onChange={(e) => setText(e.target.value)}
-              maxLength={10000}
+        <div className={`editor-with-director ${ideaMode}`}>
+          <section className="panel">
+            <h2>创意工作台</h2>
+            <label className="field">
+              一句话创意
+              <textarea
+                disabled={busy || !loaded}
+                aria-label="一句话创意"
+                rows={5}
+                value={text}
+                onChange={(e) => setText(e.target.value)}
+                maxLength={10000}
+              />
+            </label>
+            <div className="actions">
+              <button
+                disabled={busy || !loaded || !text.trim()}
+                onClick={() =>
+                  void run(async () => {
+                    await saveIdea();
+                    setNotice("创意版本已保存");
+                  })
+                }
+              >
+                保存创意
+              </button>
+              <button
+                disabled={busy}
+                onClick={() =>
+                  void run(async () => {
+                    const saved = unwrap(
+                      await api.GET("/api/v1/projects/{pid}/idea", {
+                        params: { path: { pid } },
+                      }),
+                    );
+                    setIdea(saved);
+                    setRevision(saved?.revision || 0);
+                    if (!loaded) setText(String(saved?.body.text || ""));
+                    setLoaded(true);
+                    setNotice("已读取最新基准，输入草稿保留，请合并后保存。");
+                  })
+                }
+              >
+                读取最新基准
+              </button>
+            </div>
+            <GenerationControls
+              {...{
+                instruction,
+                setInstruction,
+                pid,
+              }}
             />
-          </label>
-          <div className="actions">
             <button
+              className="primary"
               disabled={busy || !loaded || !text.trim()}
-              onClick={() =>
-                void run(async () => {
-                  await saveIdea();
-                  setNotice("创意版本已保存");
-                })
-              }
+              onClick={() => void run(generate)}
             >
-              保存创意
+              AI生成3个故事方案
             </button>
-            <button
-              disabled={busy}
-              onClick={() =>
-                void run(async () => {
-                  const saved = unwrap(
-                    await api.GET("/api/v1/projects/{pid}/idea", {
-                      params: { path: { pid } },
-                    }),
-                  );
-                  setIdea(saved);
-                  setRevision(saved?.revision || 0);
-                  if (!loaded) setText(String(saved?.body.text || ""));
-                  setLoaded(true);
-                  setNotice("已读取最新基准，输入草稿保留，请合并后保存。");
-                })
-              }
-            >
-              读取最新基准
-            </button>
-          </div>
-          <GenerationControls
-            {...{
-              instruction,
-              setInstruction,
-              pid,
+          </section>
+          <IdeaDirector
+            mode={ideaMode}
+            setMode={setIdeaMode}
+            pid={pid}
+            item={idea}
+            disabled={busy || !idea || text !== String(idea.body.text)}
+            onAdopt={(i) => {
+              setIdea(i);
+              setText(String(i.body.text));
+              setRevision(i.revision);
             }}
           />
-          <button
-            className="primary"
-            disabled={busy || !loaded || !text.trim()}
-            onClick={() => void run(generate)}
-          >
-            AI生成3个故事方案
-          </button>
-        </section>
-      )}
-      {stage === "创意" && idea && (
-        <IdeaDirector
-          pid={pid}
-          item={idea}
-          disabled={busy || text !== String(idea.body.text)}
-          onAdopt={(i) => {
-            setIdea(i);
-            setText(String(i.body.text));
-            setRevision(i.revision);
-          }}
-        />
+        </div>
       )}
       {stage === "故事" && (
         <>
@@ -436,6 +441,17 @@ function StoryEditor({
   page: Page;
   refresh: () => Promise<void>;
 }) {
+  const [generationInstruction, setGenerationInstruction] = useState(
+    () => readDraft<string>(`sf.${pid}.generate.script.instruction`) || "",
+  );
+  useEffect(
+    () =>
+      storeDraft(
+        `sf.${pid}.generate.script.instruction`,
+        generationInstruction,
+      ),
+    [pid, generationInstruction],
+  );
   const draftKey = `sf.${pid}.${story.id}`;
   const saved = readDraft<{ body: StoryBody; revision: number }>(draftKey);
   const [body, setBody] = useState<StoryBody>(
@@ -622,12 +638,27 @@ function StoryEditor({
         </div>
         <div className="method-actions">
           <MethodSelector pid={pid} stage="script" />
+          <label className="field">
+            本次剧本生成要求
+            <textarea
+              aria-label="本次剧本生成要求"
+              rows={3}
+              disabled={busy}
+              value={generationInstruction}
+              onChange={(e) => setGenerationInstruction(e.target.value)}
+            />
+          </label>
           <button
             className="primary"
             disabled={busy || dirty || base !== story.revision}
             onClick={() =>
               void run(async () => {
-                await generateStage(pid, "script", story.version_id);
+                await generateStage(
+                  pid,
+                  "script",
+                  story.version_id,
+                  generationInstruction,
+                );
                 await refresh();
                 setStage("剧本");
               })

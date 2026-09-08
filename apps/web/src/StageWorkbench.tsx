@@ -8,7 +8,12 @@ type Body =
   components["schemas"]["ScriptBody"] | components["schemas"]["BoardBody"];
 type Stage = "script" | "board";
 const path = (pid: string, iid: string) => ({ pid, iid });
-export async function generateStage(pid: string, stage: Stage, source: string) {
+export async function generateStage(
+  pid: string,
+  stage: Stage,
+  source: string,
+  instruction = "",
+) {
   await awaitMethodSaves(pid, stage === "script" ? "script" : "storyboard");
   const current = unwrap(
     await api.GET("/api/v1/projects/{pid}/stages/{stage}", {
@@ -21,7 +26,7 @@ export async function generateStage(pid: string, stage: Stage, source: string) {
   ) || {
     source_version_id: source,
     target_revision: current.item?.revision || 0,
-    instruction: "",
+    instruction,
   };
   localStorage.setItem(pendingKey, JSON.stringify(body));
   const cmd = durableCommand(`${pid}:generate:${stage}`, body);
@@ -84,7 +89,14 @@ export function QualityPanel({
   const latest = reports[0];
   return (
     <section className="quality">
-      <h3>AI质检 · 建议供参考</h3>
+      <h3>
+        {item.kind === "script"
+          ? "剧本质检"
+          : item.kind === "board"
+            ? "分镜质检"
+            : "故事质检"}{" "}
+        · 建议供参考
+      </h3>
       {error && <p role="alert">{error}</p>}
       {notice && <p role="status">{notice}</p>}
       {!latest && <p className="muted">暂无质检报告，仍可保留当前版本继续。</p>}
@@ -227,6 +239,14 @@ export function StageWorkbench({
     [error, setError] = useState(""),
     [notice, setNotice] = useState("");
   const [confirmed, setConfirmed] = useState(false);
+  const [generationInstruction, setGenerationInstruction] = useState(
+    () => readDraft<string>(`sf.${pid}.generate.board.instruction`) || "",
+  );
+  useEffect(
+    () =>
+      storeDraft(`sf.${pid}.generate.board.instruction`, generationInstruction),
+    [pid, generationInstruction],
+  );
   const [files, setFiles] = useState<MediaFile[]>([]),
     [versions, setVersions] = useState<components["schemas"]["VersionOut"][]>(
       [],
@@ -235,7 +255,7 @@ export function StageWorkbench({
       components["schemas"]["ConversationOut"]
     >({ messages: [], proposals: [] }),
     [request, setRequest] = useState(readDraft<string>(key + ".message") || ""),
-    [closed, setClosed] = useState(false);
+    [mode, setMode] = useState<"fixed" | "closed" | "floating">("fixed");
   async function refresh() {
     const s = unwrap(
       await api.GET("/api/v1/projects/{pid}/stages/{stage}", {
@@ -358,7 +378,7 @@ export function StageWorkbench({
           </p>
         </section>
       ) : (
-        <div className={`editor-with-director ${closed ? "closed" : ""}`}>
+        <div className={`editor-with-director ${mode}`}>
           <section className="panel story-editor">
             <div className="row">
               <h3>
@@ -367,6 +387,13 @@ export function StageWorkbench({
               </h3>
               <small>草稿基准 v{base}</small>
             </div>
+            {stage === "script" && (
+              <SourceStory
+                key={item.source_version_id}
+                pid={pid}
+                versionId={item.source_version_id}
+              />
+            )}
             {item.stale && (
               <p role="alert">上游已更新，此版本已过期。请从上游重新生成。</p>
             )}
@@ -466,24 +493,30 @@ export function StageWorkbench({
                 读取最新基准
               </button>
             </div>
-            <QualityPanel
-              pid={pid}
-              item={item}
-              disabled={busy || dirty || base !== item.revision}
-              onChanged={async () => {
-                await refresh();
-                await refreshJobs();
-              }}
-            />
             {stage === "script" ? (
               <div className="method-actions">
                 <MethodSelector pid={pid} stage="storyboard" />
+                <label className="field">
+                  本次分镜生成要求
+                  <textarea
+                    aria-label="本次分镜生成要求"
+                    disabled={busy}
+                    rows={3}
+                    value={generationInstruction}
+                    onChange={(e) => setGenerationInstruction(e.target.value)}
+                  />
+                </label>
                 <button
                   className="primary"
                   disabled={busy || dirty || base !== item.revision}
                   onClick={() =>
                     void run(async () => {
-                      await generateStage(pid, "board", item.version_id);
+                      await generateStage(
+                        pid,
+                        "board",
+                        item.version_id,
+                        generationInstruction,
+                      );
                       onNext();
                     })
                   }
@@ -519,10 +552,10 @@ export function StageWorkbench({
               ))}
             </details>
           </section>
-          {closed ? (
+          {mode === "closed" ? (
             <button
               className="director-toggle"
-              onClick={() => setClosed(false)}
+              onClick={() => setMode("fixed")}
             >
               展开导演助手
             </button>
@@ -530,8 +563,25 @@ export function StageWorkbench({
             <section className="panel director">
               <div className="row">
                 <h2>AI导演助手</h2>
-                <button onClick={() => setClosed(true)}>收起导演助手</button>
+                <button
+                  aria-label="悬浮导演助手"
+                  onClick={() =>
+                    setMode(mode === "floating" ? "fixed" : "floating")
+                  }
+                >
+                  {mode === "floating" ? "固定" : "悬浮"}
+                </button>
+                <button onClick={() => setMode("closed")}>收起导演助手</button>
               </div>
+              <QualityPanel
+                pid={pid}
+                item={item}
+                disabled={busy || dirty || base !== item.revision}
+                onChanged={async () => {
+                  await refresh();
+                  await refreshJobs();
+                }}
+              />
               <MethodSelector
                 pid={pid}
                 stage={stage === "script" ? "script" : "storyboard"}
@@ -946,9 +996,13 @@ export function IdeaDirector({
   item,
   disabled,
   onAdopt,
+  mode,
+  setMode,
 }: {
   pid: string;
-  item: Content;
+  item: Content | null;
+  mode: "fixed" | "closed" | "floating";
+  setMode: (mode: "fixed" | "closed" | "floating") => void;
   disabled: boolean;
   onAdopt: (i: Content) => void;
 }) {
@@ -958,15 +1012,16 @@ export function IdeaDirector({
       components["schemas"]["ConversationOut"]
     >({ messages: [], proposals: [] }),
     [busy, setBusy] = useState(false),
-    [error, setError] = useState(""),
-    [closed, setClosed] = useState(false);
+    [error, setError] = useState("");
   useEffect(() => storeDraft(key, request), [key, request]);
   useEffect(() => {
+    if (!item) return;
+    const iid = item.id;
     let live = true;
     async function load() {
       const c = unwrap(
         await api.GET("/api/v1/projects/{pid}/contents/{iid}/conversation", {
-          params: { path: path(pid, item.id) },
+          params: { path: path(pid, iid) },
         }),
       );
       if (live) setConversation(c);
@@ -980,7 +1035,7 @@ export function IdeaDirector({
       live = false;
       clearInterval(t);
     };
-  }, [pid, item.id]);
+  }, [pid, item?.id]);
   async function run(action: () => Promise<void>) {
     setBusy(true);
     setError("");
@@ -992,13 +1047,21 @@ export function IdeaDirector({
       setBusy(false);
     }
   }
-  return closed ? (
-    <button onClick={() => setClosed(false)}>展开创意助手</button>
+  return mode === "closed" ? (
+    <button className="director-toggle" onClick={() => setMode("fixed")}>
+      展开创意助手
+    </button>
   ) : (
     <section className="panel director">
       <div className="row">
         <h2>创意助手</h2>
-        <button onClick={() => setClosed(true)}>收起创意助手</button>
+        <button
+          aria-label="悬浮创意助手"
+          onClick={() => setMode(mode === "floating" ? "fixed" : "floating")}
+        >
+          {mode === "floating" ? "固定" : "悬浮"}
+        </button>
+        <button onClick={() => setMode("closed")}>收起创意助手</button>
       </div>
       <p className="muted">完善一句话创意，采用建议后才更新。</p>
       {error && <p role="alert">{error}</p>}
@@ -1008,16 +1071,17 @@ export function IdeaDirector({
       <label className="field">
         创意修改要求
         <textarea
-          disabled={disabled || busy}
+          disabled={!item || disabled || busy}
           value={request}
           onChange={(e) => setRequest(e.target.value)}
         />
       </label>
       <button
-        disabled={disabled || busy || !request.trim()}
+        disabled={!item || disabled || busy || !request.trim()}
         onClick={() =>
           void run(async () => {
-            const body = { base_version_id: item.version_id, text: request };
+            if (!item) return;
+            const body = { base_version_id: item?.version_id, text: request };
             const cmd = durableCommand(`${pid}:message:${item.id}`, body);
             unwrap(
               await api.POST("/api/v1/projects/{pid}/contents/{iid}/messages", {
@@ -1040,7 +1104,7 @@ export function IdeaDirector({
           <summary>
             {p.applied_version_id
               ? "已采用"
-              : p.base_version_id !== item.version_id
+              : p.base_version_id !== item?.version_id
                 ? "建议已过期"
                 : "AI创意建议"}
           </summary>
@@ -1052,7 +1116,7 @@ export function IdeaDirector({
               disabled ||
               busy ||
               !!p.applied_version_id ||
-              p.base_version_id !== item.version_id
+              p.base_version_id !== item?.version_id
             }
             onClick={() =>
               void run(async () =>
@@ -1072,5 +1136,67 @@ export function IdeaDirector({
         </details>
       ))}
     </section>
+  );
+}
+
+function SourceStory({
+  pid,
+  versionId,
+}: {
+  pid: string;
+  versionId: string | null;
+}) {
+  const [version, setVersion] = useState<
+      components["schemas"]["VersionOut"] | null
+    >(null),
+    [error, setError] = useState(""),
+    [loading, setLoading] = useState(false);
+  useEffect(() => {
+    setVersion(null);
+    setError("");
+  }, [pid, versionId]);
+  async function load() {
+    if (version || loading) return;
+    setLoading(true);
+    setError("");
+    try {
+      if (!versionId) throw new Error("此剧本缺少原故事版本标识");
+      const found = unwrap(
+        await api.GET("/api/v1/projects/{pid}/versions/{version_id}", {
+          params: { path: { pid, version_id: versionId } },
+        }),
+      );
+      setVersion(found);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "原故事读取失败");
+    } finally {
+      setLoading(false);
+    }
+  }
+  return (
+    <details
+      className="source-story"
+      onToggle={(e) => {
+        if (e.currentTarget.open) void load();
+      }}
+    >
+      <summary>原故事（生成来源）</summary>
+      <small>源版本：{versionId || "缺失"}</small>
+      {loading && <p>读取原故事版本…</p>}
+      {error && (
+        <p role="alert">
+          {error}
+          <button onClick={() => void load()}>重试读取原故事</button>
+        </p>
+      )}
+      {version && (
+        <>
+          <h3>
+            {String(version.body.title || "原故事")} · v{version.revision}
+          </h3>
+          <p className="preserve-text">{String(version.body.text || "")}</p>
+        </>
+      )}
+    </details>
   );
 }

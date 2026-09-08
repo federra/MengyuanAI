@@ -96,6 +96,19 @@ def list_stories(pid: UUID, offset: int = Query(0, ge=0), db: Session = Depends(
     )
 
 
+@router.get("/versions/{version_id}", response_model=VersionOut)
+def immutable_version(pid: UUID, version_id: UUID, db: Session = Depends(session)):
+    owned_project(db, pid)
+    version = db.scalar(
+        select(ContentVersion)
+        .join(ContentItem, ContentVersion.item_id == ContentItem.id)
+        .where(ContentVersion.id == version_id, ContentItem.project_id == pid)
+    )
+    if version is None:
+        raise HTTPException(404, "内容版本不存在")
+    return version
+
+
 @router.get("/contents/{iid}/versions", response_model=list[VersionOut])
 def versions(pid: UUID, iid: UUID, db: Session = Depends(session)):
     owned_project(db, pid)

@@ -720,3 +720,150 @@ test("failed method save is isolated to its project and stage", async ({
   await page.getByRole("button", { name: "再生成3个方案" }).click();
   await expect.poll(() => secondSubmitted).toBe(1);
 });
+
+test("review round: assistant modes preserve drafts and QC is in director", async ({
+  page,
+}) => {
+  await page.getByRole("button", { name: "1　创意" }).click();
+  await page.getByLabel("创意修改要求").fill("保留创意草稿");
+  await page.getByRole("button", { name: "悬浮创意助手" }).click();
+  await expect(page.locator(".editor-with-director.floating")).toBeVisible();
+  await page.getByRole("button", { name: "收起创意助手" }).click();
+  await expect(page.locator(".editor-with-director.closed")).toBeVisible();
+  await page.getByRole("button", { name: "展开创意助手" }).click();
+  await expect(page.getByLabel("创意修改要求")).toHaveValue("保留创意草稿");
+  for (const stage of ["script", "board"]) {
+    const item = {
+      ...story,
+      id: stage,
+      kind: stage,
+      source_version_id: stage === "script" ? "story-old" : "script-v1",
+      body:
+        stage === "script"
+          ? { text: "剧本正文", scenes: [], estimatedSeconds: 10 }
+          : { schemaVersion: 2, scriptId: "script-v1", shots: [] },
+    };
+    await page.route(`**/stages/${stage}`, (route) =>
+      route.fulfill({ json: { item, reports: [], confirmation: null } }),
+    );
+    await page
+      .getByRole("button", { name: stage === "script" ? "3　剧本" : "4　分镜" })
+      .click();
+    await page.getByLabel("修改要求").fill(stage + "草稿");
+    await expect(page.locator(".director .quality")).toBeVisible();
+    await page.getByRole("button", { name: "悬浮导演助手" }).click();
+    await expect(page.locator(".editor-with-director.floating")).toBeVisible();
+    await page.getByRole("button", { name: "悬浮导演助手" }).click();
+    await expect(page.locator(".editor-with-director.fixed")).toBeVisible();
+    await page.getByRole("button", { name: "收起导演助手" }).click();
+    await page.getByRole("button", { name: "展开导演助手" }).click();
+    await expect(page.getByLabel("修改要求")).toHaveValue(stage + "草稿");
+  }
+});
+
+test("review round: script source uses immutable old story and instruction recovery freezes text", async ({
+  page,
+}) => {
+  const oldVersion = {
+    id: "story-old",
+    revision: 1,
+    body: { ...story.body, text: "原始故事不可替换为最新版" },
+    source_version_id: "idea-v1",
+    origin: "generation",
+    created_at: project.updated_at,
+  };
+  await page.route("**/versions/story-old", (route) =>
+    route.fulfill({ json: oldVersion }),
+  );
+  await page.route("**/stages/script", (route) =>
+    route.fulfill({
+      json: {
+        item: {
+          ...story,
+          id: "script",
+          kind: "script",
+          source_version_id: "story-old",
+          body: { text: "剧本", scenes: [], estimatedSeconds: 10 },
+        },
+        reports: [],
+        confirmation: null,
+      },
+    }),
+  );
+  await page.getByRole("button", { name: "3　剧本" }).click();
+  await page.getByText("原故事（生成来源）", { exact: true }).click();
+  await expect(
+    page.getByText("原始故事不可替换为最新版", { exact: true }),
+  ).toBeVisible();
+  const requests: any[] = [];
+  await page.route("**/stages/board/generate", async (route) => {
+    requests.push({
+      body: route.request().postDataJSON(),
+      key: route.request().headers()["idempotency-key"],
+    });
+    await route.abort();
+  });
+  await page.getByLabel("本次分镜生成要求").fill("保留长镜头");
+  await page.getByRole("button", { name: "确认剧本并AI生成分镜" }).click();
+  await expect.poll(() => requests.length).toBe(1);
+  await page.getByLabel("本次分镜生成要求").fill("新草稿不能改变未确认请求");
+  await page.reload();
+  await page.getByRole("button", { name: "继续创作 →" }).click();
+  await expect(page.getByLabel("本次分镜生成要求")).toHaveValue(
+    "新草稿不能改变未确认请求",
+  );
+  await page.getByRole("button", { name: "确认剧本并AI生成分镜" }).click();
+  await expect.poll(() => requests.length).toBe(2);
+  expect(requests[1]).toEqual(requests[0]);
+  expect(requests[0].body.instruction).toBe("保留长镜头");
+});
+
+test("review round: pinned prompt revision is displayed and preserved until explicit upgrade", async ({
+  page,
+}) => {
+  const old = {
+    id: "pinned",
+    name: "固定版本模板",
+    kind: "prompt",
+    stage: "novel",
+    revision: 1,
+    content: "旧版 {{oldVariable}}",
+    required_variables: ["oldVariable"],
+  };
+  const latest = {
+    ...old,
+    revision: 2,
+    content: "新版 {{newVariable}}",
+    required_variables: ["newVariable"],
+  };
+  let saved: any = null;
+  await page.route("**/resources?*", (route) =>
+    route.fulfill({ json: [latest] }),
+  );
+  await page.route("**/resources/pinned?*", (route) =>
+    route.fulfill({ json: old }),
+  );
+  await page.route("**/bindings/**", async (route) => {
+    if (route.request().method() === "PUT") {
+      saved = route.request().postDataJSON().value;
+    }
+    await route.fulfill({
+      json: { revision: 1, value: { resource_id: "pinned", revision: 1 } },
+    });
+  });
+  await page.route("**/settings/preview", (route) =>
+    route.fulfill({ json: { content: "示例预览" } }),
+  );
+  await page.getByRole("button", { name: "系统设置", exact: true }).click();
+  await page.getByRole("tab", { name: "提示词", exact: true }).click();
+  await expect(page.getByLabel("场景提示词正文")).toHaveValue(old.content);
+  await expect(page.getByLabel("oldVariable", { exact: true })).toBeVisible();
+  await page.getByRole("button", { name: "保存并用于此场景" }).click();
+  await expect.poll(() => saved?.revision).toBe(1);
+  expect(saved.content).toBe(old.content);
+  await page.getByRole("button", { name: "升级为最新模板版本" }).click();
+  await expect(page.getByLabel("场景提示词正文")).toHaveValue(latest.content);
+  await expect(page.getByLabel("newVariable", { exact: true })).toBeVisible();
+  await page.getByRole("button", { name: "保存并用于此场景" }).click();
+  await expect.poll(() => saved?.revision).toBe(2);
+});
