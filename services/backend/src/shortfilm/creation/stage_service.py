@@ -147,7 +147,8 @@ def canonical_script(body, previous=None, manual=False):
             {"id": str(uuid4()), "heading": f"场景 {i + 1}", "actions": [part], "dialogues": []}
             for i, part in enumerate(paragraphs)
         ]
-    else:
+    elif not manual or result["scenes"] != previous["scenes"]:
+        # Unchanged manual structure must retain its authoritative plain text.
         result["text"] = "\n\n".join(
             "\n".join(
                 [

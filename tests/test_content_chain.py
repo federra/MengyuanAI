@@ -750,3 +750,59 @@ def test_auto_review_renders_frozen_template_with_generated_version(client, chai
     assert stage["item"]["version_id"] in snapshot["prompt"]["template"]
     assert stage["item"]["body"]["scenes"][0]["heading"] in snapshot["prompt"]["template"]
     assert "NEWER-DO-NOT-USE" not in snapshot["prompt"]["template"]
+
+
+def test_unchanged_manual_script_save_preserves_confirmed_downstream(client, chain_model):
+    base, _, story, script, board = chain(client)
+    edited = client.put(
+        base + "/stages/script",
+        json={
+            "revision": script["revision"],
+            "source_version_id": story["version_id"],
+            "body": {**script["body"], "text": "人工正文"},
+        },
+    )
+    assert edited.status_code == 200, edited.text
+    saved = edited.json()
+    run(
+        client,
+        post(
+            client,
+            base + "/stages/board/generate",
+            {"source_version_id": saved["version_id"], "target_revision": board["revision"]},
+        ),
+    )
+    downstream = client.get(base + "/stages/board").json()["item"]
+    confirmed = post(
+        client,
+        base + f"/contents/{downstream['id']}/confirm",
+        {"version_id": downstream["version_id"]},
+    )
+    assert confirmed.status_code == 200, confirmed.text
+    before_script = client.get(base + "/stages/script").json()
+    before_board = client.get(base + "/stages/board").json()
+    repeated = client.put(
+        base + "/stages/script",
+        json={
+            "revision": saved["revision"],
+            "source_version_id": story["version_id"],
+            "body": saved["body"],
+        },
+    )
+    assert repeated.status_code == 200, repeated.text
+    assert repeated.json() == saved
+    assert client.get(base + "/stages/script").json() == before_script
+    assert client.get(base + "/stages/board").json() == before_board
+    assert not before_board["item"]["stale"]
+    changed = client.put(
+        base + "/stages/script",
+        json={
+            "revision": saved["revision"],
+            "source_version_id": story["version_id"],
+            "body": {**saved["body"], "text": "人工正文，补充新的结局。"},
+        },
+    )
+    assert changed.status_code == 200, changed.text
+    assert changed.json()["revision"] > saved["revision"]
+    assert changed.json()["version_id"] != saved["version_id"]
+    assert client.get(base + "/stages/board").json()["item"]["stale"]
