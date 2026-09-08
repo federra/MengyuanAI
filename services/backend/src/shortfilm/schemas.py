@@ -13,6 +13,9 @@ class ProjectCreate(DTO):
     name: str = Field(min_length=1, max_length=50)
     market: Literal["zh", "en"] = "zh"
     type_id: UUID | None = None
+    aspect_ratio: Literal["9:16", "16:9", "1:1"] | None = None
+    resolution: Literal["720P", "1080P", "4K"] | None = None
+    style_resource_id: UUID | None = None
 
 
 class ProjectPatch(DTO):

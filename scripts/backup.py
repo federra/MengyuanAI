@@ -50,10 +50,13 @@ def backup():
     destination.mkdir(parents=True)
     with connect(connection_url) as conn:
         active = conn.execute(
-            "SELECT count(*) FROM generation_jobs WHERE state IN ('queued','running','waiting_provider','unknown')"
+            "SELECT count(*) FROM generation_jobs WHERE state IN ('queued','running','waiting_provider')"
         ).fetchone()[0]
         if active:
             raise SystemExit("仍有在途任务，请完成或对账后停写备份。")
+        unresolved = conn.execute(
+            "SELECT id, state FROM generation_jobs WHERE state = 'unknown' ORDER BY id"
+        ).fetchall()
         rows = conn.execute(
             "SELECT object_key, sha256 FROM media_files ORDER BY object_key"
         ).fetchall()
@@ -73,7 +76,17 @@ def backup():
             raise SystemExit("备份文件校验失败；该备份不可用。")
         manifest.append({"objectKey": key, "sha256": actual})
     (destination / "manifest.json").write_text(
-        json.dumps({"schemaVersion": 1, "files": manifest}, indent=2) + "\n"
+        json.dumps(
+            {
+                "schemaVersion": 2,
+                "files": manifest,
+                "unresolvedJobs": [
+                    {"jobId": str(jid), "state": state} for jid, state in unresolved
+                ],
+            },
+            indent=2,
+        )
+        + "\n"
     )
     print(f"Backup verified: {destination.relative_to(ROOT)} ({len(rows)} files)")
     return destination
@@ -115,13 +128,19 @@ def restore_check():
             assert len(rows) == len(manifest["files"])
             for key, digest in rows:
                 assert hashlib.sha256((destination / key).read_bytes()).hexdigest() == digest
+            unresolved = conn.execute(
+                "SELECT id, state FROM generation_jobs WHERE state = 'unknown' ORDER BY id"
+            ).fetchall()
+            assert [
+                {"jobId": str(jid), "state": state} for jid, state in unresolved
+            ] == manifest.get("unresolvedJobs", [])
             count = conn.execute("SELECT count(*) FROM projects").fetchone()[0]
         env = {
             **os.environ,
             "SHORTFILM_DATABASE_URL": url.set(database=name).render_as_string(hide_password=False),
             "SHORTFILM_STORAGE_ROOT": str(destination),
         }
-        code = "from fastapi.testclient import TestClient; from shortfilm.main import app; c=TestClient(app); assert c.get('/health/ready').status_code==200; assert c.get('/api/v1/projects').status_code==200"
+        code = "from fastapi.testclient import TestClient; from shortfilm.main import app; c=TestClient(app); assert c.get('/health/ready').status_code==200; assert c.get('/api/v1/projects').status_code==200; from shortfilm.jobs.service import recover_jobs; recover_jobs(); from shortfilm.db import Session; from shortfilm.models import Job, Outbox; from sqlalchemy import select; db=Session(); unknown=db.scalars(select(Job).where(Job.state=='unknown')).all(); assert all(db.get(Outbox,j.id) is None or db.get(Outbox,j.id).sent_at is not None for j in unknown); db.close()"
         subprocess.run([sys.executable, "-c", code], env=env, check=True)
         print(
             f"Restore check passed: {count} projects, {len(rows)} files; isolated database and relocated media."

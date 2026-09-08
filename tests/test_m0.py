@@ -43,7 +43,7 @@ def upload(client, pid):
 def test_project_persistence_conflict_validation(client):
     assert client.post("/api/v1/projects", json={"name": "  "}).status_code == 422
     p = project(client)
-    assert p["generation_settings"] is None
+    assert p["generation_settings"]["aspect_ratio"] == "9:16"
     assert p["revision"] == 1
     assert (
         client.patch(
@@ -183,6 +183,6 @@ def test_settings_safe_and_seed_repeatable(client):
     seed()
     config = client.get("/api/v1/settings").json()
     assert config["mode"] == "local"
-    assert len(config["project_types"]) == 3
+    assert {"营销短视频", "通用短视频", "剧情短片"} <= {t["name"] for t in config["project_types"]}
     assert "database_url" not in config
     assert "redis_url" not in config

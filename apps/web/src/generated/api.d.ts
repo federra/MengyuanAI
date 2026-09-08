@@ -22,6 +22,57 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/projects/types": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Add Type */
+        post: operations["add_type_api_v1_projects_types_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/projects/statistics": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Statistics */
+        get: operations["statistics_api_v1_projects_statistics_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/projects/{pid}/specification": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Update Specification */
+        put: operations["update_specification_api_v1_projects__pid__specification_put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/projects/{pid}": {
         parameters: {
             query?: never;
@@ -121,6 +172,128 @@ export interface paths {
         get: operations["get_settings_api_v1_settings_get"];
         put?: never;
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/settings/resources": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Resources */
+        get: operations["resources_api_v1_settings_resources_get"];
+        put?: never;
+        /** Create Resource */
+        post: operations["create_resource_api_v1_settings_resources_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/settings/resources/import": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Import Resource */
+        post: operations["import_resource_api_v1_settings_resources_import_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/settings/resources/{rid}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Resource */
+        get: operations["get_resource_api_v1_settings_resources__rid__get"];
+        /** Update Resource */
+        put: operations["update_resource_api_v1_settings_resources__rid__put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/settings/bindings/{scope}/{key}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Binding */
+        get: operations["get_binding_api_v1_settings_bindings__scope___key__get"];
+        /** Put Binding */
+        put: operations["put_binding_api_v1_settings_bindings__scope___key__put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/settings/resolve/{pid}/{key}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Resolved */
+        get: operations["get_resolved_api_v1_settings_resolve__pid___key__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/settings/bindings/{scope}/{key}/history": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Binding History */
+        get: operations["binding_history_api_v1_settings_bindings__scope___key__history_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/settings/preview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Preview */
+        post: operations["preview_api_v1_settings_preview_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -360,6 +533,33 @@ export interface components {
              */
             writing_mode: "prompt" | "skill";
         };
+        /** BindingOut */
+        BindingOut: {
+            /** Revision */
+            revision: number;
+            /** Value */
+            value: {
+                [key: string]: unknown;
+            } | null;
+        };
+        /** BindingUpdate */
+        BindingUpdate: {
+            /** Base Version */
+            base_version: number;
+            /** Value */
+            value: {
+                [key: string]: unknown;
+            } | null;
+        };
+        /** Body_import_resource_api_v1_settings_resources_import_post */
+        Body_import_resource_api_v1_settings_resources_import_post: {
+            /** Name */
+            name: string;
+            /** Stage */
+            stage: string;
+            /** File */
+            file: string;
+        };
         /** Body_upload_api_v1_projects__pid__files_post */
         Body_upload_api_v1_projects__pid__files_post: {
             /** File */
@@ -518,6 +718,43 @@ export interface components {
              */
             created_at: string;
         };
+        /** ModelRoute */
+        ModelRoute: {
+            /** Provider */
+            provider: string;
+            /** Model */
+            model: string;
+            /** Endpoint */
+            endpoint: string;
+            /**
+             * Capability
+             * @enum {string}
+             */
+            capability: "text" | "image" | "video" | "audio";
+            /** Credential Ref */
+            credential_ref: string;
+            /**
+             * Timeout Seconds
+             * @default 120
+             */
+            timeout_seconds: number;
+        };
+        /** Preview */
+        Preview: {
+            /** Content */
+            content: string;
+            /** Variables */
+            variables: {
+                [key: string]: unknown;
+            };
+            /** Required Variables */
+            required_variables?: string[];
+        };
+        /** PreviewOut */
+        PreviewOut: {
+            /** Content */
+            content: string;
+        };
         /** ProjectCreate */
         ProjectCreate: {
             /** Name */
@@ -530,6 +767,12 @@ export interface components {
             market: "zh" | "en";
             /** Type Id */
             type_id?: string | null;
+            /** Aspect Ratio */
+            aspect_ratio?: ("9:16" | "16:9" | "1:1") | null;
+            /** Resolution */
+            resolution?: ("720P" | "1080P" | "4K") | null;
+            /** Style Resource Id */
+            style_resource_id?: string | null;
         };
         /** ProjectList */
         ProjectList: {
@@ -550,6 +793,12 @@ export interface components {
             market: "zh" | "en";
             /** Type Id */
             type_id?: string | null;
+            /** Aspect Ratio */
+            aspect_ratio?: ("9:16" | "16:9" | "1:1") | null;
+            /** Resolution */
+            resolution?: ("720P" | "1080P" | "4K") | null;
+            /** Style Resource Id */
+            style_resource_id?: string | null;
             /**
              * Id
              * Format: uuid
@@ -601,6 +850,109 @@ export interface components {
              * Format: date-time
              */
             created_at: string;
+        };
+        /** ResolvedConfiguration */
+        ResolvedConfiguration: {
+            /** Schema Version */
+            schema_version: number;
+            /** Interaction Key */
+            interaction_key: string;
+            model: components["schemas"]["ResolvedModel"];
+            template: components["schemas"]["ResolvedResource"] | null;
+            method: components["schemas"]["ResolvedResource"] | null;
+            style: components["schemas"]["ResolvedResource"] | null;
+            /** Specification */
+            specification: {
+                [key: string]: unknown;
+            };
+        };
+        /** ResolvedModel */
+        ResolvedModel: {
+            /** Revision */
+            revision: number;
+            /** Value */
+            value: {
+                [key: string]: unknown;
+            } | null;
+            /** Source */
+            source: string;
+        };
+        /** ResolvedResource */
+        ResolvedResource: {
+            /** Name */
+            name: string;
+            /**
+             * Kind
+             * @enum {string}
+             */
+            kind: "skill" | "prompt" | "style";
+            /** Stage */
+            stage: string;
+            /** Content */
+            content: string;
+            /** Required Variables */
+            required_variables?: string[];
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Revision */
+            revision: number;
+            /** Binding Revision */
+            binding_revision: number;
+            /** Source */
+            source: string;
+        };
+        /** ResourceCreate */
+        ResourceCreate: {
+            /** Name */
+            name: string;
+            /**
+             * Kind
+             * @enum {string}
+             */
+            kind: "skill" | "prompt" | "style";
+            /** Stage */
+            stage: string;
+            /** Content */
+            content: string;
+            /** Required Variables */
+            required_variables?: string[];
+        };
+        /** ResourceOut */
+        ResourceOut: {
+            /** Name */
+            name: string;
+            /**
+             * Kind
+             * @enum {string}
+             */
+            kind: "skill" | "prompt" | "style";
+            /** Stage */
+            stage: string;
+            /** Content */
+            content: string;
+            /** Required Variables */
+            required_variables?: string[];
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Revision */
+            revision: number;
+        };
+        /** ResourceUpdate */
+        ResourceUpdate: {
+            /** Base Version */
+            base_version: number;
+            /** Name */
+            name: string;
+            /** Content */
+            content: string;
+            /** Required Variables */
+            required_variables?: string[];
         };
         /** RetryJob */
         RetryJob: {
@@ -665,6 +1017,26 @@ export interface components {
              */
             text_configured: boolean;
         };
+        /** SpecificationUpdate */
+        SpecificationUpdate: {
+            /**
+             * Aspect Ratio
+             * @default 9:16
+             * @enum {string}
+             */
+            aspect_ratio: "9:16" | "16:9" | "1:1";
+            /**
+             * Resolution
+             * @default 1080P
+             * @enum {string}
+             */
+            resolution: "720P" | "1080P" | "4K";
+            video_model?: components["schemas"]["ModelRoute"] | null;
+            /** Style Resource Id */
+            style_resource_id?: string | null;
+            /** Base Version */
+            base_version: number;
+        };
         /** StoriesOut */
         StoriesOut: {
             /** Items */
@@ -692,6 +1064,11 @@ export interface components {
             /** Revision */
             revision: number;
             body: components["schemas"]["StoryBody"];
+        };
+        /** TypeCreate */
+        TypeCreate: {
+            /** Name */
+            name: string;
         };
         /** TypeOut */
         TypeOut: {
@@ -753,6 +1130,8 @@ export interface operations {
             query?: {
                 offset?: number;
                 limit?: number;
+                status?: ("in_progress" | "completed") | null;
+                sort?: "updated_desc" | "updated_asc" | "name";
             };
             header?: never;
             path?: never;
@@ -795,6 +1174,94 @@ export interface operations {
         responses: {
             /** @description Successful Response */
             201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProjectOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    add_type_api_v1_projects_types_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TypeCreate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TypeOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    statistics_api_v1_projects_statistics_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+        };
+    };
+    update_specification_api_v1_projects__pid__specification_put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                pid: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SpecificationUpdate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -1092,6 +1559,340 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["SettingsOut"];
+                };
+            };
+        };
+    };
+    resources_api_v1_settings_resources_get: {
+        parameters: {
+            query?: {
+                kind?: string | null;
+                stage?: string | null;
+                search?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ResourceOut"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_resource_api_v1_settings_resources_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ResourceCreate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ResourceOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    import_resource_api_v1_settings_resources_import_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "multipart/form-data": components["schemas"]["Body_import_resource_api_v1_settings_resources_import_post"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ResourceOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_resource_api_v1_settings_resources__rid__get: {
+        parameters: {
+            query?: {
+                revision?: number | null;
+            };
+            header?: never;
+            path: {
+                rid: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ResourceOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    update_resource_api_v1_settings_resources__rid__put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                rid: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ResourceUpdate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ResourceOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_binding_api_v1_settings_bindings__scope___key__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                scope: string;
+                key: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BindingOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    put_binding_api_v1_settings_bindings__scope___key__put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                scope: string;
+                key: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["BindingUpdate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BindingOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_resolved_api_v1_settings_resolve__pid___key__get: {
+        parameters: {
+            query: {
+                stage: string;
+            };
+            header?: never;
+            path: {
+                pid: string;
+                key: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ResolvedConfiguration"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    binding_history_api_v1_settings_bindings__scope___key__history_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                scope: string;
+                key: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BindingOut"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    preview_api_v1_settings_preview_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["Preview"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PreviewOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };

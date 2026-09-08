@@ -55,6 +55,10 @@ def seed():
                 .on_conflict_do_nothing()
             )
 
+        from shortfilm.configuration.service import seed_configuration
+
+        seed_configuration(db)
+
 
 if __name__ == "__main__":
     seed()

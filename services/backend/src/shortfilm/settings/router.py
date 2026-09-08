@@ -3,6 +3,7 @@ from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from shortfilm.config import settings
+from shortfilm.configuration.router import router as configuration_router
 from shortfilm.db import session
 from shortfilm.models import ProjectType, PromptVersion
 from shortfilm.schemas import SettingsOut
@@ -27,3 +28,7 @@ def get_settings(db: Session = Depends(session)):
         "text_endpoint": settings.text_endpoint if configured else "",
         "text_configured": configured,
     }
+
+
+
+router.include_router(configuration_router)

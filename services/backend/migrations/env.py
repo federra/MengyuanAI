@@ -1,6 +1,7 @@
 from alembic import context
 from shortfilm.db import engine
 from shortfilm.models import Base
+from shortfilm import config_models  # noqa: F401
 
 if context.is_offline_mode():
     context.configure(url=str(engine.url), target_metadata=Base.metadata, literal_binds=True)
