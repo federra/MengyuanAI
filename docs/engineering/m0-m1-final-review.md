@@ -1,6 +1,8 @@
 # Whole-branch final review — cf2d2c6..d590ef0
 
-**Changes requested: two P2 recovery defects.** Scope: current M0 configuration and M1 content/UI plan, with real credentials explicitly absent. Reviewed final package, plan/progress, all three task reviews/re-reviews, verification record, current PRD 04–08 and R4/R5 contracts; inspected configuration/content execution, lineage, retry and affected frontend paths in bounded passes. No native data, credentials, source, index or branch state changed; no full suites rerun.
+**Historical review: the two P2 findings below were fixed in66f64af and approved by the final scoped re-review (m0-m1-final-rereview.md).**
+
+**Original verdict: Changes requested: two P2 recovery defects.** Scope: current M0 configuration and M1 content/UI plan, with real credentials explicitly absent. Reviewed final package, plan/progress, all three task reviews/re-reviews, verification record, current PRD 04–08 and R4/R5 contracts; inspected configuration/content execution, lineage, retry and affected frontend paths in bounded passes. No native data, credentials, source, index or branch state changed; no full suites rerun.
 
 ## Strengths
 

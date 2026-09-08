@@ -1,0 +1,17 @@
+# Final scoped recovery re-review — 2026-09-08
+
+**Approved.** Both P2 findings in `docs/engineering/m0-m1-final-review.md` are addressed by `e939f6e..66f64af`. No residual actionable defect or directly introduced regression found in this bounded fix review. This approves the recovery fix, not real-provider or M2/M3 acceptance.
+
+## Scope and evidence
+
+Read AGENTS, the original two findings, final-fix report/package, the actual two-file commit diff, affected StageWorkbench control flow and existing command persistence. Read backend generation, manual-save, complete version-list and upstream resolution contracts only to verify the fix's assumptions. No new whole-branch review, source/PRD/native mutations, paid calls, service restarts or subagents. `git diff --check e939f6e..66f64af` passed; diff stat confirms only StageWorkbench and its browser tests changed. Existing unrelated working-tree edits were left untouched.
+
+1. **Generation conflict recovery:** `StageWorkbench.tsx:34–50` retires the stored body and its durable command entry on an explicit HTTP 409 before surfacing the error. The following attempt therefore uses the latest GET revision, current instruction and a fresh key. Backend generation checks existing matching jobs before target/source rejection and rejects conflicting inputs before enqueue. Network exceptions bypass cleanup; HTTP 503 reaches throwing `unwrap` before success cleanup, preserving the frozen body/key. New 409/503 cases assert behavior across reload, and the unchanged original lost-response test also asserts identical body/key despite target advancement. This addresses P2 #1 without weakening uncertain-response idempotency.
+
+2. **Source-consistent stage recovery:** `StageWorkbench.tsx:347–378,523–563,605–622` preserves the complete old draft before replacement; synchronous storage failure aborts replacement. Latest recovery uses `accept(latest)` to take the authoritative body, revision and resolved cross-stage source together. Deduplication prevents identical recovery copies from proliferating, while earlier differing drafts remain available after reload. History resolution follows same-item predecessor IDs through the complete version-list response, matching backend `upstream`; source mismatch blocks manual save and contributes to dirty state, thus also blocking downstream generation. Historical board bodies are retained intact, including `scriptId`, with copyable preview/full data and an explicit latest recovery path. Backend exact-source validation remains unchanged. This addresses P2 #2.
+
+## Verification assessment
+
+Four added browser cases cover rejected409/uncertain503 and both regenerated script/board paths: old cached edits survive, latest content saves with exact source/revision, manual history resolves through its predecessor, old-source history cannot save, preserved drafts survive reload, and old board `scriptId` is not relabeled. The original 15 tests are unchanged in the diff. Implementer reports 19 UI checks and TypeScript/Vite build passed; the retained Playwright `.last-run.json` reports passed with no failures. Parent reports 49 backend checks, contract/static checks and runtime reboot verification passed. These are attributed run results, not independently rerun suites. Independent work here is source/contract/test review plus scoped whitespace verification; no focused unresolved concern warranted another full suite.
+
+Real DeepSeek quality, media generation/encoding and TXT entry remain outside the accepted capability boundary.
