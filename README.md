@@ -77,7 +77,11 @@ M0 基线唯一任务类型为本地确定性的 `file.verify`，用于底座验
 
 默认文本配置（来自已核对的 [DeepSeek 官方接口](https://api-docs.deepseek.com/api/create-chat-completion/)）：`SHORTFILM_TEXT_ENDPOINT=https://api.deepseek.com`、`SHORTFILM_TEXT_MODEL=deepseek-v4-pro`、`SHORTFILM_TEXT_CREDENTIAL_REF=DEEPSEEK_API_KEY`、`SHORTFILM_TEXT_JSON_MODE=json_object`、`SHORTFILM_TEXT_TIMEOUT_SECONDS=120`、`SHORTFILM_TEXT_MAX_TOKENS=8192`。DeepSeek 使用非思考模式。API 与 Worker 必须继承同一份环境。
 
-密钥可通过进程环境注入，也可停止现有开发进程后运行 `make dev-deepseek`，在终端隐藏输入密钥：只注入本次进程，不写文件、命令历史、数据库或浏览器。不要在聊天中发送密钥。普通 `make dev` 无密钥时仍可保存创意/编辑历史，但提交生成会明确阻止。配置就绪不表示真实调用已验收。
+推荐在“系统设置 → 模型 → 生文”保存模型配置，再在“API 密钥与连接”输入并保存密钥，最后测试已保存的连接。密码不会回显或写入浏览器草稿；测试是一笔短文本调用，会消耗供应商用量，不能代替M1完整内容链验收。
+
+页面凭据认证加密保存在独立的 `.local/credentials/`，目录0700、文件0600，API与Worker共享读取，页面保存后无需重启。主密钥与加密文件均不进入数据库、媒体、普通备份或Git；该保护依赖本机账户权限，不能抵御同账户恶意程序。丢失此目录或移机恢复后请重新在页面录入，勿在聊天中发送密钥。`SHORTFILM_CREDENTIAL_ROOT` 可指定独立目录，不能以普通媒体备份代替凭据恢复。
+
+已保存凭据优先于同名环境变量，且绑定保存时的服务地址；地址改变需重新保存对应密钥，系统不回退并误发旧密钥。仍支持进程环境注入及 `make dev-deepseek` 的终端隐藏输入方式。普通 `make dev` 无可用凭据时允许保存创意/编辑历史，但阻止提交生成。
 
 失败任务在创作工作台底部保留输入与配置；明确失败可按原配置重试。unknown 表示服务可能已受理，先到供应商核实，再勾选可能重复计费的确认重新提交；系统不伪造查询结果、不自动重发。每个原任务仅派生一个重试子任务，后续失败从子任务继续重试。
 
