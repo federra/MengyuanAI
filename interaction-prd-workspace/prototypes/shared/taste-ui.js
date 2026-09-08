@@ -14,7 +14,7 @@ export function polishStudio(){
   const gsap=window.gsap,ST=window.ScrollTrigger;if(!gsap||!ST||matchMedia('(prefers-reduced-motion: reduce)').matches)return;
   gsap.registerPlugin(ST);
   motionContext=gsap.context(()=>{
-    gsap.from('.page-heading p',{opacity:.55,duration:.5,scrollTrigger:{trigger:'.page-heading',start:'top 85%',end:'bottom 20%',scrub:true}});if(first){gsap.from('.studio .page-heading',{y:8,opacity:.6,duration:.4,clearProps:'transform,opacity'});first=false;}
+    gsap.from('.page-heading p',{y:2,duration:.5,scrollTrigger:{trigger:'.page-heading',start:'top 85%',end:'bottom 20%',scrub:true}});if(first){gsap.from('.studio .page-heading',{y:8,opacity:.6,duration:.4,clearProps:'transform,opacity'});first=false;}
     document.querySelectorAll('.story-choice,.project-card,.asset-card,.settings-card').forEach((card,i)=>{
       const key=card.textContent;if(seen.has(key))return;seen.add(key);
       gsap.from(card,{y:14,rotationX:2,opacity:.65,duration:.48,delay:(i%3)*.045,ease:'power2.out',clearProps:'transform,opacity',scrollTrigger:{trigger:card,start:'top 98%',once:true}});

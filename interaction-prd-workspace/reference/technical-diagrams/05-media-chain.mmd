@@ -14,3 +14,8 @@ flowchart TB
   READY --> EDIT[确认剪辑及音轨]
   AUDIO --> EDIT
   EDIT --> RENDER[FFmpeg 合成并检查 MP4]
+
+  FRAME --> MANUAL[手动取前镜尾帧：角标预览与提示词同一引用]
+  MANUAL --> VERSION{前镜版本仍有效}
+  VERSION -->|是| V2
+  VERSION -->|否| PAUSE

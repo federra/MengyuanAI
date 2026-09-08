@@ -1,0 +1,40 @@
+/* Shared workbench typography; system fallbacks stay local and sans-serif. */
+:root{
+ --font-sans:Satoshi,-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Hiragino Sans GB","Microsoft YaHei",Arial,sans-serif;
+ --action:#2f6ad9;
+}
+:root:not([data-theme]),:root[data-theme=dark]{--accent:#96bdff;--accent-strong:#b3cfff;--action:#2f6ad9}
+:root[data-theme=light]{--action:#234e70}
+:root[data-theme=sky]{--action:#2463eb}
+body{font-family:var(--font-sans);font-size:15px;font-weight:400;line-height:1.65;-webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility}
+button,input,select,textarea{font-family:var(--font-sans)}
+h1,h2,h3,h4,.workshop-name{font-family:var(--font-sans);letter-spacing:0!important}
+.app-shell .page-heading{min-height:0;margin-bottom:24px!important}
+.app-shell .page-heading>div{max-width:100%;min-width:0}
+.app-shell .page-heading h1{max-width:100%;font-size:28px!important;line-height:1.4;font-weight:600;text-wrap:pretty}
+.app-shell h2{font-size:18px!important;line-height:1.5;font-weight:600}
+.app-shell h3{font-size:16px!important;line-height:1.5;font-weight:600}
+.app-shell .page-heading p:not(.eyebrow){font-size:15px!important;line-height:1.65;margin-top:8px}
+.app-shell .page-heading .eyebrow{display:none}
+.app-shell .sidebar .nav-link,.app-shell.workflow.studio .studio-steps .nav-link{font-size:16px!important;font-weight:600}
+.app-shell .button{font-size:14px!important;line-height:1.5;font-weight:500;transition:background .18s,border-color .18s,color .18s}
+.app-shell .button.primary{background:var(--action)!important;border-color:var(--action)!important;color:#fff!important;font-weight:600}
+.app-shell .studio-steps .nav-link.active span{background:var(--action)!important;border-color:var(--action)!important;color:#fff!important}
+.app-shell :is(input,select,textarea){font-family:var(--font-sans);font-size:15px!important;font-weight:400}
+.app-shell textarea{line-height:1.8!important}
+.app-shell .field,.app-shell .method-select label{font-size:14px;font-weight:500;line-height:1.5}
+.app-shell .helper,.app-shell .config-help,.app-shell .sidebar-note,.app-shell .project-updated{font-size:13px!important;line-height:1.7}
+.app-shell :is(.project-card p,.story-choice p,.asset-card p,.director-message p){font-size:14px;line-height:1.7}
+.app-shell .story-choice strong{font-size:15px;font-weight:600}
+.app-shell :is(.story-choice small,.director-message small,.dialogue-line small,.cover-caption,.project-context){font-size:12px;line-height:1.6}
+.app-shell :is(.text-button,.method-inspect){font-family:var(--font-sans);font-size:13px;line-height:1.6}
+.app-shell :is(.board th,.element-table th){font-size:14px;font-weight:600;line-height:1.5}
+.app-shell .board :is(td,.prompt-rich,.dialogue-line textarea){font-size:14px!important;line-height:1.75}
+.app-shell .dialogue-line :is(input,select){font-size:13px!important}
+.app-shell .hub-stats strong{font-size:30px;font-weight:600;font-variant-numeric:tabular-nums}
+.app-shell .hub-stats span{font-size:14px}
+.app-shell .model-tree .model-tree-node{font-family:var(--font-sans);font-size:14px!important;line-height:20px}
+.app-shell .model-tree .model-tree-child{font-size:13px!important}
+.app-shell :is(.settings-card,.asset-card){transition:border-color .18s,box-shadow .18s}
+.app-shell :is(.settings-card,.asset-card):hover{border-color:var(--accent)}
+@media(prefers-reduced-motion:reduce){.app-shell *{transition:none!important}}

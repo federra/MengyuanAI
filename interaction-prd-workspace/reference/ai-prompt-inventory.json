@@ -8,12 +8,38 @@
     "acceptance": "每批恰好3份；情节方向不同；语言匹配市场",
     "demoStatus": "已演示",
     "engineering": {
-      "milestone": "M1-story",
-      "promptRevision": 2,
-      "provider": "DeepSeek",
-      "status": "implemented-real-validation-pending",
-      "outputSchema": "BatchOutput",
-      "validation": "PostgreSQL/Worker/transport fixtures passed; real API key not injected"
+      "milestone": "M1",
+      "status": "engineering-fixture-verified",
+      "validation": "49项后端、19项浏览器及实际HTTP文本替身内容链通过；真实DeepSeek密钥未注入，输出质量/耗时/费用待验收"
+    },
+    "methodBinding": "writingMethod",
+    "methodResourceContract": [
+      "resourceId",
+      "resourceVersion",
+      "name",
+      "kind",
+      "stage",
+      "effectiveText",
+      "overrideVersion"
+    ],
+    "modelCategory": "text",
+    "modelResolution": [
+      "projectExplicitVideoModel",
+      "stepOverride",
+      "categoryDefault"
+    ],
+    "scenarioTemplateBinding": {
+      "key": "novel",
+      "priority": [
+        "project",
+        "system"
+      ],
+      "snapshot": [
+        "resourceId",
+        "version",
+        "overrideVersion",
+        "effectiveText"
+      ]
     }
   },
   {
@@ -25,12 +51,38 @@
     "acceptance": "保留未要求改动的事实；新版本不覆写原版",
     "demoStatus": "已演示",
     "engineering": {
-      "milestone": "M1-story",
-      "promptRevision": 2,
-      "provider": "DeepSeek",
-      "status": "implemented-real-validation-pending",
-      "outputSchema": "RevisionOutput",
-      "validation": "PostgreSQL/Worker/transport fixtures passed; real API key not injected"
+      "milestone": "M1",
+      "status": "engineering-fixture-verified",
+      "validation": "49项后端、19项浏览器及实际HTTP文本替身内容链通过；真实DeepSeek密钥未注入，输出质量/耗时/费用待验收"
+    },
+    "methodBinding": "writingMethod",
+    "methodResourceContract": [
+      "resourceId",
+      "resourceVersion",
+      "name",
+      "kind",
+      "stage",
+      "effectiveText",
+      "overrideVersion"
+    ],
+    "modelCategory": "text",
+    "modelResolution": [
+      "projectExplicitVideoModel",
+      "stepOverride",
+      "categoryDefault"
+    ],
+    "scenarioTemplateBinding": {
+      "key": "novelRevision",
+      "priority": [
+        "project",
+        "system"
+      ],
+      "snapshot": [
+        "resourceId",
+        "version",
+        "overrideVersion",
+        "effectiveText"
+      ]
     }
   },
   {
@@ -40,7 +92,41 @@
     "inputs": "原故事、剧本指令、市场、风格",
     "output": "scenes/actions/dialogues/estimatedSeconds",
     "acceptance": "可拍摄、人物动机一致、无需固定项目时长",
-    "demoStatus": "已演示"
+    "demoStatus": "已演示",
+    "methodBinding": "scriptMethod",
+    "methodResourceContract": [
+      "resourceId",
+      "resourceVersion",
+      "name",
+      "kind",
+      "stage",
+      "effectiveText",
+      "overrideVersion"
+    ],
+    "modelCategory": "text",
+    "modelResolution": [
+      "projectExplicitVideoModel",
+      "stepOverride",
+      "categoryDefault"
+    ],
+    "scenarioTemplateBinding": {
+      "key": "script",
+      "priority": [
+        "project",
+        "system"
+      ],
+      "snapshot": [
+        "resourceId",
+        "version",
+        "overrideVersion",
+        "effectiveText"
+      ]
+    },
+    "engineering": {
+      "milestone": "M1",
+      "status": "engineering-fixture-verified",
+      "validation": "49项后端、19项浏览器及实际HTTP文本替身内容链通过；真实DeepSeek密钥未注入，输出质量/耗时/费用待验收"
+    }
   },
   {
     "id": "P04",
@@ -49,7 +135,32 @@
     "inputs": "原故事、当前剧本、双方版本",
     "output": "summary/issues/evidence/suggestions",
     "acceptance": "同时检查贴合度、情绪、剧情和自身连贯性",
-    "demoStatus": "已演示"
+    "demoStatus": "已演示",
+    "workflowPolicy": "advisory-only; user may keep current version and continue; do not rewrite report as passed",
+    "modelCategory": "text",
+    "modelResolution": [
+      "projectExplicitVideoModel",
+      "stepOverride",
+      "categoryDefault"
+    ],
+    "scenarioTemplateBinding": {
+      "key": "scriptReview",
+      "priority": [
+        "project",
+        "system"
+      ],
+      "snapshot": [
+        "resourceId",
+        "version",
+        "overrideVersion",
+        "effectiveText"
+      ]
+    },
+    "engineering": {
+      "milestone": "M1",
+      "status": "engineering-fixture-verified",
+      "validation": "49项后端、19项浏览器及实际HTTP文本替身内容链通过；真实DeepSeek密钥未注入，输出质量/耗时/费用待验收"
+    }
   },
   {
     "id": "P05",
@@ -58,7 +169,41 @@
     "inputs": "原故事、当前剧本、完整报告、用户要求",
     "output": "新剧本、修改摘要、解决issueIds",
     "acceptance": "不得忽略报告或静默删剧情；修复后复检",
-    "demoStatus": "已演示"
+    "demoStatus": "已演示",
+    "methodBinding": "scriptMethod",
+    "methodResourceContract": [
+      "resourceId",
+      "resourceVersion",
+      "name",
+      "kind",
+      "stage",
+      "effectiveText",
+      "overrideVersion"
+    ],
+    "modelCategory": "text",
+    "modelResolution": [
+      "projectExplicitVideoModel",
+      "stepOverride",
+      "categoryDefault"
+    ],
+    "scenarioTemplateBinding": {
+      "key": "scriptRepair",
+      "priority": [
+        "project",
+        "system"
+      ],
+      "snapshot": [
+        "resourceId",
+        "version",
+        "overrideVersion",
+        "effectiveText"
+      ]
+    },
+    "engineering": {
+      "milestone": "M1",
+      "status": "engineering-fixture-verified",
+      "validation": "49项后端、19项浏览器及实际HTTP文本替身内容链通过；真实DeepSeek密钥未注入，输出质量/耗时/费用待验收"
+    }
   },
   {
     "id": "P06",
@@ -67,7 +212,41 @@
     "inputs": "已确认剧本、风格、画幅、资产清单、分镜Skill/提示词、分辨率",
     "output": "shots[]，稳定shotId、dialogues[id,speaker,emotion,text,voice]、prompt、引用、时长",
     "acceptance": "镜头覆盖原剧本；角色/场景/道具/站位引用一致",
-    "demoStatus": "已演示"
+    "demoStatus": "已演示",
+    "methodBinding": "boardMethod",
+    "methodResourceContract": [
+      "resourceId",
+      "resourceVersion",
+      "name",
+      "kind",
+      "stage",
+      "effectiveText",
+      "overrideVersion"
+    ],
+    "modelCategory": "text",
+    "modelResolution": [
+      "projectExplicitVideoModel",
+      "stepOverride",
+      "categoryDefault"
+    ],
+    "scenarioTemplateBinding": {
+      "key": "storyboard",
+      "priority": [
+        "project",
+        "system"
+      ],
+      "snapshot": [
+        "resourceId",
+        "version",
+        "overrideVersion",
+        "effectiveText"
+      ]
+    },
+    "engineering": {
+      "milestone": "M1",
+      "status": "engineering-fixture-verified",
+      "validation": "49项后端、19项浏览器及实际HTTP文本替身内容链通过；真实DeepSeek密钥未注入，输出质量/耗时/费用待验收"
+    }
   },
   {
     "id": "P07",
@@ -76,7 +255,32 @@
     "inputs": "原剧本、分镜表、源版本",
     "output": "schemaVersion/scriptId/baseBoardVersion/issues/proposedShots",
     "acceptance": "定位到shotId；漏信息、情绪、动作逻辑有证据；schemaVersion=2，校验每段lineId和台词摘要一致",
-    "demoStatus": "已演示"
+    "demoStatus": "已演示",
+    "workflowPolicy": "advisory-only; user may keep current version and continue; do not rewrite report as passed",
+    "modelCategory": "text",
+    "modelResolution": [
+      "projectExplicitVideoModel",
+      "stepOverride",
+      "categoryDefault"
+    ],
+    "scenarioTemplateBinding": {
+      "key": "review",
+      "priority": [
+        "project",
+        "system"
+      ],
+      "snapshot": [
+        "resourceId",
+        "version",
+        "overrideVersion",
+        "effectiveText"
+      ]
+    },
+    "engineering": {
+      "milestone": "M1",
+      "status": "engineering-fixture-verified",
+      "validation": "49项后端、19项浏览器及实际HTTP文本替身内容链通过；真实DeepSeek密钥未注入，输出质量/耗时/费用待验收"
+    }
   },
   {
     "id": "P08",
@@ -85,7 +289,41 @@
     "inputs": "原剧本、分镜、质检报告、用户要求",
     "output": "完整建议版、changeSummary",
     "acceptance": "保留镜头ID与合法引用；服务端事务原子应用；schemaVersion=2，校验每段lineId和台词摘要一致",
-    "demoStatus": "已演示"
+    "demoStatus": "已演示",
+    "methodBinding": "boardMethod",
+    "methodResourceContract": [
+      "resourceId",
+      "resourceVersion",
+      "name",
+      "kind",
+      "stage",
+      "effectiveText",
+      "overrideVersion"
+    ],
+    "modelCategory": "text",
+    "modelResolution": [
+      "projectExplicitVideoModel",
+      "stepOverride",
+      "categoryDefault"
+    ],
+    "scenarioTemplateBinding": {
+      "key": "boardRepair",
+      "priority": [
+        "project",
+        "system"
+      ],
+      "snapshot": [
+        "resourceId",
+        "version",
+        "overrideVersion",
+        "effectiveText"
+      ]
+    },
+    "engineering": {
+      "milestone": "M1",
+      "status": "engineering-fixture-verified",
+      "validation": "49项后端、19项浏览器及实际HTTP文本替身内容链通过；真实DeepSeek密钥未注入，输出质量/耗时/费用待验收"
+    }
   },
   {
     "id": "P09",
@@ -94,7 +332,26 @@
     "inputs": "剧本、当前镜头、人物、情绪、市场",
     "output": "dialogues[speaker,text,emotion]",
     "acceptance": "不添无依据人物；配音文本与字幕同源",
-    "demoStatus": "独立生成待接入"
+    "demoStatus": "独立生成待接入",
+    "modelCategory": "text",
+    "modelResolution": [
+      "projectExplicitVideoModel",
+      "stepOverride",
+      "categoryDefault"
+    ],
+    "scenarioTemplateBinding": {
+      "key": "dialogue",
+      "priority": [
+        "project",
+        "system"
+      ],
+      "snapshot": [
+        "resourceId",
+        "version",
+        "overrideVersion",
+        "effectiveText"
+      ]
+    }
   },
   {
     "id": "P10",
@@ -103,7 +360,26 @@
     "inputs": "已确认剧本与分镜、已有资产字典",
     "output": "assets[kind,name,description,sourceIds]",
     "acceptance": "区分角色/场景/道具/服饰/站位，去重且可追溯",
-    "demoStatus": "待接入"
+    "demoStatus": "待接入",
+    "modelCategory": "text",
+    "modelResolution": [
+      "projectExplicitVideoModel",
+      "stepOverride",
+      "categoryDefault"
+    ],
+    "scenarioTemplateBinding": {
+      "key": "assetExtract",
+      "priority": [
+        "project",
+        "system"
+      ],
+      "snapshot": [
+        "resourceId",
+        "version",
+        "overrideVersion",
+        "effectiveText"
+      ]
+    }
   },
   {
     "id": "P11",
@@ -112,7 +388,26 @@
     "inputs": "角色身份外形、服饰、风格、参考图",
     "output": "imageUri/assetId/version",
     "acceptance": "身份稳定；可选三视图，避免场景混入主体",
-    "demoStatus": "全片管理与图片示例"
+    "demoStatus": "全片管理与图片示例",
+    "modelCategory": "image",
+    "modelResolution": [
+      "projectExplicitVideoModel",
+      "stepOverride",
+      "categoryDefault"
+    ],
+    "scenarioTemplateBinding": {
+      "key": "characterImage",
+      "priority": [
+        "project",
+        "system"
+      ],
+      "snapshot": [
+        "resourceId",
+        "version",
+        "overrideVersion",
+        "effectiveText"
+      ]
+    }
   },
   {
     "id": "P12",
@@ -121,7 +416,26 @@
     "inputs": "时代地点、光线、景别、风格",
     "output": "imageUri/assetId/version",
     "acceptance": "空间与剧本一致，明确室内外",
-    "demoStatus": "全片管理与图片示例"
+    "demoStatus": "全片管理与图片示例",
+    "modelCategory": "image",
+    "modelResolution": [
+      "projectExplicitVideoModel",
+      "stepOverride",
+      "categoryDefault"
+    ],
+    "scenarioTemplateBinding": {
+      "key": "sceneImage",
+      "priority": [
+        "project",
+        "system"
+      ],
+      "snapshot": [
+        "resourceId",
+        "version",
+        "overrideVersion",
+        "effectiveText"
+      ]
+    }
   },
   {
     "id": "P13",
@@ -130,7 +444,26 @@
     "inputs": "道具功能、外观、比例、风格",
     "output": "imageUri/assetId/version",
     "acceptance": "关键道具特征不漂移",
-    "demoStatus": "全片管理与图片示例"
+    "demoStatus": "全片管理与图片示例",
+    "modelCategory": "image",
+    "modelResolution": [
+      "projectExplicitVideoModel",
+      "stepOverride",
+      "categoryDefault"
+    ],
+    "scenarioTemplateBinding": {
+      "key": "propImage",
+      "priority": [
+        "project",
+        "system"
+      ],
+      "snapshot": [
+        "resourceId",
+        "version",
+        "overrideVersion",
+        "effectiveText"
+      ]
+    }
   },
   {
     "id": "P14",
@@ -139,7 +472,26 @@
     "inputs": "角色、时代、服饰设定、风格",
     "output": "imageUri/assetId/version",
     "acceptance": "与角色/时代一致，服饰可单独复用",
-    "demoStatus": "待接入"
+    "demoStatus": "待接入",
+    "modelCategory": "image",
+    "modelResolution": [
+      "projectExplicitVideoModel",
+      "stepOverride",
+      "categoryDefault"
+    ],
+    "scenarioTemplateBinding": {
+      "key": "clothingImage",
+      "priority": [
+        "project",
+        "system"
+      ],
+      "snapshot": [
+        "resourceId",
+        "version",
+        "overrideVersion",
+        "effectiveText"
+      ]
+    }
   },
   {
     "id": "P15",
@@ -148,7 +500,26 @@
     "inputs": "镜头、角色位置、场景布局、运动方向",
     "output": "imageUri + positions/labels",
     "acceptance": "左右关系、朝向与动作轴线明确",
-    "demoStatus": "通用参考图演示"
+    "demoStatus": "通用参考图演示",
+    "modelCategory": "image",
+    "modelResolution": [
+      "projectExplicitVideoModel",
+      "stepOverride",
+      "categoryDefault"
+    ],
+    "scenarioTemplateBinding": {
+      "key": "blockingImage",
+      "priority": [
+        "project",
+        "system"
+      ],
+      "snapshot": [
+        "resourceId",
+        "version",
+        "overrideVersion",
+        "effectiveText"
+      ]
+    }
   },
   {
     "id": "P16",
@@ -157,7 +528,26 @@
     "inputs": "镜头、剧本、风格、可用assetIds",
     "output": "prompt + referencedAssetIds",
     "acceptance": "正文引用与提交图片严格一一对应",
-    "demoStatus": "编辑已实现，AI待接入"
+    "demoStatus": "编辑已实现，AI待接入",
+    "modelCategory": "text",
+    "modelResolution": [
+      "projectExplicitVideoModel",
+      "stepOverride",
+      "categoryDefault"
+    ],
+    "scenarioTemplateBinding": {
+      "key": "shotPrompt",
+      "priority": [
+        "project",
+        "system"
+      ],
+      "snapshot": [
+        "resourceId",
+        "version",
+        "overrideVersion",
+        "effectiveText"
+      ]
+    }
   },
   {
     "id": "P17",
@@ -166,7 +556,26 @@
     "inputs": "镜头提示词、图片、画幅、秒数、前镜尾帧",
     "output": "videoUri/duration/taskId",
     "acceptance": "参考图版本冻结，尾帧来自指定前镜视频",
-    "demoStatus": "已演示"
+    "demoStatus": "已演示",
+    "modelCategory": "video",
+    "modelResolution": [
+      "projectExplicitVideoModel",
+      "stepOverride",
+      "categoryDefault"
+    ],
+    "scenarioTemplateBinding": {
+      "key": "video",
+      "priority": [
+        "project",
+        "system"
+      ],
+      "snapshot": [
+        "resourceId",
+        "version",
+        "overrideVersion",
+        "effectiveText"
+      ]
+    }
   },
   {
     "id": "P18",
@@ -175,7 +584,26 @@
     "inputs": "shotId、lineId、逐段台词、角色、语言、音色、情绪、语速、模型与指令版本",
     "output": "audioUri/duration/可选wordTimestamps",
     "acceptance": "不擅改台词；语言/发音与人物一致",
-    "demoStatus": "已演示"
+    "demoStatus": "已演示",
+    "modelCategory": "audio",
+    "modelResolution": [
+      "projectExplicitVideoModel",
+      "stepOverride",
+      "categoryDefault"
+    ],
+    "scenarioTemplateBinding": {
+      "key": "voice",
+      "priority": [
+        "project",
+        "system"
+      ],
+      "snapshot": [
+        "resourceId",
+        "version",
+        "overrideVersion",
+        "effectiveText"
+      ]
+    }
   },
   {
     "id": "P19",
@@ -184,7 +612,26 @@
     "inputs": "情绪段落、节奏、实际时长、风格",
     "output": "audioUri/duration",
     "acceptance": "与台词让位关系明确，无突兀截断",
-    "demoStatus": "待接入"
+    "demoStatus": "待接入",
+    "modelCategory": "audio",
+    "modelResolution": [
+      "projectExplicitVideoModel",
+      "stepOverride",
+      "categoryDefault"
+    ],
+    "scenarioTemplateBinding": {
+      "key": "music",
+      "priority": [
+        "project",
+        "system"
+      ],
+      "snapshot": [
+        "resourceId",
+        "version",
+        "overrideVersion",
+        "effectiveText"
+      ]
+    }
   },
   {
     "id": "P20",
@@ -193,7 +640,26 @@
     "inputs": "剧本、市场、现有风格候选",
     "output": "recommendations[styleId,reason]",
     "acceptance": "理由对应内容，不创造不可用模板ID",
-    "demoStatus": "待接入"
+    "demoStatus": "待接入",
+    "modelCategory": "text",
+    "modelResolution": [
+      "projectExplicitVideoModel",
+      "stepOverride",
+      "categoryDefault"
+    ],
+    "scenarioTemplateBinding": {
+      "key": "style",
+      "priority": [
+        "project",
+        "system"
+      ],
+      "snapshot": [
+        "resourceId",
+        "version",
+        "overrideVersion",
+        "effectiveText"
+      ]
+    }
   },
   {
     "id": "P21",
@@ -202,7 +668,26 @@
     "inputs": "风格描述、视觉参考、约束",
     "output": "name/visualRules/negativeRules",
     "acceptance": "角色、色温、光线、镜头语言可以复用",
-    "demoStatus": "已演示"
+    "demoStatus": "已演示",
+    "modelCategory": "text",
+    "modelResolution": [
+      "projectExplicitVideoModel",
+      "stepOverride",
+      "categoryDefault"
+    ],
+    "scenarioTemplateBinding": {
+      "key": "template",
+      "priority": [
+        "project",
+        "system"
+      ],
+      "snapshot": [
+        "resourceId",
+        "version",
+        "overrideVersion",
+        "effectiveText"
+      ]
+    }
   },
   {
     "id": "P22",
@@ -211,7 +696,26 @@
     "inputs": "镜头资产需求、可用资产元数据",
     "output": "matches[requirementId,assetId,reason]",
     "acceptance": "引用存在，缺失返回unmatched，不编造资产",
-    "demoStatus": "待接入"
+    "demoStatus": "待接入",
+    "modelCategory": "text",
+    "modelResolution": [
+      "projectExplicitVideoModel",
+      "stepOverride",
+      "categoryDefault"
+    ],
+    "scenarioTemplateBinding": {
+      "key": "assetRecommend",
+      "priority": [
+        "project",
+        "system"
+      ],
+      "snapshot": [
+        "resourceId",
+        "version",
+        "overrideVersion",
+        "effectiveText"
+      ]
+    }
   },
   {
     "id": "P23",
@@ -220,7 +724,26 @@
     "inputs": "角色、语言、情绪、可用voiceIds",
     "output": "voiceId/语速/表现参数",
     "acceptance": "使用可用音色ID，不擅自克隆真人声音",
-    "demoStatus": "待接入"
+    "demoStatus": "待接入",
+    "modelCategory": "text",
+    "modelResolution": [
+      "projectExplicitVideoModel",
+      "stepOverride",
+      "categoryDefault"
+    ],
+    "scenarioTemplateBinding": {
+      "key": "voicePreset",
+      "priority": [
+        "project",
+        "system"
+      ],
+      "snapshot": [
+        "resourceId",
+        "version",
+        "overrideVersion",
+        "effectiveText"
+      ]
+    }
   },
   {
     "id": "P24",
@@ -229,7 +752,26 @@
     "inputs": "台词、市场、字幕长度规范",
     "output": "subtitleText + sourceDialogueIds",
     "acceptance": "不改变事实；时间轴由音频对齐工具计算",
-    "demoStatus": "待接入"
+    "demoStatus": "待接入",
+    "modelCategory": "text",
+    "modelResolution": [
+      "projectExplicitVideoModel",
+      "stepOverride",
+      "categoryDefault"
+    ],
+    "scenarioTemplateBinding": {
+      "key": "subtitle",
+      "priority": [
+        "project",
+        "system"
+      ],
+      "snapshot": [
+        "resourceId",
+        "version",
+        "overrideVersion",
+        "effectiveText"
+      ]
+    }
   },
   {
     "id": "P25",
@@ -238,7 +780,31 @@
     "inputs": "当前创意、历史对话、修改要求、市场",
     "output": "proposal/changeSummary/baseVersion",
     "acceptance": "用户采用前不改变正文；过期建议拒绝采用",
-    "demoStatus": "已演示"
+    "demoStatus": "已演示",
+    "modelCategory": "text",
+    "modelResolution": [
+      "projectExplicitVideoModel",
+      "stepOverride",
+      "categoryDefault"
+    ],
+    "scenarioTemplateBinding": {
+      "key": "ideaRefine",
+      "priority": [
+        "project",
+        "system"
+      ],
+      "snapshot": [
+        "resourceId",
+        "version",
+        "overrideVersion",
+        "effectiveText"
+      ]
+    },
+    "engineering": {
+      "milestone": "M1",
+      "status": "engineering-fixture-verified",
+      "validation": "49项后端、19项浏览器及实际HTTP文本替身内容链通过；真实DeepSeek密钥未注入，输出质量/耗时/费用待验收"
+    }
   },
   {
     "id": "P26",
@@ -247,7 +813,26 @@
     "inputs": "上传完整原文、文件名、来源ID",
     "output": "单一title/logline，正文保持原文",
     "acceptance": "只提炼1张卡；不得改写或截断原文",
-    "demoStatus": "本地规则演示"
+    "demoStatus": "本地规则演示",
+    "modelCategory": "text",
+    "modelResolution": [
+      "projectExplicitVideoModel",
+      "stepOverride",
+      "categoryDefault"
+    ],
+    "scenarioTemplateBinding": {
+      "key": "storyExtract",
+      "priority": [
+        "project",
+        "system"
+      ],
+      "snapshot": [
+        "resourceId",
+        "version",
+        "overrideVersion",
+        "effectiveText"
+      ]
+    }
   },
   {
     "id": "P27",
@@ -256,7 +841,41 @@
     "inputs": "原故事、当前剧本、对话、要求、源版本",
     "output": "剧本建议版/changeSummary",
     "acceptance": "保留原作事实；采用后旧报告失效，重新质检",
-    "demoStatus": "已演示"
+    "demoStatus": "已演示",
+    "methodBinding": "scriptMethod",
+    "methodResourceContract": [
+      "resourceId",
+      "resourceVersion",
+      "name",
+      "kind",
+      "stage",
+      "effectiveText",
+      "overrideVersion"
+    ],
+    "modelCategory": "text",
+    "modelResolution": [
+      "projectExplicitVideoModel",
+      "stepOverride",
+      "categoryDefault"
+    ],
+    "scenarioTemplateBinding": {
+      "key": "scriptRefine",
+      "priority": [
+        "project",
+        "system"
+      ],
+      "snapshot": [
+        "resourceId",
+        "version",
+        "overrideVersion",
+        "effectiveText"
+      ]
+    },
+    "engineering": {
+      "milestone": "M1",
+      "status": "engineering-fixture-verified",
+      "validation": "49项后端、19项浏览器及实际HTTP文本替身内容链通过；真实DeepSeek密钥未注入，输出质量/耗时/费用待验收"
+    }
   },
   {
     "id": "P28",
@@ -265,6 +884,73 @@
     "inputs": "原剧本、目标镜头、图片ID、对话、要求",
     "output": "镜头建议版/changeSummary",
     "acceptance": "保留稳定图片ID及所有台词；采用后复检",
-    "demoStatus": "已演示"
+    "demoStatus": "已演示",
+    "methodBinding": "boardMethod",
+    "methodResourceContract": [
+      "resourceId",
+      "resourceVersion",
+      "name",
+      "kind",
+      "stage",
+      "effectiveText",
+      "overrideVersion"
+    ],
+    "modelCategory": "text",
+    "modelResolution": [
+      "projectExplicitVideoModel",
+      "stepOverride",
+      "categoryDefault"
+    ],
+    "scenarioTemplateBinding": {
+      "key": "boardRefine",
+      "priority": [
+        "project",
+        "system"
+      ],
+      "snapshot": [
+        "resourceId",
+        "version",
+        "overrideVersion",
+        "effectiveText"
+      ]
+    },
+    "engineering": {
+      "milestone": "M1",
+      "status": "engineering-fixture-verified",
+      "validation": "49项后端、19项浏览器及实际HTTP文本替身内容链通过；真实DeepSeek密钥未注入，输出质量/耗时/费用待验收"
+    }
+  },
+  {
+    "id": "P29",
+    "scene": "故事质检",
+    "key": "storyReview",
+    "inputs": "创意源版本、当前故事、双方版本、市场",
+    "output": "summary/issues/evidence/suggestions",
+    "acceptance": "建议性报告；不覆盖正文、不阻断保留当前版继续；绑定精确被审版本",
+    "demoStatus": "生产工程增量，原型未新增调用",
+    "workflowPolicy": "advisory-only; user may keep current version and continue; do not rewrite report as passed",
+    "modelCategory": "text",
+    "modelResolution": [
+      "stepOverride",
+      "categoryDefault"
+    ],
+    "scenarioTemplateBinding": {
+      "key": "storyReview",
+      "priority": [
+        "project",
+        "system"
+      ],
+      "snapshot": [
+        "resourceId",
+        "version",
+        "overrideVersion",
+        "effectiveText"
+      ]
+    },
+    "engineering": {
+      "milestone": "M1",
+      "status": "engineering-fixture-verified",
+      "validation": "49项后端、19项浏览器及实际HTTP文本替身内容链通过；真实DeepSeek密钥未注入，输出质量/耗时/费用待验收"
+    }
   }
 ]

@@ -1,0 +1,11 @@
+import assert from 'node:assert/strict';
+const db=new Map();globalThis.localStorage={getItem:k=>db.get(k)||null,setItem:(k,v)=>db.set(k,v)};
+const w=await import('../../prototypes/shared/workflow-store.js');
+const m=await import('../../prototypes/shared/method-catalog.js');
+const h=w.hub();m.ensureCatalog(h,w.defaults,w.steps);assert.ok(h.methodLibrary.some(x=>x.kind==='skill'));assert.ok(h.methodLibrary.filter(x=>x.kind==='prompt').length>=28);
+const s=w.initial();m.prepareMethods(s,h);const choices=m.methodsFor(h,'writingMethod');assert.ok(choices.length>=2);
+const a=m.saveResource(h,{kind:'skill',stage:'writingMethod',name:'测试方法',text:'保留人物动机'},w.defaults);m.selectMethod(s,h,'writingMethod',a.id);w.putHub(h);const before=w.taskSnapshot(s,'novel');assert.equal(before.method.resourceId,a.id);assert.equal(before.method.text,'保留人物动机');
+m.saveResource(h,{...a,text:'加入转折'},w.defaults);w.putHub(h);assert.equal(w.taskSnapshot(s,'novelRevision').method.text,'加入转折');assert.equal(before.method.text,'保留人物动机');
+assert.throws(()=>m.selectMethod(s,h,'scriptMethod',a.id));assert.throws(()=>m.saveResource(h,{kind:'skill',stage:'writingMethod',name:' ',text:'x'},w.defaults));
+const prompt=h.methodLibrary.find(x=>x.id==='prompt-novel');assert.throws(()=>m.saveResource(h,{...prompt,text:'遗漏必填变量'},w.defaults));m.selectMethod(s,h,'writingMethod',prompt.id);s.methodOverrides={[prompt.id]:{text:prompt.text+' 项目要求',version:2}};assert.ok(m.resolveMethod(s,h,'writingMethod').text.endsWith('项目要求'));
+console.log('PASS: named method identity, scope, library revision snapshots, immutable historical inputs, template validation and project override.');

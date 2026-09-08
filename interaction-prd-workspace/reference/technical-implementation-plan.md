@@ -49,7 +49,7 @@
 
 | 数据组 / 建议表 | 关键字段 | 必要约束和用途 |
 |---|---|---|
-| `principals`、`projects`、`project_types` | owner_id、name、type_id、market、style_version_id、stage、status、updated_at、cover_file_id、generation_settings | 本地种子用户；新项目画幅为空。索引 owner/status/updated_at/id 支持筛选与稳定分页 |
+| `principals`、`projects`、`project_types` | owner_id、name、type_id、market、style_version_id、stage、status、updated_at、cover_file_id、generation_settings | 本地种子用户；新项目保存立项选择的比例与分辨率。索引 owner/status/updated_at/id 支持筛选与稳定分页 |
 | `content_items`、`content_versions` | project_id、kind、batch_id、selected_version_id；item_id、revision、body、source_version_id、created_at | 故事候选按批次三份；TXT 单候选。版本只追加；唯一 item_id + revision |
 | `board_versions`、`shot_versions`、`dialogue_versions` | project_id、script_version_id、revision；board_version_id、shot_id、position、prompt、duration；shot_version_id、line_id、speaker_entity_id、text、voice_version_id | 镜头/台词身份跨版本稳定；各版本内 ID 和排序唯一；台词按行存储 |
 | `project_entities`、`entity_versions` | project_id、kind、entity_id、revision、name、description、voice_version_id | 集中管理全片角色、场景、道具及服饰；变更明确影响引用方 |
@@ -81,7 +81,7 @@
 |---|---|
 | `GET/POST /projects`；`PATCH /projects/{id}` | 创建、筛选、排序、分页；响应含阶段、状态、更新时间和封面地址；保存携带基准 revision |
 | `POST /projects/{id}/story-batches`；`POST /projects/{id}/story-imports` | 一句话生成或 TXT 导入；长任务返回 202 + jobId；导入保留原文，选题提炼单独记录任务 |
-| `POST /projects/{id}/script-generations`、`board-generations`、`quality-checks` | 输入必须指向已选定/确认的精确版本；首次分镜附已确认生成规格 |
+| `POST /projects/{id}/script-generations`、`board-generations`、`quality-checks` | 输入必须指向已选定/确认的精确版本；生成与导出使用项目规格版本，不弹出首次设置 |
 | `POST /projects/{id}/conversations/{cid}/messages`；`POST /proposals/{id}/apply` | 发送修改要求并产出建议；采用时验证 project、target、baseVersion，原子写新版 |
 | `POST /assets/uploads`；`POST /assets/uploads/{id}/complete`；`POST /projects/{id}/entities` | 上传、文件验收、全片元素管理；文件验收后才成为可引用资产 |
 | `POST /projects/{id}/jobs`；`GET /jobs/{id}`；`POST /jobs/{id}/cancel`、`retry` | 图像、TTS、视频等任务；指定合法 interactionKey、target 和 sourceVersions；后端决定任务类别与能力路由 |
@@ -89,7 +89,7 @@
 | `POST /projects/{id}/exports`；`GET /exports/{id}` | 冻结剪辑与媒体版本，返回合成任务；完成后返回受控下载地址 |
 | `GET/POST /settings/model-configs`、`prompt-versions`、`bindings` | 校验、版本化保存及项目覆盖；连接测试另建有记录的任务，不能假报成功 |
 
-生成/重试/导出命令接受 `Idempotency-Key`：同一键和相同输入返回已有 jobId，同键不同输入返回冲突。服务端必须重新校验前置确认、能力、资产和权限；不能信任客户端传来的“已通过”。OpenAPI 作为前后端契约源，生成 TypeScript 客户端并做契约测试。前端本地存储只承载 UI 偏好与待保存草稿，正式项目数据以服务端为准。
+生成/重试/导出命令接受 `Idempotency-Key`：同一键和相同输入返回已有 jobId，同键不同输入返回冲突。服务端必须重新校验前置确认、能力、资产和权限；不能信任客户端传来的内容版本和引用；AI 质量结论不作为推进授权条件。OpenAPI 作为前后端契约源，生成 TypeScript 客户端并做契约测试。前端本地存储只承载 UI 偏好与待保存草稿，正式项目数据以服务端为准。
 
 文本与报告建议继续使用 **JSON + JSON Schema + 服务端语义校验**。若供应商支持结构化输出则开启；不支持时解析文本 JSON，校验失败将错误路径反馈给模型，限定两次修正，仍不合格则明确失败。合法 JSON 不等于业务有效；不能靠提示词承诺代替 ID、版本和引用校验。
 
@@ -173,7 +173,7 @@ Outbox 是与 Job 在同一数据库事务写入的待派发记录。独立派�
 
 R4 的 P01–P28 使用独立 interactionKey 绑定提示词/模型。首先接入 P01–P08、P11–P13、P15、P17、P18、P25、P27、P28；P26 随 TXT 入口接入。P10 资产提取先可人工维护，其他增强按 R4 推进。写作、剧本和分镜 Skill 作为带版本的指令包导入，校验变量与输出 Schema，不执行任意脚本。质检模型可独立配置，不要求与创作模型相同。
 
-本地凭据通过未入版本库的环境变量或受控密钥文件注入，配置只保存 credential_ref；上线换成密钥管理服务。预览、日志、导出及浏览器不回传凭据原文。系统输出默认值只在第一次分镜设置时建议，用户确认后成为项目版本；切换 UI 主题只影响界面，不影响视频风格或任务快照。
+本地凭据通过未入版本库的环境变量或受控密钥文件注入，配置只保存 credential_ref；上线换成密钥管理服务。预览、日志、导出及浏览器不回传凭据原文。系统输出默认值在立项表单中初始化选项，用户确认后成为项目版本；切换 UI 主题只影响界面，不影响视频风格或任务快照。
 
 ## 四、本地运行、迁移部署与上线准备
 
@@ -259,3 +259,48 @@ Compose 与镜像摘要已交付；当前机器未安装 Docker，容器构建/�
 DeepSeek 适配器默认使用 `https://api.deepseek.com` 的 `deepseek-v4-pro`（服务端可覆盖）。使用 JSON Output、非思考模式、8192 token 上限；仅凭据引用进入快照。正文/结构错误最多修正两次，超时、5xx及执行中断进入 unknown，不自动重发；用户确认可能重复计费后创建一个重试子任务，旧记录保留。没有可据此宣称的供应商查询对账能力，unknown 只能人工核实后决定。模型参数、P01/P02 revision 2、源版本、输入及调用耗时/usage/request ID 留存。
 
 `make test` 覆盖隔离 PostgreSQL、真实 Redis/Worker 中断恢复；`make test-ui` 使用独立5181浏览器页面与显式 API 替身检查前端冲突草稿、刷新幂等、建议采用和主题；它们都不代替真实供应商验收。本地数据库迁移前已停写、备份并完成独立恢复演练。用户确认 `DEEPSEEK_API_KEY` 尚未注入；真实模型故事闭环仍待最后验收。剧本、分镜、质检修复、TXT入口、完整模型配置编辑与成片能力继续按原计划实施。
+
+## V8 实施增量：规格、方法与建议性质检
+
+本节为新增工程要求，不表示生产工程已实现；不需要重跑整个 M0。按受影响的迁移、接口、工作台与回归增量交付，保留现有 M0/M1 验收事实。
+
+- `projects.generation_settings` 保存画幅、分辨率与revision；创建接口接收选择值。旧项目仅对缺省字段补系统默认并记录迁移来源，不覆盖已有值。规格更新事务递增版本并标记受影响媒体过期；任务/导出冻结该版本。
+- 新增 `review_decisions`：project_id、stage、content_version_id/board_version_id、report_id（可空）、report_state_at_decision、choice（keep_current/apply_suggestion）、created_at。报告和决定独立，不把“选择继续”写成报告通过。决定与当前版本确认在同一事务，重复确认幂等。故事采用现有选定动作，并保存有报告时的建议上下文，无需新增强制检查。
+- 确认接口只检查非空、项目归属、来源版本与执行引用，不检查 AI issues 数量或质检任务成功状态。报告超时、失败或尚未返回仍可确认；迟到报告只显示建议，不撤销用户已确认版本。非法修复 JSON 只阻止“应用该建议”，不能阻止保留当前内容继续。
+- 方法配置按writingMethod/scriptMethod/boardMethod共用；对应主生成、修改和修复任务冻结同一选择及独立interactionKey。重复“生成分镜表”另建board版本，归档旧版；提交baseVersion避免晚到结果覆盖新编辑。
+- 尾帧接口建议 `POST /shots/{id}/previous-frame-reference`，携带baseShotVersion和previousVideoVersionId；服务端校验即时前驱及文件可读，异步提取真实末帧，事务内创建图片引用和提示词片段。源视频期间被更换返回版本冲突；重复绑定复用同版本帧。失效传播覆盖手动绑定和顺序模式。
+
+验收增加：质量有建议/未就绪/失败时，故事→剧本→分镜→素材与视频均可继续；原报告不变、决定可追溯。分别验证空正文、来源冲突、失效引用仍提示执行错误。项目16:9/4K贯穿生成与导出；修改系统默认不覆盖项目；重复取尾帧无重复token，前镜替换后旧绑定不可提交。
+
+## V9 实施增量：具名方法与双库
+
+- 增加method_resources及method_resource_versions：id、name、kind（skill/prompt）、stage、interaction_key、revision、body；项目method_bindings指向资源ID，项目覆盖独立存储。按阶段过滤方法，同名资源不能作为身份标识。
+- Skill库与提示词库是资产模块的文本资源视图；提示词配置中心复用同一模板服务和版本，避免双份数据。建议资源列表/创建、追加版本、项目绑定接口，保存携带baseVersion；已有资源禁止静默改类型/适用环节。
+- 创建/修改Skill只保存解析后的指令文本，文件扩展名、长度和编码校验；不默认运行上传代码。方法ID、资源版本、有效内容、项目覆盖和模型配置冻结进任务快照。库更新仅影响后续任务，已有输出不静默替换。
+- 创意导演对话不附写作方法；从故事助手起分别绑定写作、剧本、分镜方法。迁移旧的Skill/提示词类型选择时保留既有自定义正文，映射到具名资源和项目覆盖；不得清空旧内容。
+- 该增量仍是工程规划。本轮改动限PRD与Demo，不表示生产M1已完成资源库或方法绑定接口。
+
+
+V10 配置工程增量（方案，未声称生产实现）：新增按 capability 唯一的 model_category_defaults 与按 interaction_key 唯一的 model_step_bindings，后者为空时动态继承；旧逐环节配置迁移为显式覆盖。服务端解析项目显式视频模型、环节覆盖、类别默认，并校验供应商任务能力；浏览器不得仅替换显示名当作真实路由。提示词新增系统/项目级 scenario_template_bindings，关联同一资源库及不可变 revision。保存携带 baseVersion 防并发覆盖；运行时冻结最终模型、来源、模板/覆盖版本与正文，历史结果保持不变。UI 将音频并入模型分类，设置直接打开三 Tab 面板；见 08-settings 流程图。
+
+
+## 最新计划 M0/M1 工程增量 · 2026-09-08
+
+本节更新前述故事子阶段及 V8/V9/V10 的实施状态，历史验收记录不改写。工程沿用现有项目、持久任务与内容版本架构：配置统一使用不可变 resource_versions/configuration_bindings（按 scope/key/revision）表达类别默认、环节覆盖、场景模板、方法、风格及输出规格；并非为每种配置重复建表。确认决定以 content_confirmations 保存内容精确版本、报告和当时状态，与 content_reviews 的原始报告分离。
+
+创意、故事、剧本、分镜共用文本任务执行、冻结配置、来源检查、幂等与 unknown 恢复；导演/修复生成建议，采用才追加版本。上游修改递归标记下游过期，迟到结果保留历史而不覆盖当前正文；稳定镜头/台词 ID 与完整分镜引用在服务器校验。内容/配置增量已通过49项后端测试和独立复审；本机真实 HTTP API、PostgreSQL、Redis/Worker、HTTP 文本替身已跑通19次调用至分镜确认及失败恢复。生产工作台19项浏览器回归及独立复审通过，最终409与跨来源草稿恢复问题已修复，最终事实统一见 工程记录 `docs/engineering/m0-m1-verification.md`。
+
+用户明确选择先完成工程与替身验收，DEEPSEEK_API_KEY 尚未注入；这些记录不改变 M1 真实供应商或 A01–A07 的退出标准。M2 媒体、M3 MP4、后续 TXT 入口及容器启动仍未计入已验证事实。停写备份允许原样保留历史 unknown 并列出待核实任务，恢复不自动重投，仍拒绝活动任务。
+
+
+## 页面凭据与 M1 验收增量
+
+用户新增授权页面录入模型密钥、服务端安全保存和连接测试。凭据与模型绑定分开：绑定只保存credentialRef；独立本地凭据库使用Fernet认证加密、0700目录/0600文件、跨进程锁与原子替换，主密钥与密文均不进入PostgreSQL/媒体/普通备份。API与Worker读取同一私有目录，Compose配置独立共享卷；此方案面向现有本地单用户进程，公网身份体系仍属M4。
+
+凭据绑定规范化服务地址，配置地址变化后旧凭据拒绝发送；已有环境变量方式兼容，但已存凭据优先且不因地址不匹配而回退。保存携带模型绑定版本和凭据版本，校验输入失败不回显原值，跨站敏感写入拒绝。连接测试只解析已保存的生文模型，调用同一适配器发送短JSON探测、有限超时和输出，无自动重试/重定向，只返回状态、耗时与数字用量。诊断请求不创建故事或质检版本；测试成功不能代替M1退出条件。
+
+本轮凭据工程回归与独立审查已通过（c6f5020）；真实模型仍需用户在生产页面保存密钥后验收。事实记录维护在工程 `docs/engineering/page-credentials-verification.md`。原M0/M1替身验收及A01–A07边界不改写。
+
+## M1 真实验收完成事实 · 2026-09-08
+
+用户页面配置DeepSeek后，真实主链已走通一句话三故事、选择/修改采用、剧本质检修复、人工版本保存与11镜分镜确认；非法模型输出及过期建议被拒，失败历史与重试关系保留，停写备份和隔离恢复核对通过。M1退出条件通过；64后端/21页面回归通过。真实模型存在需人工修订及格式纠错的情况，不承诺一次生成成功。详细版本、用量、两次失败及必要纠错修复见 `docs/engineering/m1-real-verification.md`；历史“等待密钥”仅描述当时状态，不再代表当前。M2/M3和A01–A07完整成片门槛不改变。
