@@ -9,7 +9,7 @@ from sqlalchemy.orm import Session
 
 from shortfilm.config import settings
 from shortfilm.configuration.schemas import OutputSpecification
-from shortfilm.configuration.service import latest, save_binding, specification
+from shortfilm.configuration.service import latest, save_binding, specification, sync_style_binding
 from shortfilm.db import session
 from shortfilm.models import Job, Project, ProjectType
 from shortfilm.schemas import DTO, ProjectCreate, ProjectList, ProjectOut, ProjectPatch, TypeOut
@@ -52,10 +52,7 @@ def create_project(body: ProjectCreate, db: Session = Depends(session)):
         0,
         OutputSpecification.model_validate(values).model_dump(mode="json"),
     )
-    if body.style_resource_id:
-        save_binding(
-            db, "project:" + str(p.id), "style", 0, {"resource_id": str(body.style_resource_id)}
-        )
+    sync_style_binding(db, p, spec.get("style_resource_id"))
     db.add(p)
     db.commit()
     db.refresh(p)
@@ -135,6 +132,7 @@ def update_specification(pid: UUID, body: SpecificationUpdate, db: Session = Dep
     value = body.model_dump(mode="json", exclude={"base_version"})
     prior = latest(db, "project:" + str(pid), "output")
     save_binding(db, "project:" + str(pid), "output", prior.revision if prior else 0, value)
+    sync_style_binding(db, p, value.get("style_resource_id"))
     p.generation_settings = {
         **specification(value, body.base_version + 1),
         "media_needs_review": True,

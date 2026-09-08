@@ -140,6 +140,10 @@ def put_binding(scope: str, key: str, body: BindingUpdate, db: Session = Depends
     except (ValidationError, ValueError):
         raise HTTPException(422, "配置值无效") from None
     if project:
+        if key == "style":
+            from shortfilm.configuration.service import sync_specification_style
+
+            sync_specification_style(db, project, body.value)
         from sqlalchemy import func
 
         project.revision += 1

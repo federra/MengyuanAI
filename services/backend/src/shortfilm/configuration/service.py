@@ -117,7 +117,9 @@ def validate_binding(db, key, value):
         if route.capability != expected:
             raise HTTPException(422, "模型能力不匹配")
     elif key == "output":
-        OutputSpecification.model_validate(value)
+        output = OutputSpecification.model_validate(value)
+        if output.style_resource_id:
+            validate_binding(db, "style", {"resource_id": str(output.style_resource_id)})
     elif key.startswith(("method:", "scenario:")) or key == "style":
         if set(value) - {"resource_id", "revision", "content"}:
             raise HTTPException(422, "不支持的绑定字段")
@@ -198,7 +200,7 @@ def resolve(db: Session, project: Project, key: str, stage: str):
         "method": resolved_resource(db, project, "method:" + stage)
         if stage in ("story", "script", "storyboard")
         else None,
-        "style": resolved_resource(db, project, "style"),
+        "style": resolved_project_style(db, project),
         "specification": spec,
     }
 
@@ -296,3 +298,45 @@ def render_template(content: str, variables: dict, required_variables: list[str]
     return re.sub(
         r"\{\{\s*([a-zA-Z_][a-zA-Z0-9_]*)\s*\}\}", lambda m: str(variables[m.group(1)]), content
     )
+
+
+def sync_style_binding(db, project, style_id):
+    """Project specification owns style identity; binding retains optional version/body selection."""
+    previous = latest(db, "project:" + str(project.id), "style")
+    previous_id = previous.value.get("resource_id") if previous and previous.value else None
+    target_id = str(style_id) if style_id else None
+    if previous_id != target_id:
+        save_binding(
+            db,
+            "project:" + str(project.id),
+            "style",
+            previous.revision if previous else 0,
+            {"resource_id": target_id} if target_id else None,
+        )
+
+
+def resolved_project_style(db, project):
+    style_id = (project.generation_settings or {}).get("style_resource_id")
+    if not style_id:
+        return None
+    binding = latest(db, "project:" + str(project.id), "style")
+    if binding and binding.value and binding.value.get("resource_id") == style_id:
+        return resolved_resource(db, project, "style")
+    return {**resource_json(db, UUID(style_id)), "binding_revision": 0, "source": "project"}
+
+
+def sync_specification_style(db, project, value):
+    """Support library style binding edits by atomically updating the authoritative specification."""
+    current = project.generation_settings or {}
+    style_id = value["resource_id"] if value else None
+    updated = {
+        **current,
+        "style_resource_id": style_id,
+        "revision": current.get("revision", 1) + 1,
+        "media_needs_review": True,
+    }
+    output = {key: updated[key] for key in OutputSpecification.model_fields if key in updated}
+    prior = latest(db, "project:" + str(project.id), "output")
+    save_binding(db, "project:" + str(project.id), "output", prior.revision if prior else 0, output)
+    project.generation_settings = updated
+    project.status = "in_progress"

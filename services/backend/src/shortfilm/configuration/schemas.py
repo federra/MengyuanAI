@@ -69,6 +69,12 @@ class OutputSpecification(DTO):
     video_model: ModelRoute | None = None
     style_resource_id: UUID | None = None
 
+    @model_validator(mode="after")
+    def video_capability(self):
+        if self.video_model and self.video_model.capability != "video":
+            raise ValueError("视频输出模型必须具备video能力")
+        return self
+
 
 class ResourceOut(ResourceCreate):
     id: UUID

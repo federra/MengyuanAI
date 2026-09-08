@@ -263,3 +263,116 @@ def test_binding_rejects_invalid_resource_revision_and_unknown_key(client):
         ).status_code
         == 422
     )
+
+
+def test_style_specification_binding_and_default_stay_consistent(client):
+    styles = [
+        client.post(
+            "/api/v1/settings/resources",
+            json={"name": name + uuid4().hex, "kind": "style", "stage": "visual", "content": name},
+        ).json()
+        for name in ("风格A", "风格B")
+    ]
+    a, b = (r["id"] for r in styles)
+    p = client.post("/api/v1/projects", json={"name": "风格项目", "style_resource_id": a}).json()
+    url = f"/api/v1/settings/resolve/{p['id']}/video?stage=storyboard"
+    spec_url = f"/api/v1/projects/{p['id']}/specification"
+    assert client.get(url).json()["style"]["id"] == a
+    assert client.put(spec_url, json={"base_version": 1, "style_resource_id": b}).status_code == 200
+    assert client.get(url).json()["style"]["id"] == b
+    assert (
+        client.put(spec_url, json={"base_version": 2, "style_resource_id": None}).status_code == 200
+    )
+    assert client.get(url).json()["style"] is None
+    binding_url = f"/api/v1/settings/bindings/project:{p['id']}/style"
+    revision = client.get(binding_url).json()["revision"]
+    assert (
+        client.put(
+            binding_url, json={"base_version": revision, "value": {"resource_id": a}}
+        ).status_code
+        == 200
+    )
+    snap = client.get(url).json()
+    assert snap["style"]["id"] == snap["specification"]["style_resource_id"] == a
+    output = "/api/v1/settings/bindings/system/output"
+    previous = client.get(output).json()
+    try:
+        assert (
+            client.put(
+                output,
+                json={"base_version": previous["revision"], "value": {"style_resource_id": b}},
+            ).status_code
+            == 200
+        )
+        inherited = client.post("/api/v1/projects", json={"name": "系统风格初始化"}).json()
+        snapshot = client.get(
+            f"/api/v1/settings/resolve/{inherited['id']}/video?stage=storyboard"
+        ).json()
+        assert snapshot["style"]["id"] == snapshot["specification"]["style_resource_id"] == b
+    finally:
+        latest_revision = client.get(output).json()["revision"]
+        client.put(output, json={"base_version": latest_revision, "value": previous["value"]})
+    invalid = client.post(
+        "/api/v1/settings/resources",
+        json={
+            "name": "不是风格" + uuid4().hex,
+            "kind": "skill",
+            "stage": "story",
+            "content": "指令",
+        },
+    ).json()
+    assert (
+        client.put(
+            spec_url,
+            json={
+                "base_version": snap["specification"]["revision"],
+                "style_resource_id": invalid["id"],
+            },
+        ).status_code
+        == 422
+    )
+
+
+def test_output_video_capability_and_route_inheritance(client):
+    output = "/api/v1/settings/bindings/system/output"
+    base = client.get(output).json()["revision"]
+    route = {
+        "provider": "example",
+        "model": "example-video",
+        "endpoint": "https://example.com",
+        "capability": "text",
+        "credential_ref": "EXAMPLE_KEY",
+    }
+    assert (
+        client.put(output, json={"base_version": base, "value": {"video_model": route}}).status_code
+        == 422
+    )
+    p = project(client)
+    spec_url = f"/api/v1/projects/{p['id']}/specification"
+    assert client.put(spec_url, json={"base_version": 1, "video_model": route}).status_code == 422
+    route["capability"] = "video"
+    assert client.put(spec_url, json={"base_version": 1, "video_model": route}).status_code == 200
+    url = f"/api/v1/settings/resolve/{p['id']}/video?stage=storyboard"
+    assert client.get(url).json()["model"]["source"] == "project"
+    category = "/api/v1/settings/bindings/system/model:category:video"
+    previous = client.get(category).json()
+    try:
+        assert (
+            client.put(
+                category,
+                json={
+                    "base_version": previous["revision"],
+                    "value": {**route, "model": "default-video"},
+                },
+            ).status_code
+            == 200
+        )
+        assert (
+            client.put(spec_url, json={"base_version": 2, "video_model": None}).status_code == 200
+        )
+        model = client.get(url).json()["model"]
+        assert model["source"] == "category_default"
+        assert model["value"]["model"] == "default-video"
+    finally:
+        current = client.get(category).json()["revision"]
+        client.put(category, json={"base_version": current, "value": previous["value"]})
