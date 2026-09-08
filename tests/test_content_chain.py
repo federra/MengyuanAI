@@ -806,3 +806,44 @@ def test_unchanged_manual_script_save_preserves_confirmed_downstream(client, cha
     assert changed.json()["revision"] > saved["revision"]
     assert changed.json()["version_id"] != saved["version_id"]
     assert client.get(base + "/stages/board").json()["item"]["stale"]
+
+
+def test_board_correction_receives_specific_validation_reason(client, chain_model, monkeypatch):
+    import json
+    from uuid import UUID
+
+    from shortfilm.db import Session
+    from shortfilm.models import JobAttempt
+    from sqlalchemy import select
+
+    base, _, _, script, board = chain(client)
+    calls = []
+
+    def corrected(config, messages, schema):
+        calls.append(deepcopy(messages))
+        body = deepcopy(board["body"])
+        if len(calls) == 1:
+            body["shots"][0]["dialogue"] = "private-invalid-output-marker"
+        else:
+            assert "台词摘要必须与逐段正文一致" in messages[-1]["content"]
+        return body, {}
+
+    monkeypatch.setattr(chain_model, "request_json", corrected)
+    result = run(
+        client,
+        post(
+            client,
+            base + "/stages/board/generate",
+            {
+                "source_version_id": script["version_id"],
+                "target_revision": board["revision"],
+            },
+        ),
+    )
+    assert len(calls) == 2
+    with Session() as db:
+        attempt = db.scalar(select(JobAttempt).where(JobAttempt.job_id == UUID(result["id"])))
+        errors = attempt.provider_calls[0]["validation_errors"]
+        assert "台词摘要必须与逐段正文一致" in json.dumps(errors, ensure_ascii=False)
+        assert errors[0]["path"] == ["shots", 0]
+        assert "private-invalid-output-marker" not in json.dumps(errors)

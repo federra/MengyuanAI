@@ -85,16 +85,26 @@ def execute_text(job_id, token, snapshot):
                 return
             except (ValidationError, ValueError) as e:
                 errors = (
-                    [{"path": list(err["loc"]), "type": err["type"]} for err in e.errors()]
+                    [
+                        {"path": list(err["loc"]), "type": err["type"], "message": err["msg"]}
+                        for err in e.errors(include_input=False, include_context=False)
+                    ]
                     if isinstance(e, ValidationError)
                     else [{"semantic": str(e)}]
                 )
+                # Keep diagnostic reasons, never the rejected model body in attempt metadata.
+                with Session.begin() as db:
+                    attempt = db.scalar(select(JobAttempt).where(JobAttempt.token == token))
+                    calls = list(attempt.provider_calls or [])
+                    calls[-1] = {**calls[-1], "validation_errors": errors}
+                    attempt.provider_calls = calls
                 # Preserve invalid data as quoted assistant content, never instructions.
                 messages += [
                     {"role": "assistant", "content": json.dumps(raw, ensure_ascii=False)},
                     {
                         "role": "user",
-                        "content": "修正以下校验错误，返回完整 JSON：" + json.dumps(errors),
+                        "content": "修正以下校验错误，返回完整 JSON："
+                        + json.dumps(errors, ensure_ascii=False),
                     },
                 ]
         finish_job(job_id, token, error="invalid_model_output")

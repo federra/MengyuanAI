@@ -50,6 +50,14 @@ class Shot(DTO):
     refs: References
     duration: float = Field(gt=0, le=600)
 
+    @model_validator(mode="after")
+    def dialogue_consistency(self):
+        if self.dialogue != "\n".join(line.text for line in self.dialogues).strip():
+            raise ValueError(
+                "台词摘要必须与逐段正文一致：仅将各段text用换行拼接，不加说话人或情绪标签"
+            )
+        return self
+
 
 class BoardBody(DTO):
     schemaVersion: Literal[2]
@@ -62,9 +70,6 @@ class BoardBody(DTO):
         lines = [line.id for s in self.shots for line in s.dialogues]
         if len(set(shots + lines)) != len(shots + lines):
             raise ValueError("镜头和台词ID不得重复")
-        for shot in self.shots:
-            if shot.dialogue != "\n".join(line.text for line in shot.dialogues).strip():
-                raise ValueError("台词摘要必须与逐段正文一致")
         return self
 
 
