@@ -1,6 +1,6 @@
 # AI短片工坊
 
-从零建设的 PC Web 短片创作系统。M0 提供工程底座；真实 AI 内容、参考图/TTS/视频与 MP4 分别在 M1–M3 实施。需求与交互 Demo 保存在独立的 `interaction-prd-workspace/`，不参与应用构建。
+从零建设的 PC Web 短片创作系统。M0 提供工程底座，M1 故事工程已接入 DeepSeek 适配器与版本工作台；真实文本调用验收等待密钥注入。剧本/分镜、参考图/TTS/视频与 MP4 继续按 M1–M3 实施。需求与交互 Demo 保存在独立的 `interaction-prd-workspace/`，不参与应用构建。
 
 ## 工程结构
 
@@ -10,7 +10,7 @@ apps/web/                  React + TypeScript + Vite 五模块应用壳
 services/backend/
   src/shortfilm/
     projects/              项目保存、owner 隔离、revision 冲突
-    creation/              M1 内容领域边界
+    creation/              故事版本、导演建议、DeepSeek 适配器与恢复
     assets/                M2 资产版本领域边界
     media/                 StorageAdapter、图片验收与受控读取
     jobs/                  事务入队、dispatcher、Celery、租约恢复
@@ -63,4 +63,17 @@ make contract   # 导出 OpenAPI，重新生成 TypeScript 类型
 
 已实现：新建/分页查询/继续/改名项目，乐观锁防覆盖；真实 PNG/JPEG/WebP 上传、类型解码/大小校验、SHA256、按项目读取；Job 与 Outbox 同事务、API 幂等键、独立派发、数据库锁、尝试记录、租约心跳、旧执行者拦截、丢失队列消息恢复；三主题应用壳与配置概览。
 
-唯一任务类型为本地确定性的 `file.verify`，用于底座验收。不能将它的重试策略直接用于付费供应商任务。M1–M4 补齐内容/配置编辑与版本契约、生成规格、AI 适配器、任务依赖/取消/SSE/供应商对账、资产复用、媒体合成及上线身份体系。当前没有模型凭据或伪造的生成结果；初始化仅本地操作者、三类项目类型与28项未验证契约指令。
+M0 基线唯一任务类型为本地确定性的 `file.verify`，用于底座验收。不能将它的重试策略直接用于付费供应商任务。M1–M4 补齐内容/配置编辑与版本契约、生成规格、AI 适配器、任务依赖/取消/SSE/供应商对账、资产复用、媒体合成及上线身份体系。当前没有模型凭据或伪造的生成结果；初始化仅本地操作者、三类项目类型与28项未验证契约指令。
+
+
+## M1 故事工作台
+
+在项目中继续创作：保存一句话 → AI生成3个故事 → 翻页/编辑 → 导演建议 → 采用此版 → 确定此故事。正文、对话、候选、选择记录和历史版本都由 PostgreSQL 保存；浏览器只保留偏好、未保存草稿及未确认命令的幂等键。生成中离开页面不取消任务。改动正文后需重新选定，旧版始终保留。剧本/分镜按钮仅提供边界说明，本轮没有实现其生成。
+
+默认文本配置（来自已核对的 [DeepSeek 官方接口](https://api-docs.deepseek.com/api/create-chat-completion/)）：`SHORTFILM_TEXT_ENDPOINT=https://api.deepseek.com`、`SHORTFILM_TEXT_MODEL=deepseek-v4-pro`、`SHORTFILM_TEXT_CREDENTIAL_REF=DEEPSEEK_API_KEY`、`SHORTFILM_TEXT_JSON_MODE=json_object`、`SHORTFILM_TEXT_TIMEOUT_SECONDS=120`、`SHORTFILM_TEXT_MAX_TOKENS=8192`。DeepSeek 使用非思考模式。API 与 Worker 必须继承同一份环境。
+
+密钥可通过进程环境注入，也可停止现有开发进程后运行 `make dev-deepseek`，在终端隐藏输入密钥：只注入本次进程，不写文件、命令历史、数据库或浏览器。不要在聊天中发送密钥。普通 `make dev` 无密钥时仍可保存创意/编辑历史，但提交生成会明确阻止。配置就绪不表示真实调用已验收。
+
+失败任务在创作工作台底部保留输入与配置；明确失败可按原配置重试。unknown 表示服务可能已受理，先到供应商核实，再勾选可能重复计费的确认重新提交；系统不伪造查询结果、不自动重发。每个原任务仅派生一个重试子任务，后续失败从子任务继续重试。
+
+`make test-ui` 运行 Playwright 浏览器回归，独立测试端口5181，默认使用本机 Chrome；未安装 Chrome 的环境先执行 `npx playwright install chromium`（在 apps/web 下）。测试结果被 Git 忽略。M1 验收记录见 `docs/engineering/m1-story-verification.md`；真实文本密钥未注入，当前不能宣称真实故事闭环已通过。

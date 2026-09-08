@@ -6,6 +6,8 @@ from fastapi import FastAPI
 from fastapi.responses import JSONResponse
 from sqlalchemy import text
 
+from shortfilm.creation.retry import router as retries
+from shortfilm.creation.router import router as creation
 from shortfilm.db import Session
 from shortfilm.jobs.router import router as jobs
 from shortfilm.media.router import router as files
@@ -15,10 +17,10 @@ from shortfilm.settings.router import router as settings
 app = FastAPI(
     title="AI短片工坊",
     version="0.1.0",
-    description="M0 本地单用户工程底座；AI 与成片能力在后续里程碑接入。",
+    description="本地单用户短片工坊：M1故事版本与DeepSeek适配器；真实文本验收及后续成片能力单独验证。",
 )
 logger = logging.getLogger("shortfilm.api")
-for router in (projects, files, jobs, settings):
+for router in (projects, files, jobs, settings, creation, retries):
     app.include_router(router, prefix="/api/v1")
 
 

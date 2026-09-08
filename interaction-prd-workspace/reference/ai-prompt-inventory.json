@@ -6,7 +6,15 @@
     "inputs": "一句话、写作指令、市场、风格",
     "output": "三份 title/logline/direction/text",
     "acceptance": "每批恰好3份；情节方向不同；语言匹配市场",
-    "demoStatus": "已演示"
+    "demoStatus": "已演示",
+    "engineering": {
+      "milestone": "M1-story",
+      "promptRevision": 2,
+      "provider": "DeepSeek",
+      "status": "implemented-real-validation-pending",
+      "outputSchema": "BatchOutput",
+      "validation": "PostgreSQL/Worker/transport fixtures passed; real API key not injected"
+    }
   },
   {
     "id": "P02",
@@ -15,7 +23,15 @@
     "inputs": "故事正文、版本、对话、修改要求",
     "output": "新正文、changeSummary",
     "acceptance": "保留未要求改动的事实；新版本不覆写原版",
-    "demoStatus": "已演示"
+    "demoStatus": "已演示",
+    "engineering": {
+      "milestone": "M1-story",
+      "promptRevision": 2,
+      "provider": "DeepSeek",
+      "status": "implemented-real-validation-pending",
+      "outputSchema": "RevisionOutput",
+      "validation": "PostgreSQL/Worker/transport fixtures passed; real API key not injected"
+    }
   },
   {
     "id": "P03",

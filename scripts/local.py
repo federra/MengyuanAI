@@ -40,6 +40,16 @@ def redis_bin(name):
     raise SystemExit("缺少 Redis 7.4；请安装 Redis，或使用 make compose-bootstrap。")
 
 
+def verify_redis_owner(client):
+    try:
+        directory = client.config_get("dir").get("dir")
+        if directory and Path(directory).resolve() == (LOCAL / "redis").resolve():
+            return
+    except Exception:
+        pass
+    raise SystemExit("56379 已被非本项目或无法核实归属的 Redis 占用；停止启动。")
+
+
 def dependencies():
     LOCAL.mkdir(exist_ok=True)
     if not (LOCAL / "postgres/PG_VERSION").exists():
@@ -86,7 +96,8 @@ def dependencies():
     from redis import Redis
 
     try:
-        Redis(host="127.0.0.1", port=56379).ping()
+        client = Redis(host="127.0.0.1", port=56379, decode_responses=True)
+        client.ping()
     except Exception:
         command(
             [
@@ -105,6 +116,8 @@ def dependencies():
                 LOCAL / "redis.pid",
             ]
         )
+    else:
+        verify_redis_owner(client)
 
 
 def bootstrap():
@@ -208,9 +221,20 @@ def dev():
             log.close()
 
 
+def dev_deepseek():
+    from getpass import getpass
+
+    if not os.environ.get("DEEPSEEK_API_KEY"):
+        value = getpass("DeepSeek API Key（隐藏输入，仅注入本次进程）: ").strip()
+        if not value:
+            raise SystemExit("没有输入密钥，未启动生成服务。")
+        os.environ["DEEPSEEK_API_KEY"] = value
+    dev()
+
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("action", choices=["bootstrap", "dev", "dependencies"])
+    parser.add_argument("action", choices=["bootstrap", "dev", "dev_deepseek", "dependencies"])
     action = parser.parse_args().action
     signal.signal(signal.SIGTERM, lambda *_: sys.exit(0))
     try:

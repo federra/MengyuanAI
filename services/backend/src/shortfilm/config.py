@@ -13,6 +13,12 @@ class Settings(BaseSettings):
     max_upload_bytes: int = 20 * 1024 * 1024
     lease_seconds: int = 30
     redispatch_seconds: int = 30
+    text_endpoint: str = "https://api.deepseek.com"
+    text_model: str = "deepseek-v4-pro"
+    text_credential_ref: str = "DEEPSEEK_API_KEY"
+    text_timeout_seconds: int = 120
+    text_json_mode: str = "json_object"
+    text_max_tokens: int = 8192
 
 
 settings = Settings()

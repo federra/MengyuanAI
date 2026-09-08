@@ -99,6 +99,7 @@ class JobAttempt(Identity, Base):
     token: Mapped[UUID] = mapped_column(unique=True)
     state: Mapped[str] = mapped_column(String(30), default="running")
     finished_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    provider_calls: Mapped[list | None] = mapped_column(JSONB)
 
 
 class JobEvent(Identity, Base):
@@ -111,3 +112,51 @@ class JobResult(Base):
     __tablename__ = "job_results"
     job_id: Mapped[UUID] = mapped_column(ForeignKey("generation_jobs.id"), primary_key=True)
     output: Mapped[dict] = mapped_column(JSONB)
+
+
+class ContentItem(Identity, Base):
+    __tablename__ = "content_items"
+    project_id: Mapped[UUID] = mapped_column(ForeignKey("projects.id"), index=True)
+    kind: Mapped[str] = mapped_column(String(20))
+    batch_id: Mapped[UUID | None] = mapped_column(ForeignKey("generation_jobs.id"))
+    revision: Mapped[int] = mapped_column(default=0)
+    __table_args__ = (
+        Index("uq_project_idea", "project_id", unique=True, postgresql_where=(kind == "idea")),
+    )
+
+
+class ContentVersion(Identity, Base):
+    __tablename__ = "content_versions"
+    item_id: Mapped[UUID] = mapped_column(ForeignKey("content_items.id"), index=True)
+    revision: Mapped[int]
+    body: Mapped[dict] = mapped_column(JSONB)
+    source_version_id: Mapped[UUID | None] = mapped_column(ForeignKey("content_versions.id"))
+    job_id: Mapped[UUID | None] = mapped_column(ForeignKey("generation_jobs.id"))
+    origin: Mapped[str] = mapped_column(String(20))
+    __table_args__ = (UniqueConstraint("item_id", "revision"), CheckConstraint("revision > 0"))
+
+
+class StorySelection(Identity, Base):
+    __tablename__ = "story_selections"
+    project_id: Mapped[UUID] = mapped_column(ForeignKey("projects.id"), index=True)
+    revision: Mapped[int]
+    version_id: Mapped[UUID | None] = mapped_column(ForeignKey("content_versions.id"))
+    __table_args__ = (UniqueConstraint("project_id", "revision"),)
+
+
+class Message(Identity, Base):
+    __tablename__ = "messages"
+    item_id: Mapped[UUID] = mapped_column(ForeignKey("content_items.id"), index=True)
+    job_id: Mapped[UUID] = mapped_column(ForeignKey("generation_jobs.id"))
+    role: Mapped[str] = mapped_column(String(20))
+    text: Mapped[str] = mapped_column(Text)
+    __table_args__ = (UniqueConstraint("job_id", "role"),)
+
+
+class Proposal(Identity, Base):
+    __tablename__ = "proposals"
+    item_id: Mapped[UUID] = mapped_column(ForeignKey("content_items.id"), index=True)
+    job_id: Mapped[UUID] = mapped_column(ForeignKey("generation_jobs.id"), unique=True)
+    base_version_id: Mapped[UUID] = mapped_column(ForeignKey("content_versions.id"))
+    output: Mapped[dict] = mapped_column(JSONB)
+    applied_version_id: Mapped[UUID | None] = mapped_column(ForeignKey("content_versions.id"))

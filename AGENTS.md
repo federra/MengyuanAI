@@ -70,3 +70,8 @@ npm run dev
 文档/manifest 修改后执行 `npm run validate`。工作台交互修改按影响范围执行 `node reference/tests/workbenches-v5.mjs`，并检查相关浏览器页面。这是原型数据回归，不是生产系统测试。
 
 生产工程在根目录执行 `make bootstrap`、`make dev`；应用 `http://127.0.0.1:5180/`，API `http://127.0.0.1:8010/docs`，专用 PostgreSQL 55432、Redis 56379。`make test` 使用隔离测试库与真实 Redis Worker；`make check` 静态检查；`make contract` 更新前后端契约。备份前停写，执行 `make backup`、`make restore-check`。目录与环境要求见 [工程 README](README.md)，M0 完成事实和边界见 [M0 验收记录](docs/engineering/m0-verification.md)。Compose 配置已提供，本机未安装 Docker，容器启动不计入已验证事实。
+
+
+## M1 故事工程补充（2026-09-08）
+
+M0 已保存 Git 标签 `m0-baseline-20260908`（`cf2d2c6`），审查记录见 `docs/engineering/m0-baseline-review.md`。故事工作台、追加版本、选择、导演建议采用及 DeepSeek 适配器已新增；用户确认采用 `DEEPSEEK_API_KEY`，尚未注入，因此真实文本模型闭环验收仍待完成，不得写成整个 M1 已通过。`make test-ui` 使用独立5181页面及 API 替身；`make dev-deepseek` 允许终端隐藏输入密钥，仅传给当前进程。具体边界见 `docs/engineering/m1-story-verification.md`。PRD Demo 与生产工程继续独立。

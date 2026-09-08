@@ -248,3 +248,14 @@ M0 新工程位于仓库根目录 `apps/web`、`services/backend`、`contracts`�
 根目录 `make bootstrap` → `make dev`；工程页面 5180、API 8010、PostgreSQL 55432、Redis 56379，避免占用其他项目的 5173/8000。`make test` 在临时隔离库验证迁移、事务及真实 Redis/Worker 故障；`make backup` / `make restore-check` 提供停写备份与隔离恢复。具体实测记录维护在仓库 `docs/engineering/m0-verification.md`，使用方法见根目录 README。
 
 Compose 与镜像摘要已交付；当前机器未安装 Docker，容器构建/启动尚未验收。FFmpeg、供应商连接/对账、完整配置编辑、任务依赖/取消/SSE、内容和资产版本领域仍按 M1–M4 推进。本轮没有修改 A01–A07 的真实成片通过标准，也不表示完整产品已跑通。
+
+
+## M1 故事子阶段进度 · 2026-09-08
+
+用户本轮要求先保存 M0 Git 基线，再实施故事闭环。M0 标签为 `m0-baseline-20260908`，原始提交 `cf2d2c6`；审查及再次验证记录见工程 `docs/engineering/m0-baseline-review.md`。本轮没有将整个 M1 或 A01–A07 标为完成。
+
+工程新增 `content_items/content_versions/story_selections/messages/proposals` 及增量迁移：创意保存、一批三候选、历史分页、人工修改、精确版本选择、导演多轮建议、采用冲突及旧版留存。AI Worker 接收文本队列，结果与任务成功同事务写入；建议采用前不改正文，修改选定故事后取消旧确认。上游创意变化后，旧候选仍可查看并标识来源过期，用户可以明确重新选定。
+
+DeepSeek 适配器默认使用 `https://api.deepseek.com` 的 `deepseek-v4-pro`（服务端可覆盖）。使用 JSON Output、非思考模式、8192 token 上限；仅凭据引用进入快照。正文/结构错误最多修正两次，超时、5xx及执行中断进入 unknown，不自动重发；用户确认可能重复计费后创建一个重试子任务，旧记录保留。没有可据此宣称的供应商查询对账能力，unknown 只能人工核实后决定。模型参数、P01/P02 revision 2、源版本、输入及调用耗时/usage/request ID 留存。
+
+`make test` 覆盖隔离 PostgreSQL、真实 Redis/Worker 中断恢复；`make test-ui` 使用独立5181浏览器页面与显式 API 替身检查前端冲突草稿、刷新幂等、建议采用和主题；它们都不代替真实供应商验收。本地数据库迁移前已停写、备份并完成独立恢复演练。用户确认 `DEEPSEEK_API_KEY` 尚未注入；真实模型故事闭环仍待最后验收。剧本、分镜、质检修复、TXT入口、完整模型配置编辑与成片能力继续按原计划实施。

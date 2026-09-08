@@ -17,15 +17,20 @@ def dispatch_once():
     # duplicate delivery, which the worker's row lock and result PK absorb.
     with Session() as db:
         ids = list(
-            db.scalars(
-                select(Outbox.job_id)
+            db.execute(
+                select(Outbox.job_id, Job.kind)
                 .join(Job, Job.id == Outbox.job_id)
                 .where(Outbox.sent_at.is_(None), Job.state == "queued")
                 .limit(100)
             )
         )
-    for jid in ids:
-        celery.send_task("shortfilm.execute", args=[str(jid)], queue="media", retry=False)
+    for jid, kind in ids:
+        celery.send_task(
+            "shortfilm.execute",
+            args=[str(jid)],
+            queue="ai" if kind.startswith("story.") else "media",
+            retry=False,
+        )
         with Session.begin() as db:
             db.execute(update(Outbox).where(Outbox.job_id == jid).values(sent_at=now()))
     return len(ids)

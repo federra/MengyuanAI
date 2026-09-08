@@ -7,6 +7,10 @@ bootstrap:
 	$(PY) scripts/local.py bootstrap
 dev:
 	$(PY) scripts/local.py dev
+dev-deepseek:
+	$(PY) scripts/local.py dev_deepseek
+test-ui:
+	npm run test:ui --prefix apps/web
 contract:
 	$(PY) scripts/export-contract.py
 	npm run contract --prefix apps/web

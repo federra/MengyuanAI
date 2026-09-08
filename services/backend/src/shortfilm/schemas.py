@@ -67,8 +67,11 @@ class TypeOut(DTO):
 
 class SettingsOut(DTO):
     mode: Literal["local"] = "local"
-    milestone: Literal["M0"] = "M0"
+    milestone: Literal["M1-story"] = "M1-story"
     project_types: list[TypeOut]
     prompt_count: int
     max_upload_bytes: int
-    enabled_job_kinds: list[str] = ["file.verify"]
+    enabled_job_kinds: list[str] = ["file.verify", "story.generate", "story.revise"]
+    text_model: str = ''
+    text_endpoint: str = ''
+    text_configured: bool = False

@@ -1,1 +1,30 @@
-{"name":"shortfilm-web","version":"0.1.0","private":true,"type":"module","engines":{"node":">=22.12.0"},"scripts":{"dev":"vite --host 127.0.0.1","build":"tsc -b && vite build","contract":"openapi-typescript ../../contracts/openapi.json -o src/generated/api.d.ts"},"dependencies":{"react":"^19.0.0","react-dom":"^19.0.0","openapi-fetch":"^0.14.0"},"devDependencies":{"@types/react":"^19.0.0","@types/react-dom":"^19.0.0","typescript":"~5.9.0","vite":"^7.0.0","@vitejs/plugin-react":"^5.0.0","openapi-typescript":"^7.0.0"}}
+{
+  "name": "shortfilm-web",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=22.12.0"
+  },
+  "scripts": {
+    "dev": "vite --host 127.0.0.1",
+    "build": "tsc -b && vite build",
+    "contract": "openapi-typescript ../../contracts/openapi.json -o src/generated/api.d.ts",
+    "test:ui": "playwright test"
+  },
+  "dependencies": {
+    "openapi-fetch": "^0.14.0",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.63.0",
+    "@types/react": "^19.0.0",
+    "@types/react-dom": "^19.0.0",
+    "@vitejs/plugin-react": "^5.0.0",
+    "openapi-typescript": "^7.0.0",
+    "prettier": "^3.9.6",
+    "typescript": "~5.9.0",
+    "vite": "^7.0.0"
+  }
+}

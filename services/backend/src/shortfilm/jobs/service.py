@@ -53,16 +53,20 @@ def heartbeat(job_id, token):
         return result.rowcount == 1
 
 
-def finish_job(job_id, token, output=None, error=None):
+def finish_job(job_id, token, output=None, error=None, unknown=False):
     with Session.begin() as db:
         j = db.scalar(select(Job).where(Job.id == as_uuid(job_id)).with_for_update())
         if not j or j.state != "running" or j.lease_token != token or j.lease_until <= now():
             return False
-        j.state = "failed" if error else "succeeded"
+        j.state = ("unknown" if unknown else "failed") if error else "succeeded"
         j.error, j.updated_at, j.lease_until, j.lease_token = error, now(), None, None
         attempt = db.scalar(select(JobAttempt).where(JobAttempt.token == token))
         attempt.state, attempt.finished_at = j.state, now()
         if not error:
+            if j.kind.startswith("story."):
+                from shortfilm.creation.execution import save_output
+
+                save_output(db, j, output)
             db.add(JobResult(job_id=j.id, output=output))
         db.add(JobEvent(job_id=j.id, state=j.state))
         return True
@@ -73,6 +77,17 @@ def execute_job(job_id):
     if token is None:
         return
     try:
+        with Session() as db:
+            j = db.get(Job, as_uuid(job_id))
+            if j.kind.startswith("story."):
+                snapshot = j.snapshot
+            else:
+                snapshot = None
+        if snapshot is not None:
+            from shortfilm.creation.execution import execute_text
+
+            execute_text(job_id, token, snapshot)
+            return
         with Session() as db:
             j = db.get(Job, as_uuid(job_id))
             if j.kind != "file.verify":

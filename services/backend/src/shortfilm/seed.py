@@ -36,6 +36,25 @@ def seed():
                 .on_conflict_do_nothing()
             )
 
+        from shortfilm.creation.prompts import PROMPTS
+
+        for key, (template, output) in PROMPTS.items():
+            db.execute(
+                insert(PromptVersion)
+                .values(
+                    id=uuid5(NAMESPACE_URL, key + ":2"),
+                    interaction_key=key,
+                    revision=2,
+                    template=template,
+                    specification={
+                        "schemaVersion": 1,
+                        "status": "integration-pending",
+                        "output_schema": output.model_json_schema(),
+                    },
+                )
+                .on_conflict_do_nothing()
+            )
+
 
 if __name__ == "__main__":
     seed()
