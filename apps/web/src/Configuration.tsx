@@ -565,8 +565,24 @@ export function ResourceLibrary({
     </section>
   );
 }
-export function Configuration({ project }: { project?: Project }) {
-  const [tab, setTab] = useState("模型");
+export function Configuration({
+  project,
+  initialTab = "模型",
+  onTabChange,
+}: {
+  project?: Project;
+  initialTab?: string;
+  onTabChange?: (tab: string) => void;
+}) {
+  const [tab, setTab] = useState(initialTab);
+  const [visited, setVisited] = useState([initialTab]);
+  useEffect(
+    () => setVisited((tabs) => (tabs.includes(tab) ? tabs : [...tabs, tab])),
+    [tab],
+  );
+  useEffect(() => {
+    if (["模型", "提示词", "风格模板"].includes(initialTab)) setTab(initialTab);
+  }, [initialTab]);
   return (
     <>
       <div className="config-tabs" role="tablist">
@@ -575,20 +591,28 @@ export function Configuration({ project }: { project?: Project }) {
             role="tab"
             aria-selected={tab === t}
             key={t}
-            onClick={() => setTab(t)}
+            onClick={() => {
+              setTab(t);
+              onTabChange?.(t);
+            }}
           >
             {t}
           </button>
         ))}
       </div>
-      {tab === "模型" ? (
-        <ModelSettings />
-      ) : tab === "提示词" ? (
-        <PromptSettings pid={project?.id} />
-      ) : (
-        <ResourceLibrary initialKind="style" />
-      )}
-      <OutputSettings />
+      <div className="config-tab-panel" hidden={tab !== "模型"}>
+        {visited.includes("模型") && <ModelSettings />}
+      </div>
+      <div className="config-tab-panel" hidden={tab !== "提示词"}>
+        {visited.includes("提示词") && (
+          <PromptSettings key={project?.id || "system"} pid={project?.id} />
+        )}
+      </div>
+      <div className="config-tab-panel" hidden={tab !== "风格模板"}>
+        {visited.includes("风格模板") && (
+          <ResourceLibrary initialKind="style" />
+        )}
+      </div>
       <p className="muted">
         凭据仅在服务端管理。保存配置不代表供应商连接或生成验收通过。
       </p>
@@ -652,7 +676,7 @@ function ModelSettings() {
     }));
   }
   return (
-    <section className="panel">
+    <section className="panel model-settings">
       <h2>模型配置</h2>
       <div className="config-layout">
         <div className="model-tree" aria-label="模型类别">
@@ -695,12 +719,12 @@ function ModelSettings() {
             </div>
           ))}
         </div>
-        <div>
+        <div className="model-editor">
           {draft && (
             <fieldset disabled={busy} className="editor-fields">
               <h3>
-                {node.startsWith("model:category") ? "类别默认" : "环节配置"} ·{" "}
-                {category}
+                {categories.find((c) => c.id === category)?.name} ·{" "}
+                {node.startsWith("model:category") ? "默认模型" : "环节配置"}
               </h3>
               <p className="muted">
                 {draft.inherit
@@ -725,86 +749,63 @@ function ModelSettings() {
                   沿用类别默认模型
                 </label>
               )}
-              {[
-                "provider",
-                "model",
-                "endpoint",
-                "credential_ref",
-                "timeout_seconds",
-              ].map((f) => (
-                <label className="field" key={f}>
-                  {
-                    (
-                      {
-                        provider: "供应商",
-                        model: "模型名称",
-                        endpoint: "服务地址",
-                        credential_ref: "凭据引用",
-                        timeout_seconds: "超时秒数",
-                      } as Record<string, string>
-                    )[f]
-                  }
-                  <input
-                    disabled={node.includes(":step:") && draft.inherit}
-                    type={f === "timeout_seconds" ? "number" : "text"}
-                    value={String(draft.value[f] ?? "")}
-                    onChange={(e) => {
-                      change(
-                        f,
-                        f === "timeout_seconds"
-                          ? Number(e.target.value)
-                          : e.target.value,
-                      );
-                      if (!node.includes(":step:"))
-                        setDrafts((d) => ({
-                          ...d,
-                          [node]: { ...d[node], inherit: false },
-                        }));
-                    }}
-                  />
-                </label>
-              ))}
-              <p>能力类型：{category}（由类别固定）</p>
-              <button
-                onClick={() => {
-                  setBusy(true);
-                  setError("");
-                  void putBinding(
-                    "system",
-                    node,
-                    draft.revision,
-                    draft.inherit
-                      ? null
-                      : { ...draft.value, capability: category },
-                  )
-                    .then((b) => {
-                      setDrafts((d) => ({
-                        ...d,
-                        [node]: { ...draft, revision: b.revision },
-                      }));
-                      setNotice("模型配置已保存，连接尚未验证。");
-                    })
-                    .catch((e) => setError(e.message))
-                    .finally(() => setBusy(false));
-                }}
-              >
-                保存模型配置
-              </button>
-              <button
-                onClick={() =>
-                  void getBinding("system", node)
-                    .then((b) => {
-                      setDrafts((d) => ({
-                        ...d,
-                        [node]: { ...draft, revision: b.revision },
-                      }));
-                      setNotice("最新基准已读取，草稿保留，请核对后保存。");
-                    })
-                    .catch((e) => setError(e.message))
-                }
-              >
-                读取最新配置基准
-              </button>
+              <div className="model-fields">
+                {[
+                  "provider",
+                  "model",
+                  "endpoint",
+                  "capability",
+                  "timeout_seconds",
+                  "credential_ref",
+                ].map((f) => (
+                  <label
+                    className={
+                      "field" +
+                      (["endpoint", "credential_ref"].includes(f)
+                        ? " field-full"
+                        : "")
+                    }
+                    key={f}
+                  >
+                    {
+                      (
+                        {
+                          provider: "供应商",
+                          model: "模型名称",
+                          endpoint: "服务地址",
+                          credential_ref: "凭据引用",
+                          timeout_seconds: "超时秒数",
+                          capability: "能力类型",
+                        } as Record<string, string>
+                      )[f]
+                    }
+                    <input
+                      disabled={node.includes(":step:") && draft.inherit}
+                      type={f === "timeout_seconds" ? "number" : "text"}
+                      readOnly={f === "capability"}
+                      value={
+                        f === "capability"
+                          ? categories.find((c) => c.id === category)?.name ||
+                            category
+                          : String(draft.value[f] ?? "")
+                      }
+                      onChange={(e) => {
+                        change(
+                          f,
+                          f === "timeout_seconds"
+                            ? Number(e.target.value)
+                            : e.target.value,
+                        );
+                        if (!node.includes(":step:"))
+                          setDrafts((d) => ({
+                            ...d,
+                            [node]: { ...d[node], inherit: false },
+                          }));
+                      }}
+                    />
+                  </label>
+                ))}
+              </div>
               <ModelCredentials
                 key={node}
                 node={node}
@@ -821,6 +822,51 @@ function ModelSettings() {
           {notice && <p role="status">{notice}</p>}
         </div>
       </div>
+      {draft && (
+        <div className="config-actions">
+          <button
+            disabled={busy}
+            className="primary"
+            onClick={() => {
+              setBusy(true);
+              setError("");
+              void putBinding(
+                "system",
+                node,
+                draft.revision,
+                draft.inherit ? null : { ...draft.value, capability: category },
+              )
+                .then((b) => {
+                  setDrafts((d) => ({
+                    ...d,
+                    [node]: { ...draft, revision: b.revision },
+                  }));
+                  setNotice("模型配置已保存，连接尚未验证。");
+                })
+                .catch((e) => setError(e.message))
+                .finally(() => setBusy(false));
+            }}
+          >
+            保存模型配置
+          </button>
+          <button
+            disabled={busy}
+            onClick={() =>
+              void getBinding("system", node)
+                .then((b) => {
+                  setDrafts((d) => ({
+                    ...d,
+                    [node]: { ...draft, revision: b.revision },
+                  }));
+                  setNotice("最新基准已读取，草稿保留，请核对后保存。");
+                })
+                .catch((e) => setError(e.message))
+            }
+          >
+            读取最新配置基准
+          </button>
+        </div>
+      )}
     </section>
   );
 }

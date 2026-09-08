@@ -149,7 +149,7 @@ export function ModelCredentials({
     }
   }
   return (
-    <fieldset disabled={busy} className="editor-fields">
+    <fieldset disabled={busy} className="editor-fields credentials-panel">
       <h3>API 密钥与连接</h3>
       <p className="muted">
         密钥加密保存在本机服务端，不回显、不写浏览器草稿。已保存密钥优先于同名环境变量；服务地址变化需重新保存密钥。

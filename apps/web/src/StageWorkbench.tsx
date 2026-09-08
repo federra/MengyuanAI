@@ -122,24 +122,26 @@ export function QualityPanel({
                 }[r.state] || r.state}{" "}
             · {r.version_id.slice(0, 8)}
           </summary>
-          {r.error && <p>{r.error}</p>}
-          <p>{String(r.output?.summary || "")}</p>
-          {(Array.isArray(r.output?.issues) ? r.output.issues : []).map(
-            (v, i) => {
-              const issue = v as Record<string, unknown>;
-              return (
-                <div key={i}>
-                  <p>
-                    {String(issue.message || "")}
-                    <br />
-                    依据：{String(issue.evidence || "")}
-                    <br />
-                    建议：{String(issue.suggestion || "")}
-                  </p>
-                </div>
-              );
-            },
-          )}
+          <div className="quality-report">
+            {r.error && <p>{r.error}</p>}
+            <p>{String(r.output?.summary || "")}</p>
+            {(Array.isArray(r.output?.issues) ? r.output.issues : []).map(
+              (v, i) => {
+                const issue = v as Record<string, unknown>;
+                return (
+                  <div key={i}>
+                    <p>
+                      {String(issue.message || "")}
+                      <br />
+                      依据：{String(issue.evidence || "")}
+                      <br />
+                      建议：{String(issue.suggestion || "")}
+                    </p>
+                  </div>
+                );
+              },
+            )}
+          </div>
         </details>
       ))}
       <div className="actions">
@@ -395,7 +397,16 @@ export function StageWorkbench({
   }
   return (
     <>
-      <h2>{stage === "script" ? "剧本" : "分镜"}工作台</h2>
+      <div className="page-heading">
+        <div>
+          <h1>{stage === "script" ? "剧本" : "分镜"}工作台</h1>
+          <p>
+            {stage === "script"
+              ? "把故事写成可拍摄的剧本，逐步完善场景、动作与台词。"
+              : "逐镜整理台词、图片引用与画面提示词，让每个镜头都有清晰依据。"}
+          </p>
+        </div>
+      </div>
       {error && (
         <p role="alert" className="alert">
           {error}
@@ -418,7 +429,9 @@ export function StageWorkbench({
         </section>
       ) : (
         <div className={`editor-with-director ${mode}`}>
-          <section className="panel story-editor">
+          <section
+            className={`panel story-editor ${stage === "script" ? "script-editor" : "board-panel"}`}
+          >
             <div className="row">
               <h3>
                 当前版本 v{item.revision}
@@ -643,7 +656,12 @@ export function StageWorkbench({
                 >
                   {mode === "floating" ? "固定" : "悬浮"}
                 </button>
-                <button onClick={() => setMode("closed")}>收起导演助手</button>
+                <button
+                  aria-label="收起导演助手"
+                  onClick={() => setMode("closed")}
+                >
+                  收起
+                </button>
               </div>
               <QualityPanel
                 pid={pid}
@@ -654,15 +672,14 @@ export function StageWorkbench({
                   await refreshJobs();
                 }}
               />
-              <MethodSelector
-                pid={pid}
-                stage={stage === "script" ? "script" : "storyboard"}
-              />
-              {conversation.messages.map((m) => (
-                <p className="preserve-text" key={m.id}>
-                  {m.role === "user" ? "我" : "导演"}：{m.text}
-                </p>
-              ))}
+
+              <div className="conversation">
+                {conversation.messages.map((m) => (
+                  <p className="preserve-text" key={m.id}>
+                    {m.role === "user" ? "我" : "导演"}：{m.text}
+                  </p>
+                ))}
+              </div>
               <label className="field">
                 修改要求
                 <textarea
@@ -672,7 +689,12 @@ export function StageWorkbench({
                   onChange={(e) => setRequest(e.target.value)}
                 />
               </label>
+              <MethodSelector
+                pid={pid}
+                stage={stage === "script" ? "script" : "storyboard"}
+              />
               <button
+                className="primary"
                 disabled={
                   busy || dirty || base !== item.revision || !request.trim()
                 }
@@ -856,19 +878,36 @@ function BoardEditor({
                                 voice: "音色",
                               }[f]
                             }
-                            <input
-                              value={d[f]}
-                              onChange={(e) =>
-                                change(i, {
-                                  ...s,
-                                  dialogues: s.dialogues.map((line, k) =>
-                                    j === k
-                                      ? { ...line, [f]: e.target.value }
-                                      : line,
-                                  ),
-                                })
-                              }
-                            />
+                            {f === "text" ? (
+                              <textarea
+                                rows={3}
+                                value={d[f]}
+                                onChange={(e) =>
+                                  change(i, {
+                                    ...s,
+                                    dialogues: s.dialogues.map((line, k) =>
+                                      j === k
+                                        ? { ...line, [f]: e.target.value }
+                                        : line,
+                                    ),
+                                  })
+                                }
+                              />
+                            ) : (
+                              <input
+                                value={d[f]}
+                                onChange={(e) =>
+                                  change(i, {
+                                    ...s,
+                                    dialogues: s.dialogues.map((line, k) =>
+                                      j === k
+                                        ? { ...line, [f]: e.target.value }
+                                        : line,
+                                    ),
+                                  })
+                                }
+                              />
+                            )}
                           </label>
                         ),
                       )}
@@ -906,10 +945,18 @@ function BoardEditor({
                   </button>
                 </td>
                 <td>
-                  <details>
+                  <details open>
                     <summary>图片引用（角色 / 场景 / 道具 / 站位）</summary>
                     {!files.length ? (
-                      <p>暂无项目图片，请先在资产页上传。空引用可保存。</p>
+                      <div>
+                        {["角色", "场景", "道具", "站位"].map((name) => (
+                          <div className="reference-window" key={name}>
+                            <strong>{name} · 0</strong>
+                            <p>暂无图片</p>
+                          </div>
+                        ))}
+                        <small>请在资产页上传，空引用可保存。</small>
+                      </div>
                     ) : (
                       (
                         ["characters", "scenes", "props", "positions"] as const
@@ -1126,20 +1173,38 @@ export function IdeaDirector({
   ) : (
     <section className="panel director">
       <div className="row">
-        <h2>创意助手</h2>
+        <h2>AI导演助手</h2>
         <button
           aria-label="悬浮创意助手"
           onClick={() => setMode(mode === "floating" ? "fixed" : "floating")}
         >
           {mode === "floating" ? "固定" : "悬浮"}
         </button>
-        <button onClick={() => setMode("closed")}>收起创意助手</button>
+        <button aria-label="收起创意助手" onClick={() => setMode("closed")}>
+          收起
+        </button>
       </div>
       <p className="muted">完善一句话创意，采用建议后才更新。</p>
       {error && <p role="alert">{error}</p>}
-      {conversation.messages.map((m) => (
-        <p key={m.id}>{m.text}</p>
-      ))}
+      <div className="suggestions">
+        <strong>创意建议</strong>
+        {["强化核心冲突", "明确主角目标", "优化故事转折"].map((text) => (
+          <button
+            key={text}
+            disabled={!item || disabled || busy}
+            onClick={() => setRequest(text)}
+          >
+            {text}
+          </button>
+        ))}
+      </div>
+      <div className="conversation">
+        {conversation.messages.map((m) => (
+          <p key={m.id} className={m.role}>
+            {m.text}
+          </p>
+        ))}
+      </div>
       <label className="field">
         创意修改要求
         <textarea
@@ -1149,6 +1214,7 @@ export function IdeaDirector({
         />
       </label>
       <button
+        className="primary"
         disabled={!item || disabled || busy || !request.trim()}
         onClick={() =>
           void run(async () => {

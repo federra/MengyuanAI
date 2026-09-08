@@ -307,6 +307,7 @@ test("script stage exposes editable content and settings exposes model tree", as
   await expect(page.getByRole("heading", { name: "剧本工作台" })).toBeVisible();
   await expect(page.getByText("请先确定故事并生成剧本。")).toBeVisible();
   await page.getByRole("button", { name: "系统设置", exact: true }).click();
+  await page.getByRole("button", { name: /大模型配置/ }).click();
   await expect(
     page.getByRole("button", { name: "生文", exact: true }),
   ).toHaveAttribute("aria-expanded", "true");
@@ -334,6 +335,7 @@ test("model tree keyboard independent drafts inheritance and prompt guard", asyn
     });
   });
   await page.getByRole("button", { name: "系统设置", exact: true }).click();
+  await page.getByRole("button", { name: /大模型配置/ }).click();
   await page.getByLabel("模型名称", { exact: true }).fill("draft text");
   await page.getByRole("button", { name: "生图", exact: true }).focus();
   await page.keyboard.press("Enter");
@@ -405,6 +407,7 @@ test("resource library writes shared versions visible in settings", async ({
   await page.getByRole("button", { name: "保存资源", exact: true }).click();
   await expect.poll(() => resource.revision).toBe(2);
   await page.getByRole("button", { name: "系统设置", exact: true }).click();
+  await page.getByRole("button", { name: /大模型配置/ }).click();
   await page.getByRole("tab", { name: "提示词", exact: true }).click();
   await page.getByLabel("场景模板").selectOption("prompt-shared");
   await expect(page.getByLabel("场景提示词正文")).toHaveValue(
@@ -632,7 +635,7 @@ test("paid generation waits for method binding and keeps frozen target after los
     submitted = true;
     await route.abort();
   });
-  await page.getByLabel("story方法").last().selectOption("");
+  await page.locator(".director").getByLabel("story方法").selectOption("");
   await page.getByRole("button", { name: "再生成3个方案" }).click();
   await page.waitForTimeout(100);
   expect(submitted).toBe(false);
@@ -693,7 +696,7 @@ test("failed method save is isolated to its project and stage", async ({
       json: { revision: 1, value: { resource_id: "method-1" } },
     });
   });
-  await page.getByLabel("story方法").last().selectOption("");
+  await page.locator(".director").getByLabel("story方法").selectOption("");
   await expect(
     page.getByText("方法版本冲突，保留选择", { exact: true }),
   ).toBeVisible();
@@ -855,6 +858,7 @@ test("review round: pinned prompt revision is displayed and preserved until expl
     route.fulfill({ json: { content: "示例预览" } }),
   );
   await page.getByRole("button", { name: "系统设置", exact: true }).click();
+  await page.getByRole("button", { name: /大模型配置/ }).click();
   await page.getByRole("tab", { name: "提示词", exact: true }).click();
   await expect(page.getByLabel("场景提示词正文")).toHaveValue(old.content);
   await expect(page.getByLabel("oldVariable", { exact: true })).toBeVisible();
@@ -1158,6 +1162,7 @@ test("model credentials stay out of drafts and test only the saved route", async
     });
   });
   await page.getByRole("button", { name: "系统设置", exact: true }).click();
+  await page.getByRole("button", { name: /大模型配置/ }).click();
   const password = page.getByLabel("API 密钥", { exact: true });
   await expect(password).toHaveAttribute("type", "password");
   await password.fill("dummy-ui-secret");
@@ -1241,6 +1246,7 @@ test("late connection response is discarded after model route changes", async ({
       });
   });
   await page.getByRole("button", { name: "系统设置", exact: true }).click();
+  await page.getByRole("button", { name: /大模型配置/ }).click();
   await page
     .getByRole("button", { name: "测试已保存的连接", exact: true })
     .click();
@@ -1256,4 +1262,43 @@ test("late connection response is discarded after model route changes", async ({
     page.getByRole("button", { name: "测试已保存的连接", exact: true }),
   ).toBeEnabled();
   await expect(page.getByText(/连接成功/)).toHaveCount(0);
+});
+
+test("UI alignment: four themes and settings dismissal preserve editor and model drafts", async ({
+  page,
+}) => {
+  await page
+    .getByLabel("故事正文", { exact: true })
+    .fill("UI验收：未保存故事草稿");
+  for (const theme of ["dark", "sky", "noir", "light"]) {
+    await page
+      .getByRole("combobox", { name: "UI主题", exact: true })
+      .selectOption(theme);
+    await expect(page.getByLabel("故事正文", { exact: true })).toHaveValue(
+      "UI验收：未保存故事草稿",
+    );
+  }
+  await page.getByRole("button", { name: "设置", exact: true }).click();
+  await page
+    .getByLabel("模型名称", { exact: true })
+    .fill("unsaved-model-draft");
+  await page.getByRole("tab", { name: "提示词", exact: true }).click();
+  await page.getByRole("tab", { name: "模型", exact: true }).click();
+  await expect(page.getByLabel("模型名称", { exact: true })).toHaveValue(
+    "unsaved-model-draft",
+  );
+  await page.keyboard.press("Escape");
+  await expect(
+    page.getByRole("dialog", { name: "设置", exact: true }),
+  ).not.toBeVisible();
+  await expect(
+    page.getByRole("button", { name: "设置", exact: true }),
+  ).toBeFocused();
+  await expect(page.getByLabel("故事正文", { exact: true })).toHaveValue(
+    "UI验收：未保存故事草稿",
+  );
+  await page.getByRole("button", { name: "设置", exact: true }).click();
+  await expect(page.getByLabel("模型名称", { exact: true })).toHaveValue(
+    "unsaved-model-draft",
+  );
 });

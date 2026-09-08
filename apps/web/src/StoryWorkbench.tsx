@@ -22,7 +22,17 @@ const states: Record<string, string> = {
   failed: "失败",
   unknown: "待核实",
 };
-export function StoryWorkbench({ pid }: { pid: string }) {
+export function StoryWorkbench({
+  pid,
+  projectName,
+  projectMarket,
+  onSwitchProject,
+}: {
+  pid: string;
+  projectName: string;
+  projectMarket: string;
+  onSwitchProject: () => void;
+}) {
   const [stage, updateStage] = useState(
     () => readDraft<string>(`sf.${pid}.stage`) || "创意",
   );
@@ -181,11 +191,13 @@ export function StoryWorkbench({ pid }: { pid: string }) {
       <div className="stages">
         {["创意", "故事", "剧本", "分镜", "导出"].map((s, i) => (
           <button
+            aria-label={`${i + 1}　${s}`}
             className={stage === s ? "current" : ""}
             key={s}
             onClick={() => setStage(s)}
           >
-            {i + 1}　{s}
+            <span className="step-number">{i + 1}</span>
+            {s}
           </button>
         ))}
       </div>
@@ -200,67 +212,81 @@ export function StoryWorkbench({ pid }: { pid: string }) {
         </div>
       )}
       {stage === "创意" && (
+        <div className="page-heading">
+          <div>
+            <h1>创意工作台</h1>
+            <p>从一句话开始，让灵感成为一个值得讲述的故事。</p>
+          </div>
+        </div>
+      )}
+      {stage === "创意" && (
         <div className={`editor-with-director ${ideaMode}`}>
-          <section className="panel">
-            <h2>创意工作台</h2>
-            <label className="field">
-              一句话创意
-              <textarea
-                disabled={busy || !loaded}
-                aria-label="一句话创意"
-                rows={5}
-                value={text}
-                onChange={(e) => setText(e.target.value)}
-                maxLength={10000}
+          <div>
+            <section className="panel project-context">
+              <strong>{projectName}</strong>
+              <small>{projectMarket === "zh" ? "中文市场" : "英文市场"}</small>
+              <button onClick={onSwitchProject}>切换项目</button>
+            </section>
+            <section className="panel idea-editor">
+              <h2>一句话创意</h2>
+              <label className="field">
+                <textarea
+                  disabled={busy || !loaded}
+                  aria-label="一句话创意"
+                  rows={5}
+                  value={text}
+                  onChange={(e) => setText(e.target.value)}
+                  maxLength={10000}
+                />
+              </label>
+              <div className="actions">
+                <button
+                  disabled={busy || !loaded || !text.trim()}
+                  onClick={() =>
+                    void run(async () => {
+                      await saveIdea();
+                      setNotice("创意版本已保存");
+                    })
+                  }
+                >
+                  保存创意
+                </button>
+                <button
+                  disabled={busy}
+                  onClick={() =>
+                    void run(async () => {
+                      const saved = unwrap(
+                        await api.GET("/api/v1/projects/{pid}/idea", {
+                          params: { path: { pid } },
+                        }),
+                      );
+                      setIdea(saved);
+                      setRevision(saved?.revision || 0);
+                      if (!loaded) setText(String(saved?.body.text || ""));
+                      setLoaded(true);
+                      setNotice("已读取最新基准，输入草稿保留，请合并后保存。");
+                    })
+                  }
+                >
+                  读取最新基准
+                </button>
+              </div>
+              <GenerationControls
+                {...{
+                  instruction,
+                  setInstruction,
+                  pid,
+                }}
               />
-            </label>
-            <div className="actions">
               <button
+                className="primary"
                 disabled={busy || !loaded || !text.trim()}
-                onClick={() =>
-                  void run(async () => {
-                    await saveIdea();
-                    setNotice("创意版本已保存");
-                  })
-                }
+                onClick={() => void run(generate)}
               >
-                保存创意
+                AI生成3个故事方案
               </button>
-              <button
-                disabled={busy}
-                onClick={() =>
-                  void run(async () => {
-                    const saved = unwrap(
-                      await api.GET("/api/v1/projects/{pid}/idea", {
-                        params: { path: { pid } },
-                      }),
-                    );
-                    setIdea(saved);
-                    setRevision(saved?.revision || 0);
-                    if (!loaded) setText(String(saved?.body.text || ""));
-                    setLoaded(true);
-                    setNotice("已读取最新基准，输入草稿保留，请合并后保存。");
-                  })
-                }
-              >
-                读取最新基准
-              </button>
-            </div>
-            <GenerationControls
-              {...{
-                instruction,
-                setInstruction,
-                pid,
-              }}
-            />
-            <button
-              className="primary"
-              disabled={busy || !loaded || !text.trim()}
-              onClick={() => void run(generate)}
-            >
-              AI生成3个故事方案
-            </button>
-          </section>
+            </section>
+          </div>
           <IdeaDirector
             mode={ideaMode}
             setMode={setIdeaMode}
@@ -277,8 +303,11 @@ export function StoryWorkbench({ pid }: { pid: string }) {
       )}
       {stage === "故事" && (
         <>
-          <div className="row workbench-heading">
-            <h2>故事工作台</h2>
+          <div className="page-heading">
+            <div>
+              <h1>故事工作台</h1>
+              <p>比较故事方案，打磨细节，确定你想讲述的故事。</p>
+            </div>
             <button
               disabled={busy || !loaded || !text.trim()}
               onClick={() => void run(generate)}
@@ -286,20 +315,7 @@ export function StoryWorkbench({ pid }: { pid: string }) {
               再生成3个方案
             </button>
           </div>
-          <details className="panel">
-            <summary>本次写作指令与风格</summary>
-            <GenerationControls
-              {...{
-                instruction,
-                setInstruction,
-                pid,
-              }}
-            />
-            <small>
-              使用已保存创意 v{idea?.revision || 0}
-              ；创意草稿改变时会先保存新版本。
-            </small>
-          </details>
+
           {active ? (
             <div className="story-layout">
               <section className="candidates panel">
@@ -355,6 +371,20 @@ export function StoryWorkbench({ pid }: { pid: string }) {
               <button onClick={() => setStage("创意")}>回到创意</button>
             </section>
           )}
+          <details className="writing-options">
+            <summary>本次写作指令与风格</summary>
+            <GenerationControls
+              {...{
+                instruction,
+                setInstruction,
+                pid,
+              }}
+            />
+            <small>
+              使用已保存创意 v{idea?.revision || 0}
+              ；创意草稿改变时会先保存新版本。
+            </small>
+          </details>
         </>
       )}
       {(stage === "剧本" || stage === "分镜") && (
@@ -559,24 +589,27 @@ function StoryEditor({
             此候选来自旧创意，保留供比较；可明确选定此故事。
           </p>
         )}
-        <label className="field">
-          故事标题
-          <input
-            disabled={busy}
-            value={body.title}
-            maxLength={200}
-            onChange={(e) => setBody({ ...body, title: e.target.value })}
-          />
-        </label>
-        <label className="field">
-          一句话故事
-          <input
-            disabled={busy}
-            value={body.logline}
-            maxLength={1000}
-            onChange={(e) => setBody({ ...body, logline: e.target.value })}
-          />
-        </label>
+        <details className="story-metadata">
+          <summary>故事资料 · 标题与一句话故事</summary>
+          <label className="field">
+            故事标题
+            <input
+              disabled={busy}
+              value={body.title}
+              maxLength={200}
+              onChange={(e) => setBody({ ...body, title: e.target.value })}
+            />
+          </label>
+          <label className="field">
+            一句话故事
+            <input
+              disabled={busy}
+              value={body.logline}
+              maxLength={1000}
+              onChange={(e) => setBody({ ...body, logline: e.target.value })}
+            />
+          </label>
+        </details>
         <label className="field">
           故事正文
           <textarea
@@ -721,7 +754,14 @@ function StoryEditor({
               </button>
             </div>
           </div>
-          <MethodSelector pid={pid} stage="story" />
+          <div className="suggestions">
+            <strong>故事建议</strong>
+            {["强化角色动机", "强化情感冲突", "优化结尾"].map((s) => (
+              <button disabled={busy} key={s} onClick={() => setRequest(s)}>
+                {s}
+              </button>
+            ))}
+          </div>
           <div className="conversation">
             {conversation.messages.map((m) => (
               <p key={m.id} className={m.role}>
@@ -742,14 +782,10 @@ function StoryEditor({
               onChange={(e) => setRequest(e.target.value)}
             />
           </label>
-          <div className="suggestions">
-            {["强化角色动机", "强化情感冲突", "优化结尾"].map((s) => (
-              <button disabled={busy} key={s} onClick={() => setRequest(s)}>
-                {s}
-              </button>
-            ))}
-          </div>
+
+          <MethodSelector pid={pid} stage="story" />
           <button
+            className="primary"
             disabled={
               busy || dirty || base !== story.revision || !request.trim()
             }
@@ -838,6 +874,28 @@ function StoryEditor({
   );
 }
 
+export function jobTitle(kind: string) {
+  return (
+    (
+      {
+        "story.generate": "生成三个故事",
+        "story.revise": "故事导演建议",
+        "idea.revise": "创意导演建议",
+        "script.generate": "生成剧本",
+        "board.generate": "生成分镜",
+        "script.revise": "剧本导演建议",
+        "board.revise": "分镜导演建议",
+        "story.review": "故事质检",
+        "script.review": "剧本质检",
+        "board.review": "分镜质检",
+        "story.repair": "故事修复建议",
+        "script.repair": "剧本修复建议",
+        "board.repair": "分镜修复建议",
+      } as Record<string, string>
+    )[kind] || (kind === "file.verify" ? "文件校验" : kind)
+  );
+}
+
 export function TextJob({
   job,
   refresh,
@@ -852,25 +910,7 @@ export function TextJob({
   return (
     <article className="text-job">
       <div className="row">
-        <strong>
-          {(
-            {
-              "story.generate": "生成三个故事",
-              "story.revise": "故事导演建议",
-              "idea.revise": "创意导演建议",
-              "script.generate": "生成剧本",
-              "board.generate": "生成分镜",
-              "script.revise": "剧本导演建议",
-              "board.revise": "分镜导演建议",
-              "story.review": "故事质检",
-              "script.review": "剧本质检",
-              "board.review": "分镜质检",
-              "story.repair": "故事修复建议",
-              "script.repair": "剧本修复建议",
-              "board.repair": "分镜修复建议",
-            } as Record<string, string>
-          )[job.kind] || job.kind}
-        </strong>
+        <strong>{jobTitle(job.kind)}</strong>
         <span className="badge">{states[job.state] || job.state}</span>
       </div>
       <small>
