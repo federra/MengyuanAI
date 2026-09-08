@@ -1,0 +1,35 @@
+{
+  "pageId": "finishing",
+  "annotations": [
+    {
+      "id": "a-finishing-001",
+      "number": 1,
+      "coordinateSpace": "document",
+      "target": "#export-check",
+      "anchor": {
+        "x": 1,
+        "y": 0.5
+      },
+      "x": 0.983157894736842,
+      "y": 0.2644230769230769,
+      "title": "导出前检查",
+      "content": "F10 / US-25：检查分镜确认、来源过期、镜头视频及参考图选用状态。缺失时返回分镜修复；演示导出不伪造 MP4。",
+      "status": "active"
+    },
+    {
+      "id": "a-finishing-002",
+      "number": 2,
+      "coordinateSpace": "document",
+      "target": "#finish-preview",
+      "anchor": {
+        "x": 1,
+        "y": 0.5
+      },
+      "x": 0.983157894736842,
+      "y": 0.6403388278388278,
+      "title": "成片顺序预览",
+      "content": "F10 / US-21–US-24：成片顺序和时长设置独立保存；调整后重检字幕和声音同步。原型按镜头轮播示意，非真实编码合成。",
+      "status": "active"
+    }
+  ]
+}

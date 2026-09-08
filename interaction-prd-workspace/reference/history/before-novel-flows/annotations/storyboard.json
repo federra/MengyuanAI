@@ -1,0 +1,50 @@
+{
+  "pageId": "storyboard",
+  "annotations": [
+    {
+      "id": "a-storyboard-001",
+      "number": 1,
+      "coordinateSpace": "document",
+      "target": "#storyboard-table",
+      "anchor": {
+        "x": 1,
+        "y": 0.5
+      },
+      "x": 0.983157894736842,
+      "y": 0.6695270785659801,
+      "title": "六列独立分镜表",
+      "content": "F04 / US-14：序号、台词、角色/场景/道具、提示词、视频、操作。文本可 AI 生成或人工编辑，图片支持生成、设置与上传；表格局部滚动。",
+      "status": "active"
+    },
+    {
+      "id": "a-storyboard-002",
+      "number": 2,
+      "coordinateSpace": "document",
+      "target": "#board-toolbar",
+      "anchor": {
+        "x": 1,
+        "y": 0.5
+      },
+      "x": 0.983157894736842,
+      "y": 0.3247520976353928,
+      "title": "质检建议版一键采用",
+      "content": "F05–F06 / US-30：报告对照选定剧本与分镜，展示问题和建议版。结构与版本校验通过才能一键采用；旧版归档并提示受影响素材。",
+      "status": "active"
+    },
+    {
+      "id": "a-storyboard-003",
+      "number": 3,
+      "coordinateSpace": "document",
+      "target": "#source-script",
+      "anchor": {
+        "x": 1,
+        "y": 0.5
+      },
+      "x": 0.983157894736842,
+      "y": 0.26906941266209,
+      "title": "原剧本来源与变更",
+      "content": "F03、F06 / US-15：此处读取备选区的选定副本。来源变更时旧分镜仍保留，但不可沿用旧报告和确认。",
+      "status": "active"
+    }
+  ]
+}

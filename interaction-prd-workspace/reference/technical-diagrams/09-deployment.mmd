@@ -1,0 +1,13 @@
+flowchart TB
+  BUILD[同一源码 / 锁文件 / 容器镜像] --> LOCAL[本地 Compose]
+  BUILD --> STAGE[测试环境：部署配置]
+  LOCAL --> PG[数据库备份与版本记录]
+  LOCAL --> FILES[媒体文件与校验清单]
+  PG --> RESTORE[恢复 PostgreSQL 并执行兼容迁移]
+  FILES --> COPY[按 objectKey 导入 S3 并校验]
+  RESTORE --> STAGE
+  COPY --> STAGE
+  STAGE --> CHECK[主链回归 / 恢复演练 / 上线门槛]
+  CHECK --> ONLINE[线上：HTTPS入口 + API + Worker]
+  ONLINE --> PRODDB[(私网 PostgreSQL)]
+  ONLINE --> PRODSTORE[S3 媒体存储]

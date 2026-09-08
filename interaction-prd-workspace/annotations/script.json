@@ -1,0 +1,50 @@
+{
+  "pageId": "script",
+  "annotations": [
+    {
+      "id": "a-script-004",
+      "number": 4,
+      "coordinateSpace": "document",
+      "target": "#novel-source",
+      "anchor": {
+        "x": 1,
+        "y": 0.5
+      },
+      "x": 0.743859649122807,
+      "y": 0.30070546737213405,
+      "title": "小说来源与共用剧本页",
+      "content": "两种来源都经过故事工作台选定；剧本绑定故事ID和版本，来源变化需重新生成。",
+      "status": "active"
+    },
+    {
+      "id": "a-script-005",
+      "number": 5,
+      "coordinateSpace": "document",
+      "target": "#script-quality",
+      "anchor": {
+        "x": 1,
+        "y": 0.5
+      },
+      "x": 0.9550877192982457,
+      "y": 0.6780340608465608,
+      "title": "助手内质检与修复",
+      "content": "剧本质检常驻导演助手，报告带原文依据；按报告修复后复检。通过后确认并AI生成分镜，右侧选择分镜方式和编辑指令。",
+      "status": "active"
+    },
+    {
+      "id": "a-script-006",
+      "number": 6,
+      "coordinateSpace": "document",
+      "target": "#director-panel",
+      "anchor": {
+        "x": 1,
+        "y": 0.5
+      },
+      "title": "AI导演助手与收起补位",
+      "content": "默认固定右侧，可收起或弹出。建议先进入对话，采用才更新并保留旧版；质检为常驻选项。",
+      "status": "active",
+      "x": 0.9789473684210528,
+      "y": 0.6128747795414462
+    }
+  ]
+}

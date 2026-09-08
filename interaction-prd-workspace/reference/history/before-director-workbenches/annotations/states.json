@@ -1,0 +1,50 @@
+{
+  "pageId": "states",
+  "annotations": [
+    {
+      "id": "a-states-001",
+      "number": 1,
+      "coordinateSpace": "document",
+      "x": 0.9789473684210528,
+      "y": 0.17311365807067813,
+      "target": "#task-demo",
+      "anchor": {
+        "x": 1,
+        "y": 0.5
+      },
+      "title": "部分失败与局部重试",
+      "content": "成功镜头保留，仅重试失败项；取消先显示处理中，再以服务结果确认。此页为短时模拟。",
+      "status": "active"
+    },
+    {
+      "id": "a-states-002",
+      "number": 2,
+      "coordinateSpace": "document",
+      "x": 0.5659649122807018,
+      "y": 0.46430276981852914,
+      "target": "#state-save",
+      "anchor": {
+        "x": 1,
+        "y": 0.5
+      },
+      "title": "保存失败后保留输入",
+      "content": "离线保存显示失败与原因，恢复连接后重试；输入不能丢失或假称已保存。",
+      "status": "active"
+    },
+    {
+      "id": "a-states-003",
+      "number": 3,
+      "coordinateSpace": "document",
+      "x": 0.9789473684210528,
+      "y": 0.46430276981852914,
+      "target": "#state-stale",
+      "anchor": {
+        "x": 1,
+        "y": 0.5
+      },
+      "title": "旧结果保留版本依据",
+      "content": "上游修改后显示版本差异；查看影响不自动覆盖旧结果或重新生成。",
+      "status": "active"
+    }
+  ]
+}

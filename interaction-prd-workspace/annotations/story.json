@@ -1,0 +1,50 @@
+{
+  "pageId": "story",
+  "annotations": [
+    {
+      "id": "a-story-001",
+      "number": 1,
+      "coordinateSpace": "document",
+      "target": "#topic-zone",
+      "anchor": {
+        "x": 1,
+        "y": 0.5
+      },
+      "title": "三份候选或TXT单卡",
+      "content": "一句话每批三份、倒序分页；TXT只提炼一张卡且全文保留。",
+      "status": "active",
+      "x": 0.29333333333333333,
+      "y": 0.6187369670991659
+    },
+    {
+      "id": "a-story-002",
+      "number": 2,
+      "coordinateSpace": "document",
+      "target": "#story-editor",
+      "anchor": {
+        "x": 1,
+        "y": 0.5
+      },
+      "title": "正文与生成方式",
+      "content": "确定并AI生成剧本，右侧选择剧本Skill/提示词及编辑；冻结当前故事版本。",
+      "status": "active",
+      "x": 0.76,
+      "y": 0.5436240152919369
+    },
+    {
+      "id": "a-story-003",
+      "number": 3,
+      "coordinateSpace": "document",
+      "target": "#director-panel",
+      "anchor": {
+        "x": 1,
+        "y": 0.5
+      },
+      "title": "AI导演助手与收起补位",
+      "content": "默认固定右侧，可收起或弹出。建议先进入对话，采用才更新并保留旧版；点选建议可生成新版内容。",
+      "status": "active",
+      "x": 0.9789473684210528,
+      "y": 0.5494164156626506
+    }
+  ]
+}

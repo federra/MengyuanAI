@@ -1,0 +1,65 @@
+{
+  "pageId": "storyboard",
+  "annotations": [
+    {
+      "id": "a-storyboard-001",
+      "number": 1,
+      "coordinateSpace": "document",
+      "target": "#storyboard-table",
+      "anchor": {
+        "x": 1,
+        "y": 0.5
+      },
+      "x": 0.76,
+      "y": 0.6431924882629108,
+      "title": "多段台词与稳定图片引用",
+      "content": "每镜可包含多角色多段台词；@图片ID精确预览，逐段TTS；质检修复保留lineId。",
+      "status": "active"
+    },
+    {
+      "id": "a-storyboard-002",
+      "number": 2,
+      "coordinateSpace": "document",
+      "target": "#board-toolbar",
+      "anchor": {
+        "x": 1,
+        "y": 0.5
+      },
+      "x": 0.76,
+      "y": 0.3274647887323944,
+      "title": "质检与顺序生成",
+      "content": "分镜自动对照剧本质检，JSON 校验后采纳复检。可选按顺序生成，前镜成功及尾帧有效后才提交后镜；失败暂停并保留成果。",
+      "status": "active"
+    },
+    {
+      "id": "a-storyboard-003",
+      "number": 3,
+      "coordinateSpace": "document",
+      "target": "#director-panel",
+      "anchor": {
+        "x": 1,
+        "y": 0.5
+      },
+      "title": "AI导演助手与收起补位",
+      "content": "默认固定右侧，可收起或弹出。建议先进入对话，采用才更新并保留旧版；质检为常驻选项。",
+      "status": "active",
+      "x": 0.9789473684210528,
+      "y": 0.5171288145539906
+    },
+    {
+      "id": "a-storyboard-004",
+      "number": 4,
+      "coordinateSpace": "document",
+      "target": "#production-tools",
+      "anchor": {
+        "x": 1,
+        "y": 0.5
+      },
+      "title": "全片元素与生成设置",
+      "content": "角色/场景/道具集中管理，支持参考图上传与批量生成；多角色音色关联台词。画幅、分辨率、视频模型在此设置，变更使相关媒体待更新。",
+      "status": "active",
+      "x": 0.76,
+      "y": 0.25938967136150237
+    }
+  ]
+}

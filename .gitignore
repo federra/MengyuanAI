@@ -1,0 +1,22 @@
+# Dependencies and generated exports
+node_modules/
+exports/
+
+# Local credentials and machine files
+.env
+.env.*
+!.env.example
+!.env.template
+.DS_Store
+*.log
+
+# Engineering runtime and media
+.local/
+.venv/
+__pycache__/
+.pytest_cache/
+.ruff_cache/
+*.pyc
+*.tsbuildinfo
+dist/
+coverage/

@@ -1,0 +1,50 @@
+{
+  "pageId": "script",
+  "annotations": [
+    {
+      "id": "a-script-001",
+      "number": 1,
+      "coordinateSpace": "document",
+      "target": "#script-chat",
+      "anchor": {
+        "x": 1,
+        "y": 0.5
+      },
+      "x": 0.630844298245614,
+      "y": 0.6731699939503932,
+      "title": "多版本与备选副本",
+      "content": "F01–F02 / US-09、US-29：每轮输出保留完整剧本，可人工编辑并加入备选。备选保存当时副本，后续对话修改不会覆盖它。",
+      "status": "active"
+    },
+    {
+      "id": "a-script-002",
+      "number": 2,
+      "coordinateSpace": "document",
+      "target": "#candidate-zone",
+      "anchor": {
+        "x": 1,
+        "y": 0.5
+      },
+      "x": 0.9831469298245614,
+      "y": 0.6731699939503932,
+      "title": "选定终版作为分镜输入",
+      "content": "F03 / US-29：备选区同时只选定一版。更换终版保留旧成果并标记分镜来源过期，重新生成和质检后才继续。",
+      "status": "active"
+    },
+    {
+      "id": "a-script-003",
+      "number": 3,
+      "coordinateSpace": "document",
+      "target": "#global-system",
+      "anchor": {
+        "x": 1,
+        "y": 0.5
+      },
+      "x": 0.7625548245614036,
+      "y": 0.019056261343012703,
+      "title": "三个常驻配置入口",
+      "content": "F07–F09 / US-03–US-08：提示词配置、系统模型和风格模板位于顶部。配置弹层返回原步骤；保存后仅影响新任务。",
+      "status": "active"
+    }
+  ]
+}

@@ -1,0 +1,35 @@
+{
+  "pageId": "assets",
+  "annotations": [
+    {
+      "id": "a-assets-001",
+      "number": 1,
+      "coordinateSpace": "document",
+      "target": "#asset-filters",
+      "anchor": {
+        "x": 1,
+        "y": 0.5
+      },
+      "title": "七类资产",
+      "content": "角色、场景、道具、服饰、站位图、风格模板和声音。",
+      "status": "active",
+      "x": 0.9789473684210528,
+      "y": 0.19781221513217867
+    },
+    {
+      "id": "a-assets-002",
+      "number": 2,
+      "coordinateSpace": "document",
+      "target": "#asset-library",
+      "anchor": {
+        "x": 1,
+        "y": 0.5
+      },
+      "title": "资产复用",
+      "content": "加入当前项目后，可在分镜参考图中选用版本快照。",
+      "status": "active",
+      "x": 0.9789473684210528,
+      "y": 0.636757919325433
+    }
+  ]
+}

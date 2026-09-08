@@ -1,0 +1,16 @@
+erDiagram
+  PRINCIPAL ||--o{ PROJECT : owns
+  PROJECT ||--o{ CONTENT_ITEM : contains
+  CONTENT_ITEM ||--|{ CONTENT_VERSION : versions
+  CONTENT_VERSION ||--o{ BOARD_VERSION : script_source
+  BOARD_VERSION ||--o{ SHOT_VERSION : contains
+  SHOT_VERSION ||--o{ DIALOGUE_VERSION : contains
+  SHOT_VERSION ||--o{ SHOT_ASSET_REF : references
+  ASSET_VERSION ||--o{ SHOT_ASSET_REF : pinned
+  ASSET ||--|{ ASSET_VERSION : versions
+  MEDIA_FILE o|--o{ ASSET_VERSION : stored_media
+  PROJECT ||--o{ GENERATION_JOB : schedules
+  GENERATION_JOB ||--o{ JOB_ATTEMPT : attempts
+  PROJECT ||--o{ EXPORT_VERSION : exports
+  EXPORT_VERSION ||--o{ EXPORT_CLIP : contains
+  SHOT_VERSION ||--o{ EXPORT_CLIP : source

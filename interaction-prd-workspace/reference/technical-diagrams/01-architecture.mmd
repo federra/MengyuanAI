@@ -1,0 +1,17 @@
+flowchart TB
+  UI[React 前端：五模块与五工作台] -->|HTTP 命令与查询| API[FastAPI 业务后端]
+  API -->|SSE 事件通知| UI
+  API --> DB[(PostgreSQL)]
+  DB --> OUT[Outbox 派发器与恢复扫描]
+  OUT --> Q[(Redis 消息队列)]
+  Q --> AI[AI Worker]
+  Q --> MEDIA[媒体 Worker：FFmpeg]
+  AI --> AD[模型适配层]
+  AD --> PROVIDER[文本 / 图像 / 视频 / TTS 服务]
+  AI --> DB
+  MEDIA --> DB
+  API --> STORE[StorageAdapter]
+  AI --> STORE
+  MEDIA --> STORE
+  STORE --> LOCAL[本地文件持久卷]
+  STORE -.部署时切换.-> S3[S3 对象存储]

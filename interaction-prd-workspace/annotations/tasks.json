@@ -1,0 +1,20 @@
+{
+  "pageId": "tasks",
+  "annotations": [
+    {
+      "id": "a-tasks-001",
+      "number": 1,
+      "coordinateSpace": "document",
+      "target": "#task-records",
+      "anchor": {
+        "x": 1,
+        "y": 0.5
+      },
+      "title": "生成过程追踪",
+      "content": "按状态筛选；详情保留项目、输入配置和结果快照。",
+      "status": "active",
+      "x": 0.9789473684210528,
+      "y": 0.5296701321177847
+    }
+  ]
+}

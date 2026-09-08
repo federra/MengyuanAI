@@ -1,0 +1,35 @@
+{
+  "pageId": "script",
+  "annotations": [
+    {
+      "id": "a-script-004",
+      "number": 4,
+      "coordinateSpace": "document",
+      "target": "#novel-source",
+      "anchor": {
+        "x": 1,
+        "y": 0.5
+      },
+      "x": 0.7473684210526316,
+      "y": 0.30143112701252234,
+      "title": "小说来源与共用剧本页",
+      "content": "选定小说或直接输入故事，均进入此页；剧本绑定小说版本和创作规格，来源变更需重新生成。",
+      "status": "active"
+    },
+    {
+      "id": "a-script-005",
+      "number": 5,
+      "coordinateSpace": "document",
+      "target": "#script-quality",
+      "anchor": {
+        "x": 1,
+        "y": 0.5
+      },
+      "x": 0.9789473684210528,
+      "y": 0.3622959525939177,
+      "title": "自动质检与带报告修复",
+      "content": "自动对照剧情、情绪与连贯性；修复包含原文、剧本与报告上下文，保留无关人工编辑，复检后才能确认进入分镜。",
+      "status": "active"
+    }
+  ]
+}

@@ -1,0 +1,35 @@
+{
+  "pageId": "projects",
+  "annotations": [
+    {
+      "id": "a-projects-001",
+      "number": 1,
+      "coordinateSpace": "document",
+      "target": "#project-library",
+      "anchor": {
+        "x": 1,
+        "y": 0.5
+      },
+      "title": "项目隔离与进度",
+      "content": "项目按当前数据统计；继续创作激活对应项目，旧项目迁移保留。",
+      "status": "active",
+      "x": 0.76,
+      "y": 0.6340038701478743
+    },
+    {
+      "id": "a-projects-002",
+      "number": 2,
+      "coordinateSpace": "document",
+      "target": "#project-create",
+      "anchor": {
+        "x": 1,
+        "y": 0.5
+      },
+      "title": "创建作品",
+      "content": "名称、可扩展类型、市场、风格和画幅；不设置固定时长。",
+      "status": "active",
+      "x": 0.9789473684210528,
+      "y": 0.6340038701478743
+    }
+  ]
+}

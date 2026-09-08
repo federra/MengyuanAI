@@ -1,0 +1,35 @@
+{
+  "pageId": "finishing",
+  "annotations": [
+    {
+      "id": "a-finishing-001",
+      "number": 1,
+      "coordinateSpace": "document",
+      "target": "#export-check",
+      "anchor": {
+        "x": 1,
+        "y": 0.5
+      },
+      "x": 0.9789473684210528,
+      "y": 0.21277284211398276,
+      "title": "导出前检查",
+      "content": "缺失/过期视频及未确认分镜阻止导出；原型仅制作清单 JSON 与演示反馈，不伪造 MP4。",
+      "status": "active"
+    },
+    {
+      "id": "a-finishing-002",
+      "number": 2,
+      "coordinateSpace": "document",
+      "target": "#finish-preview",
+      "anchor": {
+        "x": 1,
+        "y": 0.5
+      },
+      "x": 0.7178947368421053,
+      "y": 0.4289575049701789,
+      "title": "成片预览与衔接检查",
+      "content": "成片顺序和时长独立保存；变序需要检查尾帧连续性及音画同步。此处为分镜轮播示意。",
+      "status": "active"
+    }
+  ]
+}

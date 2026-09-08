@@ -1,0 +1,93 @@
+name: shortfilm
+x-backend: &backend
+  build:
+    context: ..
+    dockerfile: infra/backend.Dockerfile
+  environment: &environment
+    SHORTFILM_DATABASE_URL: postgresql+psycopg://shortfilm@postgres:5432/shortfilm
+    SHORTFILM_REDIS_URL: redis://redis:6379/0
+    SHORTFILM_STORAGE_ROOT: /data/media
+  volumes:
+    - media:/data/media
+  restart: unless-stopped
+services:
+  postgres:
+    image: postgres:18.3-alpine@sha256:54451ecb8ab38c24c3ec123f2fd501303a3a1856a5c66e98cecf2460d5e1e9d7
+    environment:
+      POSTGRES_USER: shortfilm
+      POSTGRES_DB: shortfilm
+      POSTGRES_HOST_AUTH_METHOD: trust
+    volumes:
+      - postgres:/var/lib/postgresql
+    healthcheck:
+      test: [CMD-SHELL, "pg_isready -U shortfilm -d shortfilm"]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+    restart: unless-stopped
+  redis:
+    image: redis:7.4.2-alpine@sha256:02419de7eddf55aa5bcf49efb74e88fa8d931b4d77c07eff8a6b2144472b6952
+    command: [redis-server, --appendonly, "yes"]
+    volumes:
+      - redis:/data
+    healthcheck:
+      test: [CMD, redis-cli, ping]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+    restart: unless-stopped
+  migrate:
+    <<: *backend
+    restart: "no"
+    command: [sh, -c, "alembic -c services/backend/alembic.ini upgrade head && python -m shortfilm.seed"]
+    depends_on:
+      postgres:
+        condition: service_healthy
+  api:
+    <<: *backend
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    healthcheck:
+      test: [CMD, python, -c, "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health/ready')"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+  worker-media:
+    <<: *backend
+    command: [celery, -A, shortfilm.jobs.worker:celery, worker, --concurrency=1, -Q, media, -n, "media@%h", --loglevel=WARNING]
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+      redis:
+        condition: service_healthy
+  worker-ai:
+    <<: *backend
+    command: [celery, -A, shortfilm.jobs.worker:celery, worker, --concurrency=2, -Q, ai, -n, "ai@%h", --loglevel=WARNING]
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+      redis:
+        condition: service_healthy
+  dispatcher:
+    <<: *backend
+    command: [python, -m, shortfilm.jobs.dispatcher]
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+      redis:
+        condition: service_healthy
+  web:
+    build:
+      context: ..
+      dockerfile: infra/web.Dockerfile
+    ports:
+      - "127.0.0.1:5180:80"
+    depends_on:
+      api:
+        condition: service_healthy
+    restart: unless-stopped
+volumes:
+  postgres:
+  redis:
+  media:

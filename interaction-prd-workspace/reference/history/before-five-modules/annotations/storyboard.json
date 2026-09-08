@@ -1,0 +1,35 @@
+{
+  "pageId": "storyboard",
+  "annotations": [
+    {
+      "id": "a-storyboard-001",
+      "number": 1,
+      "coordinateSpace": "document",
+      "target": "#storyboard-table",
+      "anchor": {
+        "x": 1,
+        "y": 0.5
+      },
+      "x": 0.9719298245614036,
+      "y": 0.6179159049360147,
+      "title": "四类参考图、准确引用与独立音频",
+      "content": "F06、F08–F09 / US-14、US-32–34：分镜单独编辑，支持增删；角色/场景/道具/站位共同输入视频。@标签按固定图片 ID 预览；TTS 独立生成，台词变化标记待更新。",
+      "status": "active"
+    },
+    {
+      "id": "a-storyboard-002",
+      "number": 2,
+      "coordinateSpace": "document",
+      "target": "#board-toolbar",
+      "anchor": {
+        "x": 1,
+        "y": 0.5
+      },
+      "x": 0.9719298245614036,
+      "y": 0.28793418647166363,
+      "title": "质检与顺序生成",
+      "content": "F07、F10 / US-30、US-35：分镜自动对照剧本质检，JSON 校验后采纳复检。可选按顺序生成，前镜成功及尾帧有效后才提交后镜；失败暂停并保留成果。",
+      "status": "active"
+    }
+  ]
+}

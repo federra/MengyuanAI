@@ -1,0 +1,35 @@
+{
+  "pageId": "projects",
+  "annotations": [
+    {
+      "id": "a-projects-001",
+      "number": 1,
+      "coordinateSpace": "document",
+      "target": "#project-library",
+      "anchor": {
+        "x": 1,
+        "y": 0.5
+      },
+      "title": "短片封面与状态筛选",
+      "content": "卡片使用本项目短片画面；展示创作中/已完成及完整更新时间，支持组合筛选排序。",
+      "status": "active",
+      "x": 0.76,
+      "y": 0.6340038701478743
+    },
+    {
+      "id": "a-projects-002",
+      "number": 2,
+      "coordinateSpace": "document",
+      "target": "#project-create",
+      "anchor": {
+        "x": 1,
+        "y": 0.5
+      },
+      "title": "创建项目不预设画幅",
+      "content": "名称、扩展类型、市场、风格；画幅和分辨率仅在分镜生成时确认。",
+      "status": "active",
+      "x": 0.9789473684210528,
+      "y": 0.6340038701478743
+    }
+  ]
+}

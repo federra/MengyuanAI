@@ -1,0 +1,913 @@
+{
+  "schemaVersion": 1,
+  "product": {
+    "name": "AI短片工坊",
+    "type": "PC Web",
+    "status": "g3-review",
+    "source": {
+      "mode": "idea"
+    }
+  },
+  "modules": [
+    {
+      "id": "product-definition",
+      "title": "产品定义与目标",
+      "prd": "prd/01-product-definition.md",
+      "kind": "prd",
+      "status": "review",
+      "pages": [],
+      "hidden": false,
+      "navNumber": "01"
+    },
+    {
+      "id": "users-and-needs",
+      "title": "用户与需求分析",
+      "prd": "prd/02-users-and-needs.md",
+      "kind": "prd",
+      "status": "review",
+      "pages": [],
+      "hidden": false,
+      "navNumber": "02"
+    },
+    {
+      "id": "stories-and-journey",
+      "title": "用户故事与旅程",
+      "prd": "prd/03-user-stories-and-journey.md",
+      "kind": "prd",
+      "status": "review",
+      "pages": [],
+      "hidden": false,
+      "navNumber": "03"
+    },
+    {
+      "id": "project-workspace",
+      "title": "项目与创作入口",
+      "prd": "prd/04-project-workspace.md",
+      "kind": "prd",
+      "navNumber": "04",
+      "status": "review",
+      "hidden": false,
+      "pages": []
+    },
+    {
+      "id": "ai-configuration",
+      "title": "模型与提示词配置",
+      "prd": "prd/05-ai-configuration.md",
+      "kind": "prd",
+      "navNumber": "05",
+      "status": "review",
+      "hidden": false,
+      "pages": []
+    },
+    {
+      "id": "story-development",
+      "title": "创意引导与故事剧本",
+      "prd": "prd/06-story-development.md",
+      "kind": "prd",
+      "navNumber": "06",
+      "status": "review",
+      "hidden": false,
+      "pages": []
+    },
+    {
+      "id": "storyboard-review",
+      "title": "分镜与内置质检",
+      "prd": "prd/07-storyboard-review.md",
+      "kind": "prd",
+      "navNumber": "07",
+      "status": "review",
+      "hidden": false,
+      "pages": []
+    },
+    {
+      "id": "visual-assets",
+      "title": "风格模板与参考素材",
+      "prd": "prd/08-visual-assets.md",
+      "kind": "prd",
+      "navNumber": "08",
+      "status": "review",
+      "hidden": false,
+      "pages": []
+    },
+    {
+      "id": "video-generation",
+      "title": "镜头视频与生成任务",
+      "prd": "prd/09-video-generation.md",
+      "kind": "prd",
+      "navNumber": "09",
+      "status": "review",
+      "hidden": false,
+      "pages": []
+    },
+    {
+      "id": "finishing-export",
+      "title": "声音、基础剪辑与导出",
+      "prd": "prd/10-finishing-export.md",
+      "kind": "prd",
+      "navNumber": "10",
+      "status": "review",
+      "hidden": false,
+      "pages": []
+    },
+    {
+      "id": "video-remix",
+      "title": "后续方向：参考视频再创作",
+      "prd": "reference/deferred-video-remix.md",
+      "kind": "reference",
+      "navNumber": "R3",
+      "status": "deferred",
+      "hidden": true,
+      "pages": []
+    },
+    {
+      "id": "shaping-intake",
+      "title": "输入材料",
+      "prd": "shaping/00-intake.md",
+      "kind": "shaping",
+      "navNumber": "S1",
+      "status": "draft",
+      "pages": []
+    },
+    {
+      "id": "shaping-product",
+      "title": "产品定型",
+      "prd": "shaping/01-product-shaping.md",
+      "kind": "shaping",
+      "navNumber": "S2",
+      "status": "draft",
+      "pages": []
+    },
+    {
+      "id": "shaping-jtbd",
+      "title": "JTBD 分析",
+      "prd": "shaping/02-jtbd.md",
+      "kind": "shaping",
+      "navNumber": "S3",
+      "status": "draft",
+      "pages": []
+    },
+    {
+      "id": "shaping-scope",
+      "title": "MVP 范围",
+      "prd": "shaping/03-scope.md",
+      "kind": "shaping",
+      "navNumber": "S4",
+      "status": "draft",
+      "pages": []
+    },
+    {
+      "id": "shaping-flows",
+      "title": "页面与流程",
+      "prd": "shaping/04-pages-and-flows.md",
+      "kind": "shaping",
+      "navNumber": "S5",
+      "status": "draft",
+      "pages": []
+    },
+    {
+      "id": "shaping-questions",
+      "title": "待确认问题",
+      "prd": "shaping/05-open-questions.md",
+      "kind": "shaping",
+      "navNumber": "S6",
+      "status": "draft",
+      "pages": []
+    },
+    {
+      "id": "shaping-brief",
+      "title": "定型摘要",
+      "prd": "shaping/06-shaped-brief.md",
+      "kind": "shaping",
+      "navNumber": "S7",
+      "status": "approved",
+      "pages": []
+    },
+    {
+      "id": "design-system",
+      "title": "视觉设计规范",
+      "prd": "reference/DESIGN.md",
+      "kind": "reference",
+      "navNumber": "R1",
+      "status": "approved",
+      "pages": []
+    },
+    {
+      "id": "foundation",
+      "title": "主线原型与组件状态",
+      "prd": "reference/components-and-states.md",
+      "kind": "reference",
+      "navNumber": "R2",
+      "status": "review",
+      "pages": [
+        "projects",
+        "creation",
+        "story",
+        "script",
+        "storyboard",
+        "finishing",
+        "assets",
+        "tasks",
+        "settings",
+        "components",
+        "states"
+      ],
+      "hidden": false
+    },
+    {
+      "id": "plan",
+      "title": "PRD 板块计划",
+      "prd": "prd/00-plan.md",
+      "kind": "process",
+      "navNumber": "00",
+      "hidden": true,
+      "status": "approved",
+      "pages": []
+    },
+    {
+      "id": "prompt-inventory",
+      "title": "AI 交互与提示词定制清单",
+      "prd": "reference/ai-prompt-inventory.md",
+      "kind": "reference",
+      "navNumber": "R4",
+      "status": "review",
+      "pages": []
+    },
+    {
+      "id": "technical-implementation",
+      "title": "技术实现规划",
+      "prd": "reference/technical-implementation-plan.md",
+      "kind": "reference",
+      "navNumber": "R5",
+      "status": "review",
+      "hidden": false,
+      "pages": []
+    }
+  ],
+  "pages": [
+    {
+      "id": "projects",
+      "moduleId": "foundation",
+      "file": "prototypes/pages/projects.html",
+      "annotationFile": "annotations/projects.json",
+      "kind": "prototype",
+      "device": "desktop",
+      "viewport": {
+        "width": 1440,
+        "height": 900
+      },
+      "title": "项目库与创建",
+      "canvas": {
+        "x": 80,
+        "y": 80
+      }
+    },
+    {
+      "id": "creation",
+      "title": "创意工作台",
+      "moduleId": "foundation",
+      "file": "prototypes/pages/creation.html",
+      "annotationFile": "annotations/creation.json",
+      "kind": "prototype",
+      "device": "desktop",
+      "viewport": {
+        "width": 1440,
+        "height": 900
+      },
+      "canvas": {
+        "x": 700,
+        "y": 80
+      }
+    },
+    {
+      "id": "story",
+      "moduleId": "foundation",
+      "file": "prototypes/pages/story.html",
+      "annotationFile": "annotations/story.json",
+      "kind": "prototype",
+      "device": "desktop",
+      "viewport": {
+        "width": 1440,
+        "height": 900
+      },
+      "title": "故事工作台",
+      "canvas": {
+        "x": 1320,
+        "y": 80
+      }
+    },
+    {
+      "id": "script",
+      "title": "剧本工作台",
+      "moduleId": "foundation",
+      "file": "prototypes/pages/script.html",
+      "annotationFile": "annotations/script.json",
+      "kind": "prototype",
+      "device": "desktop",
+      "viewport": {
+        "width": 1440,
+        "height": 900
+      },
+      "canvas": {
+        "x": 1320,
+        "y": 480
+      }
+    },
+    {
+      "id": "storyboard",
+      "title": "分镜工作台",
+      "moduleId": "foundation",
+      "file": "prototypes/pages/storyboard.html",
+      "annotationFile": "annotations/storyboard.json",
+      "kind": "prototype",
+      "device": "desktop",
+      "viewport": {
+        "width": 1440,
+        "height": 900
+      },
+      "canvas": {
+        "x": 1320,
+        "y": 880
+      }
+    },
+    {
+      "id": "finishing",
+      "title": "导出工作台",
+      "moduleId": "foundation",
+      "file": "prototypes/pages/finishing.html",
+      "annotationFile": "annotations/finishing.json",
+      "kind": "prototype",
+      "device": "desktop",
+      "viewport": {
+        "width": 1440,
+        "height": 900
+      },
+      "canvas": {
+        "x": 1320,
+        "y": 1280
+      }
+    },
+    {
+      "id": "assets",
+      "moduleId": "foundation",
+      "file": "prototypes/pages/assets.html",
+      "annotationFile": "annotations/assets.json",
+      "kind": "prototype",
+      "device": "desktop",
+      "viewport": {
+        "width": 1440,
+        "height": 900
+      },
+      "title": "资产库",
+      "canvas": {
+        "x": 700,
+        "y": 480
+      }
+    },
+    {
+      "id": "tasks",
+      "moduleId": "foundation",
+      "file": "prototypes/pages/tasks.html",
+      "annotationFile": "annotations/tasks.json",
+      "kind": "prototype",
+      "device": "desktop",
+      "viewport": {
+        "width": 1440,
+        "height": 900
+      },
+      "title": "任务记录",
+      "canvas": {
+        "x": 700,
+        "y": 880
+      }
+    },
+    {
+      "id": "settings",
+      "moduleId": "foundation",
+      "file": "prototypes/pages/settings.html",
+      "annotationFile": "annotations/settings.json",
+      "kind": "prototype",
+      "device": "desktop",
+      "viewport": {
+        "width": 1440,
+        "height": 900
+      },
+      "title": "系统设置",
+      "canvas": {
+        "x": 700,
+        "y": 1280
+      }
+    },
+    {
+      "id": "components",
+      "title": "组件展示",
+      "moduleId": "foundation",
+      "file": "prototypes/pages/components.html",
+      "annotationFile": "annotations/components.json",
+      "kind": "component-gallery",
+      "device": "desktop",
+      "viewport": {
+        "width": 1440,
+        "height": 900
+      },
+      "canvas": {
+        "x": 1320,
+        "y": 1680
+      }
+    },
+    {
+      "id": "states",
+      "title": "状态展示",
+      "moduleId": "foundation",
+      "file": "prototypes/pages/states.html",
+      "annotationFile": "annotations/states.json",
+      "kind": "state-gallery",
+      "device": "desktop",
+      "viewport": {
+        "width": 1440,
+        "height": 900
+      },
+      "canvas": {
+        "x": 1320,
+        "y": 2080
+      }
+    }
+  ],
+  "relations": [
+    {
+      "id": "r-projects-assets",
+      "from": "projects",
+      "to": "assets",
+      "label": "资产库",
+      "trigger": "data-nav=assets"
+    },
+    {
+      "id": "r-projects-creation",
+      "from": "projects",
+      "to": "creation",
+      "label": "创意工作台",
+      "trigger": "data-nav=creation"
+    },
+    {
+      "id": "r-projects-settings",
+      "from": "projects",
+      "to": "settings",
+      "label": "系统设置",
+      "trigger": "data-nav=settings"
+    },
+    {
+      "id": "r-projects-tasks",
+      "from": "projects",
+      "to": "tasks",
+      "label": "任务记录",
+      "trigger": "data-nav=tasks"
+    },
+    {
+      "id": "r-creation-assets",
+      "from": "creation",
+      "to": "assets",
+      "label": "资产库",
+      "trigger": "data-nav=assets"
+    },
+    {
+      "id": "r-creation-finishing",
+      "from": "creation",
+      "to": "finishing",
+      "label": "导出工作台",
+      "trigger": "data-nav=finishing"
+    },
+    {
+      "id": "r-creation-projects",
+      "from": "creation",
+      "to": "projects",
+      "label": "项目库与创建",
+      "trigger": "data-nav=projects"
+    },
+    {
+      "id": "r-creation-script",
+      "from": "creation",
+      "to": "script",
+      "label": "剧本工作台",
+      "trigger": "data-nav=script"
+    },
+    {
+      "id": "r-creation-settings",
+      "from": "creation",
+      "to": "settings",
+      "label": "系统设置",
+      "trigger": "data-nav=settings"
+    },
+    {
+      "id": "r-creation-story",
+      "from": "creation",
+      "to": "story",
+      "label": "故事工作台",
+      "trigger": "data-nav=story"
+    },
+    {
+      "id": "r-creation-storyboard",
+      "from": "creation",
+      "to": "storyboard",
+      "label": "分镜工作台",
+      "trigger": "data-nav=storyboard"
+    },
+    {
+      "id": "r-creation-tasks",
+      "from": "creation",
+      "to": "tasks",
+      "label": "任务记录",
+      "trigger": "data-nav=tasks"
+    },
+    {
+      "id": "r-story-assets",
+      "from": "story",
+      "to": "assets",
+      "label": "资产库",
+      "trigger": "data-nav=assets"
+    },
+    {
+      "id": "r-story-creation",
+      "from": "story",
+      "to": "creation",
+      "label": "创意工作台",
+      "trigger": "data-nav=creation"
+    },
+    {
+      "id": "r-story-finishing",
+      "from": "story",
+      "to": "finishing",
+      "label": "导出工作台",
+      "trigger": "data-nav=finishing"
+    },
+    {
+      "id": "r-story-projects",
+      "from": "story",
+      "to": "projects",
+      "label": "项目库与创建",
+      "trigger": "data-nav=projects"
+    },
+    {
+      "id": "r-story-script",
+      "from": "story",
+      "to": "script",
+      "label": "剧本工作台",
+      "trigger": "data-nav=script"
+    },
+    {
+      "id": "r-story-settings",
+      "from": "story",
+      "to": "settings",
+      "label": "系统设置",
+      "trigger": "data-nav=settings"
+    },
+    {
+      "id": "r-story-storyboard",
+      "from": "story",
+      "to": "storyboard",
+      "label": "分镜工作台",
+      "trigger": "data-nav=storyboard"
+    },
+    {
+      "id": "r-story-tasks",
+      "from": "story",
+      "to": "tasks",
+      "label": "任务记录",
+      "trigger": "data-nav=tasks"
+    },
+    {
+      "id": "r-script-assets",
+      "from": "script",
+      "to": "assets",
+      "label": "资产库",
+      "trigger": "data-nav=assets"
+    },
+    {
+      "id": "r-script-creation",
+      "from": "script",
+      "to": "creation",
+      "label": "创意工作台",
+      "trigger": "data-nav=creation"
+    },
+    {
+      "id": "r-script-finishing",
+      "from": "script",
+      "to": "finishing",
+      "label": "导出工作台",
+      "trigger": "data-nav=finishing"
+    },
+    {
+      "id": "r-script-projects",
+      "from": "script",
+      "to": "projects",
+      "label": "项目库与创建",
+      "trigger": "data-nav=projects"
+    },
+    {
+      "id": "r-script-settings",
+      "from": "script",
+      "to": "settings",
+      "label": "系统设置",
+      "trigger": "data-nav=settings"
+    },
+    {
+      "id": "r-script-story",
+      "from": "script",
+      "to": "story",
+      "label": "故事工作台",
+      "trigger": "data-nav=story"
+    },
+    {
+      "id": "r-script-storyboard",
+      "from": "script",
+      "to": "storyboard",
+      "label": "分镜工作台",
+      "trigger": "data-nav=storyboard"
+    },
+    {
+      "id": "r-script-tasks",
+      "from": "script",
+      "to": "tasks",
+      "label": "任务记录",
+      "trigger": "data-nav=tasks"
+    },
+    {
+      "id": "r-storyboard-assets",
+      "from": "storyboard",
+      "to": "assets",
+      "label": "资产库",
+      "trigger": "data-nav=assets"
+    },
+    {
+      "id": "r-storyboard-creation",
+      "from": "storyboard",
+      "to": "creation",
+      "label": "创意工作台",
+      "trigger": "data-nav=creation"
+    },
+    {
+      "id": "r-storyboard-finishing",
+      "from": "storyboard",
+      "to": "finishing",
+      "label": "导出工作台",
+      "trigger": "data-nav=finishing"
+    },
+    {
+      "id": "r-storyboard-projects",
+      "from": "storyboard",
+      "to": "projects",
+      "label": "项目库与创建",
+      "trigger": "data-nav=projects"
+    },
+    {
+      "id": "r-storyboard-script",
+      "from": "storyboard",
+      "to": "script",
+      "label": "剧本工作台",
+      "trigger": "data-nav=script"
+    },
+    {
+      "id": "r-storyboard-settings",
+      "from": "storyboard",
+      "to": "settings",
+      "label": "系统设置",
+      "trigger": "data-nav=settings"
+    },
+    {
+      "id": "r-storyboard-story",
+      "from": "storyboard",
+      "to": "story",
+      "label": "故事工作台",
+      "trigger": "data-nav=story"
+    },
+    {
+      "id": "r-storyboard-tasks",
+      "from": "storyboard",
+      "to": "tasks",
+      "label": "任务记录",
+      "trigger": "data-nav=tasks"
+    },
+    {
+      "id": "r-finishing-assets",
+      "from": "finishing",
+      "to": "assets",
+      "label": "资产库",
+      "trigger": "data-nav=assets"
+    },
+    {
+      "id": "r-finishing-creation",
+      "from": "finishing",
+      "to": "creation",
+      "label": "创意工作台",
+      "trigger": "data-nav=creation"
+    },
+    {
+      "id": "r-finishing-projects",
+      "from": "finishing",
+      "to": "projects",
+      "label": "项目库与创建",
+      "trigger": "data-nav=projects"
+    },
+    {
+      "id": "r-finishing-script",
+      "from": "finishing",
+      "to": "script",
+      "label": "剧本工作台",
+      "trigger": "data-nav=script"
+    },
+    {
+      "id": "r-finishing-settings",
+      "from": "finishing",
+      "to": "settings",
+      "label": "系统设置",
+      "trigger": "data-nav=settings"
+    },
+    {
+      "id": "r-finishing-story",
+      "from": "finishing",
+      "to": "story",
+      "label": "故事工作台",
+      "trigger": "data-nav=story"
+    },
+    {
+      "id": "r-finishing-storyboard",
+      "from": "finishing",
+      "to": "storyboard",
+      "label": "分镜工作台",
+      "trigger": "data-nav=storyboard"
+    },
+    {
+      "id": "r-finishing-tasks",
+      "from": "finishing",
+      "to": "tasks",
+      "label": "任务记录",
+      "trigger": "data-nav=tasks"
+    },
+    {
+      "id": "r-assets-creation",
+      "from": "assets",
+      "to": "creation",
+      "label": "创意工作台",
+      "trigger": "data-nav=creation"
+    },
+    {
+      "id": "r-assets-projects",
+      "from": "assets",
+      "to": "projects",
+      "label": "项目库与创建",
+      "trigger": "data-nav=projects"
+    },
+    {
+      "id": "r-assets-settings",
+      "from": "assets",
+      "to": "settings",
+      "label": "系统设置",
+      "trigger": "data-nav=settings"
+    },
+    {
+      "id": "r-assets-tasks",
+      "from": "assets",
+      "to": "tasks",
+      "label": "任务记录",
+      "trigger": "data-nav=tasks"
+    },
+    {
+      "id": "r-tasks-assets",
+      "from": "tasks",
+      "to": "assets",
+      "label": "资产库",
+      "trigger": "data-nav=assets"
+    },
+    {
+      "id": "r-tasks-creation",
+      "from": "tasks",
+      "to": "creation",
+      "label": "创意工作台",
+      "trigger": "data-nav=creation"
+    },
+    {
+      "id": "r-tasks-projects",
+      "from": "tasks",
+      "to": "projects",
+      "label": "项目库与创建",
+      "trigger": "data-nav=projects"
+    },
+    {
+      "id": "r-tasks-settings",
+      "from": "tasks",
+      "to": "settings",
+      "label": "系统设置",
+      "trigger": "data-nav=settings"
+    },
+    {
+      "id": "r-settings-assets",
+      "from": "settings",
+      "to": "assets",
+      "label": "资产库",
+      "trigger": "data-nav=assets"
+    },
+    {
+      "id": "r-settings-creation",
+      "from": "settings",
+      "to": "creation",
+      "label": "创意工作台",
+      "trigger": "data-nav=creation"
+    },
+    {
+      "id": "r-settings-projects",
+      "from": "settings",
+      "to": "projects",
+      "label": "项目库与创建",
+      "trigger": "data-nav=projects"
+    },
+    {
+      "id": "r-settings-tasks",
+      "from": "settings",
+      "to": "tasks",
+      "label": "任务记录",
+      "trigger": "data-nav=tasks"
+    },
+    {
+      "id": "r-components-assets",
+      "from": "components",
+      "to": "assets",
+      "label": "资产库",
+      "trigger": "data-nav=assets"
+    },
+    {
+      "id": "r-components-creation",
+      "from": "components",
+      "to": "creation",
+      "label": "创意工作台",
+      "trigger": "data-nav=creation"
+    },
+    {
+      "id": "r-components-projects",
+      "from": "components",
+      "to": "projects",
+      "label": "项目库与创建",
+      "trigger": "data-nav=projects"
+    },
+    {
+      "id": "r-components-settings",
+      "from": "components",
+      "to": "settings",
+      "label": "系统设置",
+      "trigger": "data-nav=settings"
+    },
+    {
+      "id": "r-components-states",
+      "from": "components",
+      "to": "states",
+      "label": "状态展示",
+      "trigger": "data-nav=states"
+    },
+    {
+      "id": "r-components-tasks",
+      "from": "components",
+      "to": "tasks",
+      "label": "任务记录",
+      "trigger": "data-nav=tasks"
+    },
+    {
+      "id": "r-states-assets",
+      "from": "states",
+      "to": "assets",
+      "label": "资产库",
+      "trigger": "data-nav=assets"
+    },
+    {
+      "id": "r-states-components",
+      "from": "states",
+      "to": "components",
+      "label": "组件展示",
+      "trigger": "data-nav=components"
+    },
+    {
+      "id": "r-states-creation",
+      "from": "states",
+      "to": "creation",
+      "label": "创意工作台",
+      "trigger": "data-nav=creation"
+    },
+    {
+      "id": "r-states-projects",
+      "from": "states",
+      "to": "projects",
+      "label": "项目库与创建",
+      "trigger": "data-nav=projects"
+    },
+    {
+      "id": "r-states-settings",
+      "from": "states",
+      "to": "settings",
+      "label": "系统设置",
+      "trigger": "data-nav=settings"
+    },
+    {
+      "id": "r-states-tasks",
+      "from": "states",
+      "to": "tasks",
+      "label": "任务记录",
+      "trigger": "data-nav=tasks"
+    }
+  ]
+}

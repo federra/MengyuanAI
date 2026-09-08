@@ -1,0 +1,15 @@
+import {prepareWorkbenches,mountDirector} from './studio-director.js';
+import {hub,putHub} from './workflow-store.js';
+import {projectsPage,bindProjects,ideaPage,bindIdea,storyPage,bindStory,assetsPage,bindAssets,tasksPage,bindTasks,settingsPage,bindSettingsPage} from './studio-hub.js';
+import {polishStudio} from './taste-ui.js';
+import {shell,mount} from './components.js';
+import {C,save} from './studio-ui.js';
+import {scriptPage,bindScript} from './studio-script.js';
+import {boardPage,bindBoard} from './studio-board.js';
+import {finishPage,bindFinish} from './studio-finishing.js';
+import {settingsMarkup,bindSettings} from './workflow-settings.js';
+const page=document.body.dataset.page||'creation';
+if(C.s.chain.status==='running'){C.s.chain.status='paused';C.s.chain.runId=null;C.s.chain.message='页面已恢复，可从未完成镜头继续。';save();}
+const pages={projects:[projectsPage,bindProjects],creation:[ideaPage,bindIdea],story:[storyPage,bindStory],assets:[assetsPage,bindAssets],tasks:[tasksPage,bindTasks],settings:[settingsPage,bindSettingsPage],script:[scriptPage,bindScript],storyboard:[boardPage,bindBoard],finishing:[finishPage,bindFinish]};
+function render(){prepareWorkbenches();if(document.querySelector('dialog[open]')){C.pendingRender=true;return}C.pendingRender=false;mount(shell({active:page,content:pages[page][0]()+settingsMarkup()+'<dialog class="dialog studio-dialog" id="studio-dialog" aria-labelledby="studio-dialog-title"></dialog>'}));document.querySelector('.app-shell').classList.add('workflow','studio');C.settings=bindSettings(C.s,()=>{const result=save();if(result){const h=hub();h.config={...h.config,models:C.s.models,defaults:C.s.defaults,styles:C.s.styles,configVersion:C.s.configVersion};h.assets=h.assets.filter(a=>!a.systemStyle);h.assets.push(...C.s.styles.map((style,i)=>({id:'style-'+i,kind:'风格模板',name:style.name,description:style.text,version:C.s.styleVersion,systemStyle:true,styleIndex:i})));putHub(h)}return result},render);document.querySelector('#global-config').onclick=()=>C.settings('prompts',page==='creation'?'novel':page==='script'?'script':page==='storyboard'?'review':'voice');document.querySelector('#studio-dialog').addEventListener('close',()=>{if(C.pendingRender)queueMicrotask(render)});pages[page][1]();if(page==='finishing'){const clips=document.querySelector('.clip-edit-list'),timeline=document.querySelector('.timeline-panel');if(clips&&timeline)timeline.append(clips)}if(page==='script'){const layout=document.querySelector('.script-layout'),quality=document.querySelector('#script-quality'),source=document.querySelector('#novel-source');if(layout&&quality){quality.classList.add('panel');layout.append(quality);if(source){const detail=document.createElement('details');detail.id='novel-source';detail.innerHTML='<summary>查看原故事</summary>'+source.innerHTML;source.remove();document.querySelector('#script-work').prepend(detail)}}}mountDirector(page);polishStudio();}
+C.render=render;render();

@@ -1,0 +1,282 @@
+[
+  {
+    "id": "P01",
+    "scene": "创意→故事",
+    "key": "novel",
+    "inputs": "一句话、写作指令、市场、风格",
+    "output": "三份 title/logline/direction/text",
+    "acceptance": "每批恰好3份；情节方向不同；语言匹配市场",
+    "schemaVersion": 1,
+    "status": "unvalidated"
+  },
+  {
+    "id": "P02",
+    "scene": "故事多轮修改",
+    "key": "novelRevision",
+    "inputs": "故事正文、版本、对话、修改要求",
+    "output": "新正文、changeSummary",
+    "acceptance": "保留未要求改动的事实；新版本不覆写原版",
+    "schemaVersion": 1,
+    "status": "unvalidated"
+  },
+  {
+    "id": "P03",
+    "scene": "故事→剧本",
+    "key": "script",
+    "inputs": "原故事、剧本指令、市场、风格",
+    "output": "scenes/actions/dialogues/estimatedSeconds",
+    "acceptance": "可拍摄、人物动机一致、无需固定项目时长",
+    "schemaVersion": 1,
+    "status": "unvalidated"
+  },
+  {
+    "id": "P04",
+    "scene": "剧本质检",
+    "key": "scriptReview",
+    "inputs": "原故事、当前剧本、双方版本",
+    "output": "summary/issues/evidence/suggestions",
+    "acceptance": "同时检查贴合度、情绪、剧情和自身连贯性",
+    "schemaVersion": 1,
+    "status": "unvalidated"
+  },
+  {
+    "id": "P05",
+    "scene": "剧本修复",
+    "key": "scriptRepair",
+    "inputs": "原故事、当前剧本、完整报告、用户要求",
+    "output": "新剧本、修改摘要、解决issueIds",
+    "acceptance": "不得忽略报告或静默删剧情；修复后复检",
+    "schemaVersion": 1,
+    "status": "unvalidated"
+  },
+  {
+    "id": "P06",
+    "scene": "剧本→分镜",
+    "key": "storyboard",
+    "inputs": "已确认剧本、风格、画幅、资产清单、分镜Skill/提示词、分辨率",
+    "output": "shots[]，稳定shotId、dialogues[id,speaker,emotion,text,voice]、prompt、引用、时长",
+    "acceptance": "镜头覆盖原剧本；角色/场景/道具/站位引用一致",
+    "schemaVersion": 1,
+    "status": "unvalidated"
+  },
+  {
+    "id": "P07",
+    "scene": "分镜质检",
+    "key": "review",
+    "inputs": "原剧本、分镜表、源版本",
+    "output": "schemaVersion/scriptId/baseBoardVersion/issues/proposedShots",
+    "acceptance": "定位到shotId；漏信息、情绪、动作逻辑有证据；schemaVersion=2，校验每段lineId和台词摘要一致",
+    "schemaVersion": 1,
+    "status": "unvalidated"
+  },
+  {
+    "id": "P08",
+    "scene": "分镜修复",
+    "key": "boardRepair",
+    "inputs": "原剧本、分镜、质检报告、用户要求",
+    "output": "完整建议版、changeSummary",
+    "acceptance": "保留镜头ID与合法引用；服务端事务原子应用；schemaVersion=2，校验每段lineId和台词摘要一致",
+    "schemaVersion": 1,
+    "status": "unvalidated"
+  },
+  {
+    "id": "P09",
+    "scene": "台词生成/优化",
+    "key": "dialogue",
+    "inputs": "剧本、当前镜头、人物、情绪、市场",
+    "output": "dialogues[speaker,text,emotion]",
+    "acceptance": "不添无依据人物；配音文本与字幕同源",
+    "schemaVersion": 1,
+    "status": "unvalidated"
+  },
+  {
+    "id": "P10",
+    "scene": "提取资产",
+    "key": "assetExtract",
+    "inputs": "已确认剧本与分镜、已有资产字典",
+    "output": "assets[kind,name,description,sourceIds]",
+    "acceptance": "区分角色/场景/道具/服饰/站位，去重且可追溯",
+    "schemaVersion": 1,
+    "status": "unvalidated"
+  },
+  {
+    "id": "P11",
+    "scene": "角色参考图",
+    "key": "characterImage",
+    "inputs": "角色身份外形、服饰、风格、参考图",
+    "output": "imageUri/assetId/version",
+    "acceptance": "身份稳定；可选三视图，避免场景混入主体",
+    "schemaVersion": 1,
+    "status": "unvalidated"
+  },
+  {
+    "id": "P12",
+    "scene": "场景参考图",
+    "key": "sceneImage",
+    "inputs": "时代地点、光线、景别、风格",
+    "output": "imageUri/assetId/version",
+    "acceptance": "空间与剧本一致，明确室内外",
+    "schemaVersion": 1,
+    "status": "unvalidated"
+  },
+  {
+    "id": "P13",
+    "scene": "道具参考图",
+    "key": "propImage",
+    "inputs": "道具功能、外观、比例、风格",
+    "output": "imageUri/assetId/version",
+    "acceptance": "关键道具特征不漂移",
+    "schemaVersion": 1,
+    "status": "unvalidated"
+  },
+  {
+    "id": "P14",
+    "scene": "服饰参考图",
+    "key": "clothingImage",
+    "inputs": "角色、时代、服饰设定、风格",
+    "output": "imageUri/assetId/version",
+    "acceptance": "与角色/时代一致，服饰可单独复用",
+    "schemaVersion": 1,
+    "status": "unvalidated"
+  },
+  {
+    "id": "P15",
+    "scene": "站位图",
+    "key": "blockingImage",
+    "inputs": "镜头、角色位置、场景布局、运动方向",
+    "output": "imageUri + positions/labels",
+    "acceptance": "左右关系、朝向与动作轴线明确",
+    "schemaVersion": 1,
+    "status": "unvalidated"
+  },
+  {
+    "id": "P16",
+    "scene": "镜头提示词生成/优化",
+    "key": "shotPrompt",
+    "inputs": "镜头、剧本、风格、可用assetIds",
+    "output": "prompt + referencedAssetIds",
+    "acceptance": "正文引用与提交图片严格一一对应",
+    "schemaVersion": 1,
+    "status": "unvalidated"
+  },
+  {
+    "id": "P17",
+    "scene": "视频生成",
+    "key": "video",
+    "inputs": "镜头提示词、图片、画幅、秒数、前镜尾帧",
+    "output": "videoUri/duration/taskId",
+    "acceptance": "参考图版本冻结，尾帧来自指定前镜视频",
+    "schemaVersion": 1,
+    "status": "unvalidated"
+  },
+  {
+    "id": "P18",
+    "scene": "TTS生成",
+    "key": "voice",
+    "inputs": "shotId、lineId、逐段台词、角色、语言、音色、情绪、语速、模型与指令版本",
+    "output": "audioUri/duration/可选wordTimestamps",
+    "acceptance": "不擅改台词；语言/发音与人物一致",
+    "schemaVersion": 1,
+    "status": "unvalidated"
+  },
+  {
+    "id": "P19",
+    "scene": "配乐生成",
+    "key": "music",
+    "inputs": "情绪段落、节奏、实际时长、风格",
+    "output": "audioUri/duration",
+    "acceptance": "与台词让位关系明确，无突兀截断",
+    "schemaVersion": 1,
+    "status": "unvalidated"
+  },
+  {
+    "id": "P20",
+    "scene": "风格推荐",
+    "key": "style",
+    "inputs": "剧本、市场、现有风格候选",
+    "output": "recommendations[styleId,reason]",
+    "acceptance": "理由对应内容，不创造不可用模板ID",
+    "schemaVersion": 1,
+    "status": "unvalidated"
+  },
+  {
+    "id": "P21",
+    "scene": "风格模板建立/完善",
+    "key": "template",
+    "inputs": "风格描述、视觉参考、约束",
+    "output": "name/visualRules/negativeRules",
+    "acceptance": "角色、色温、光线、镜头语言可以复用",
+    "schemaVersion": 1,
+    "status": "unvalidated"
+  },
+  {
+    "id": "P22",
+    "scene": "资产匹配推荐",
+    "key": "assetRecommend",
+    "inputs": "镜头资产需求、可用资产元数据",
+    "output": "matches[requirementId,assetId,reason]",
+    "acceptance": "引用存在，缺失返回unmatched，不编造资产",
+    "schemaVersion": 1,
+    "status": "unvalidated"
+  },
+  {
+    "id": "P23",
+    "scene": "声音设定辅助",
+    "key": "voicePreset",
+    "inputs": "角色、语言、情绪、可用voiceIds",
+    "output": "voiceId/语速/表现参数",
+    "acceptance": "使用可用音色ID，不擅自克隆真人声音",
+    "schemaVersion": 1,
+    "status": "unvalidated"
+  },
+  {
+    "id": "P24",
+    "scene": "字幕语言润色（可选）",
+    "key": "subtitle",
+    "inputs": "台词、市场、字幕长度规范",
+    "output": "subtitleText + sourceDialogueIds",
+    "acceptance": "不改变事实；时间轴由音频对齐工具计算",
+    "schemaVersion": 1,
+    "status": "unvalidated"
+  },
+  {
+    "id": "P25",
+    "scene": "创意导演对话",
+    "key": "ideaRefine",
+    "inputs": "当前创意、历史对话、修改要求、市场",
+    "output": "proposal/changeSummary/baseVersion",
+    "acceptance": "用户采用前不改变正文；过期建议拒绝采用",
+    "schemaVersion": 1,
+    "status": "unvalidated"
+  },
+  {
+    "id": "P26",
+    "scene": "TXT选题提炼",
+    "key": "storyExtract",
+    "inputs": "上传完整原文、文件名、来源ID",
+    "output": "单一title/logline，正文保持原文",
+    "acceptance": "只提炼1张卡；不得改写或截断原文",
+    "schemaVersion": 1,
+    "status": "unvalidated"
+  },
+  {
+    "id": "P27",
+    "scene": "剧本导演对话",
+    "key": "scriptRefine",
+    "inputs": "原故事、当前剧本、对话、要求、源版本",
+    "output": "剧本建议版/changeSummary",
+    "acceptance": "保留原作事实；采用后旧报告失效，重新质检",
+    "schemaVersion": 1,
+    "status": "unvalidated"
+  },
+  {
+    "id": "P28",
+    "scene": "分镜导演对话",
+    "key": "boardRefine",
+    "inputs": "原剧本、目标镜头、图片ID、对话、要求",
+    "output": "镜头建议版/changeSummary",
+    "acceptance": "保留稳定图片ID及所有台词；采用后复检",
+    "schemaVersion": 1,
+    "status": "unvalidated"
+  }
+]

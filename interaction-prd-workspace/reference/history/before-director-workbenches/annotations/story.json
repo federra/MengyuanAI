@@ -1,0 +1,35 @@
+{
+  "pageId": "story",
+  "annotations": [
+    {
+      "id": "a-story-001",
+      "number": 1,
+      "coordinateSpace": "document",
+      "target": "#topic-zone",
+      "anchor": {
+        "x": 1,
+        "y": 0.5
+      },
+      "title": "三份候选与历史",
+      "content": "每次新增三份，按批次倒序翻页；历史保留。",
+      "status": "active",
+      "x": 0.3249122807017544,
+      "y": 0.6165226063829787
+    },
+    {
+      "id": "a-story-002",
+      "number": 2,
+      "coordinateSpace": "document",
+      "target": "#story-editor",
+      "anchor": {
+        "x": 1,
+        "y": 0.5
+      },
+      "title": "故事正文与选定",
+      "content": "当前候选可编辑，选定冻结正文版本并进入剧本自动质检。",
+      "status": "active",
+      "x": 0.7964912280701755,
+      "y": 0.5898003873728029
+    }
+  ]
+}

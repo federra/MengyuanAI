@@ -1,0 +1,35 @@
+{
+  "pageId": "creation",
+  "annotations": [
+    {
+      "id": "a-creation-001",
+      "number": 1,
+      "coordinateSpace": "document",
+      "target": "#creation-setup",
+      "anchor": {
+        "x": 1,
+        "y": 0.5
+      },
+      "x": 0.9789473684210528,
+      "y": 0.36019040300546445,
+      "title": "双入口与创作指令",
+      "content": "当前项目上下文：市场、风格和画幅。创意支持一句话、粘贴故事或TXT导入；写作Skill/提示词可选择。",
+      "status": "active"
+    },
+    {
+      "id": "a-creation-002",
+      "number": 2,
+      "coordinateSpace": "document",
+      "target": "#topic-zone",
+      "anchor": {
+        "x": 1,
+        "y": 0.5
+      },
+      "x": 0.9719298245614036,
+      "y": 0.7306565766550522,
+      "title": "三选题与小说详情",
+      "content": "三卡含不同剧情方向，点击查看全文并多轮修改；选定后生成剧本。额外要求可创建新选题，篇幅对应目标时长。",
+      "status": "retired"
+    }
+  ]
+}

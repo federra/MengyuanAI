@@ -1,0 +1,55 @@
+/* Shared theme selector. Theme changes do not rerender project editors. */
+.app-shell .brand{display:flex;align-items:center;gap:10px;white-space:nowrap}
+.workshop-mark{width:32px;height:32px;flex-shrink:0;color:var(--accent)}
+.workshop-name{font-size:20px;font-weight:650;letter-spacing:.01em;color:var(--text)}
+.theme-picker{display:flex;align-items:center;gap:9px;white-space:nowrap;color:var(--secondary);font-size:14px;font-weight:500}
+.theme-picker select{width:108px;min-height:38px;cursor:pointer;padding:7px 10px!important;font-size:14px!important}
+.theme-dot{width:10px;height:10px;flex:none;border-radius:50%;background:var(--accent);box-shadow:0 0 0 3px var(--selected)}
+/* Sky: ice blue canvas, white surfaces, bright cobalt actions. */
+:root[data-theme=sky]{color-scheme:light;--bg:#f1f7ff;--surface:#fff;--surface-raised:#f5f8ff;--input:#fbfcff;--hover:#edf4ff;--selected:#e5efff;--border:#c5d5ed;--text:#172b50;--secondary:#465d80;--muted:#61728e;--accent:#2463eb;--accent-strong:#1e54ce;--on-accent:#fff;--success:#187054;--warning:#92600e;--danger:#b63853;--line:#dce7f7;--soft-shadow:0 6px 26px #4380c908}
+:root[data-theme=sky] body{background:var(--bg)}
+:root[data-theme=sky] .app-shell{background:radial-gradient(ellipse at 70% 0,#e7f1ff 0,transparent 65%);min-height:100vh}
+:root[data-theme=sky] .app-shell .topbar{background:#ffffffed;border-bottom:1px solid #e1eaf7;box-shadow:0 2px 16px #397ae805;backdrop-filter:blur(14px)}
+:root[data-theme=sky] .app-shell .sidebar{background:linear-gradient(175deg,#fbfdff,#eef5ff);border-right:1px solid #e0eafa}
+:root[data-theme=sky] .sidebar .nav-link{border:1px solid transparent;transition:background .18s,color .18s,border-color .18s}
+:root[data-theme=sky] .sidebar .nav-link.active{background:#e2edff;color:#205bd5;border-color:#d6e6ff;box-shadow:0 3px 10px #397ae805}
+:root[data-theme=sky] .sidebar .nav-link:hover{background:#eaf2ff;color:#205bd5}
+:root[data-theme=sky] .sidebar-note{background:linear-gradient(145deg,#e0ecff,#f6f9ff);border:1px solid #dfeaff;border-radius:12px;color:#25477e;position:relative;overflow:hidden}
+:root[data-theme=sky] .sidebar-note:after{content:'';width:70px;height:70px;border:12px solid #397ae80a;border-radius:18px;position:absolute;right:-27px;bottom:-24px;transform:rotate(25deg);pointer-events:none}
+:root[data-theme=sky] .studio-steps{background:#ffffffde!important;border:1px solid #e2ebfa!important;border-radius:12px;padding:8px!important;box-shadow:0 4px 20px #397ae805;gap:8px!important}
+:root[data-theme=sky] .studio-steps .nav-link{position:relative;border-radius:8px;color:#526a8a!important}
+:root[data-theme=sky] .studio-steps .nav-link.active{background:#f0f6ff!important;color:#205bd5!important;box-shadow:none}
+:root[data-theme=sky] .studio-steps .nav-link span{background:#eaf1fd;color:#567398;border:1px solid #dce7fa}
+:root[data-theme=sky] .studio-steps .nav-link.active span{background:var(--accent);color:#fff;border-color:var(--accent);box-shadow:0 0 0 4px #e1ebff}
+:root[data-theme=sky] .page-heading h1{color:#162b53;letter-spacing:-.025em}
+:root[data-theme=sky] .panel{border:1px solid #e2ebf8;box-shadow:0 5px 22px #397ae806}
+:root[data-theme=sky] .button{background:#f9fbff;border-color:#cbdaf3;color:#315582;transition:background .18s,border-color .18s,box-shadow .18s}
+:root[data-theme=sky] .button:hover:not(:disabled){background:#edf4ff;border-color:#90b4f5}
+:root[data-theme=sky] .button.primary{background:var(--accent)!important;border-color:var(--accent)!important;color:#fff!important;box-shadow:0 3px 8px #2463eb20}
+:root[data-theme=sky] .button.primary:hover:not(:disabled){background:var(--accent-strong)!important;box-shadow:0 4px 13px #2463eb30}
+:root[data-theme=sky] .button.danger{color:var(--danger)}
+:root[data-theme=sky] input:not([type=checkbox]):not([type=file]),:root[data-theme=sky] textarea,:root[data-theme=sky] select{background:var(--input);border-color:#c2d2ec;color:var(--text)}
+:root[data-theme=sky] input:focus,:root[data-theme=sky] textarea:focus,:root[data-theme=sky] select:focus{border-color:var(--accent)}
+:root[data-theme=sky] .hub-stats{background:#e0eafa;border-color:#e0eafa}
+:root[data-theme=sky] .hub-stats>div{background:linear-gradient(120deg,#fff,#fafdff)}
+:root[data-theme=sky] .hub-stats strong{color:#214c98}
+:root[data-theme=sky] .story-choice{border-color:#dce7f6;box-shadow:0 3px 12px #397ae805}
+:root[data-theme=sky] .story-choice.selected{border-color:#6697f1;box-shadow:inset 3px 0 var(--accent),0 3px 12px #397ae80a}
+:root[data-theme=sky] .director-panel{background:linear-gradient(180deg,#f3f8ff 0,#fff 180px)}
+:root[data-theme=sky] .director-message{background:#f3f7fe;border:1px solid #e3edfc}
+:root[data-theme=sky] .director-message.from-user{background:#e8f1ff;border-color:#d8e7ff}
+:root[data-theme=sky] th{background:#edf4ff;color:#395a8b;border-bottom-color:#d9e6f9}
+:root[data-theme=sky] .dialogue-line{border-color:#dce8f8;background:#fff}
+:root[data-theme=sky] .pill{background:#f4f8ff;border-color:#d9e6f8}
+:root[data-theme=sky] .pill.success{background:#edf9f4;color:#187054}
+:root[data-theme=sky] .pill.warning{background:#fff8ea;color:#86550a}
+:root[data-theme=sky] .notice{background:#f4f8ff}
+:root[data-theme=sky] .dialog{background:#fff;border-color:#d9e5f7;box-shadow:0 24px 90px #193f7433}
+:root[data-theme=sky] .dialog::backdrop{background:#18396666;backdrop-filter:blur(3px)}
+:root[data-theme=sky] .director-collapsed .director-panel{background:transparent;border:0;box-shadow:none}
+:root[data-theme=sky] .preview-frame{border:4px solid #fff;box-shadow:0 3px 14px #2463eb12}
+:root[data-theme=sky] .clip-tile{border-color:#cbdcf5;background:#f7faff}
+:root[data-theme=sky] .theme-picker select{background:#f3f7ff}
+@media(max-width:800px){.workshop-name{font-size:17px}.theme-picker{gap:6px}.theme-dot{display:none}.theme-picker select{width:90px}.app-shell .header-actions{gap:8px}}
+@media(prefers-reduced-motion:reduce){.app-shell .button,.app-shell .nav-link{transition:none!important}}
+:root[data-theme=sky] .text-button.danger{color:var(--danger)}

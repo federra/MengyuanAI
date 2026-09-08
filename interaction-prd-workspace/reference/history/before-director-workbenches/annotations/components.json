@@ -1,0 +1,50 @@
+{
+  "pageId": "components",
+  "annotations": [
+    {
+      "id": "a-components-001",
+      "number": 1,
+      "coordinateSpace": "document",
+      "x": 0.9817543859649124,
+      "y": 0.01948441247002398,
+      "target": "#theme-toggle",
+      "anchor": {
+        "x": 1,
+        "y": 0.5
+      },
+      "title": "主题切换与编辑保持",
+      "content": "浅深主题共用页面，切换不重置编辑；跨页和刷新保持偏好。",
+      "status": "active"
+    },
+    {
+      "id": "a-components-002",
+      "number": 2,
+      "coordinateSpace": "document",
+      "x": 0.5498245614035088,
+      "y": 0.3036570743405276,
+      "target": "#idea-input",
+      "anchor": {
+        "x": 1,
+        "y": 0.5
+      },
+      "title": "长文输入与演示草稿",
+      "content": "15px 长文编辑，未保存与已保存区分；演示草稿仅存浏览器演示空间。",
+      "status": "active"
+    },
+    {
+      "id": "a-components-003",
+      "number": 3,
+      "coordinateSpace": "document",
+      "x": 0.9789473684210528,
+      "y": 0.32527727817745805,
+      "target": "#review-panel",
+      "anchor": {
+        "x": 1,
+        "y": 0.5
+      },
+      "title": "审核、复检和素材影响",
+      "content": "C03–C04 / N04、N14：采纳修改使旧审核失效；复检通过仍待人工确认，既有素材保持待更新。提示词面板检查必要变量。",
+      "status": "active"
+    }
+  ]
+}

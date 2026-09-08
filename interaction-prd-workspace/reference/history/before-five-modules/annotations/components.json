@@ -1,0 +1,50 @@
+{
+  "pageId": "components",
+  "annotations": [
+    {
+      "id": "a-components-001",
+      "number": 1,
+      "coordinateSpace": "document",
+      "x": 0.983157894736842,
+      "y": 0.019886363636363636,
+      "target": "#theme-toggle",
+      "anchor": {
+        "x": 1,
+        "y": 0.5
+      },
+      "title": "主题切换与编辑保持",
+      "content": "C01 / N15 / US-28：浅深主题共用页面，切换不重置编辑；跨页和刷新保持偏好。",
+      "status": "active"
+    },
+    {
+      "id": "a-components-002",
+      "number": 2,
+      "coordinateSpace": "document",
+      "x": 0.5512280701754386,
+      "y": 0.29371843434343436,
+      "target": "#idea-input",
+      "anchor": {
+        "x": 1,
+        "y": 0.5
+      },
+      "title": "长文输入与演示草稿",
+      "content": "C02 / N01 / US-02：15px 长文编辑，未保存与已保存区分；演示草稿仅存浏览器演示空间。",
+      "status": "active"
+    },
+    {
+      "id": "a-components-003",
+      "number": 3,
+      "coordinateSpace": "document",
+      "x": 0.983157894736842,
+      "y": 0.3199968434343434,
+      "target": "#review-panel",
+      "anchor": {
+        "x": 1,
+        "y": 0.5
+      },
+      "title": "审核、复检和素材影响",
+      "content": "C03–C04 / N04、N14：采纳修改使旧审核失效；复检通过仍待人工确认，既有素材保持待更新。提示词面板检查必要变量。",
+      "status": "active"
+    }
+  ]
+}

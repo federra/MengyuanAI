@@ -1,0 +1,50 @@
+{
+  "pageId": "creation",
+  "annotations": [
+    {
+      "id": "a-creation-001",
+      "number": 1,
+      "coordinateSpace": "document",
+      "target": "#idea-content",
+      "anchor": {
+        "x": 1,
+        "y": 0.5
+      },
+      "x": 0.743859649122807,
+      "y": 0.5277537983425414,
+      "title": "创意输入与TXT入口",
+      "content": "仅一句话输入；TXT上传进入故事单卡。主操作右侧为写作方式及编辑指令。",
+      "status": "active"
+    },
+    {
+      "id": "a-creation-002",
+      "number": 2,
+      "coordinateSpace": "document",
+      "target": "#topic-zone",
+      "anchor": {
+        "x": 1,
+        "y": 0.5
+      },
+      "x": 0.9719298245614036,
+      "y": 0.7306565766550522,
+      "title": "三选题与小说详情",
+      "content": "三卡含不同剧情方向，点击查看全文并多轮修改；选定后生成剧本。额外要求可创建新选题，篇幅对应目标时长。",
+      "status": "retired"
+    },
+    {
+      "id": "a-creation-003",
+      "number": 3,
+      "coordinateSpace": "document",
+      "target": "#director-panel",
+      "anchor": {
+        "x": 1,
+        "y": 0.5
+      },
+      "title": "AI导演助手与收起补位",
+      "content": "默认固定右侧，可收起或弹出。建议先进入对话，采用才更新并保留旧版；点选建议可生成新版内容。",
+      "status": "active",
+      "x": 0.9789473684210528,
+      "y": 0.6180435658379374
+    }
+  ]
+}

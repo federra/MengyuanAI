@@ -1,0 +1,270 @@
+{
+  "schemaVersion": 1,
+  "product": {
+    "name": "梦源AI · 短片创作系统",
+    "type": "PC Web",
+    "status": "g3-review",
+    "source": {
+      "mode": "idea"
+    }
+  },
+  "modules": [
+    {
+      "id": "product-definition",
+      "title": "产品定义与目标",
+      "prd": "prd/01-product-definition.md",
+      "kind": "prd",
+      "status": "approved",
+      "pages": [],
+      "hidden": false,
+      "navNumber": "01"
+    },
+    {
+      "id": "users-and-needs",
+      "title": "用户与需求分析",
+      "prd": "prd/02-users-and-needs.md",
+      "kind": "prd",
+      "status": "approved",
+      "pages": [],
+      "hidden": false,
+      "navNumber": "02"
+    },
+    {
+      "id": "stories-and-journey",
+      "title": "用户故事与旅程",
+      "prd": "prd/03-user-stories-and-journey.md",
+      "kind": "prd",
+      "status": "approved",
+      "pages": [],
+      "hidden": false,
+      "navNumber": "03"
+    },
+    {
+      "id": "project-workspace",
+      "title": "项目与创作入口",
+      "prd": "prd/04-project-workspace.md",
+      "kind": "prd",
+      "navNumber": "04",
+      "status": "planned",
+      "hidden": true,
+      "pages": []
+    },
+    {
+      "id": "ai-configuration",
+      "title": "模型与提示词配置",
+      "prd": "prd/05-ai-configuration.md",
+      "kind": "prd",
+      "navNumber": "05",
+      "status": "planned",
+      "hidden": true,
+      "pages": []
+    },
+    {
+      "id": "story-development",
+      "title": "创意引导与故事剧本",
+      "prd": "prd/06-story-development.md",
+      "kind": "prd",
+      "navNumber": "06",
+      "status": "planned",
+      "hidden": true,
+      "pages": []
+    },
+    {
+      "id": "storyboard-review",
+      "title": "分镜与内置质检",
+      "prd": "prd/07-storyboard-review.md",
+      "kind": "prd",
+      "navNumber": "07",
+      "status": "planned",
+      "hidden": true,
+      "pages": []
+    },
+    {
+      "id": "visual-assets",
+      "title": "风格模板与参考素材",
+      "prd": "prd/08-visual-assets.md",
+      "kind": "prd",
+      "navNumber": "08",
+      "status": "planned",
+      "hidden": true,
+      "pages": []
+    },
+    {
+      "id": "video-generation",
+      "title": "镜头视频与生成任务",
+      "prd": "prd/09-video-generation.md",
+      "kind": "prd",
+      "navNumber": "09",
+      "status": "planned",
+      "hidden": true,
+      "pages": []
+    },
+    {
+      "id": "finishing-export",
+      "title": "声音、基础剪辑与导出",
+      "prd": "prd/10-finishing-export.md",
+      "kind": "prd",
+      "navNumber": "10",
+      "status": "planned",
+      "hidden": true,
+      "pages": []
+    },
+    {
+      "id": "video-remix",
+      "title": "后续方向：参考视频再创作",
+      "prd": "reference/deferred-video-remix.md",
+      "kind": "reference",
+      "navNumber": "R3",
+      "status": "deferred",
+      "hidden": true,
+      "pages": []
+    },
+    {
+      "id": "shaping-intake",
+      "title": "输入材料",
+      "prd": "shaping/00-intake.md",
+      "kind": "shaping",
+      "navNumber": "S1",
+      "status": "draft",
+      "pages": []
+    },
+    {
+      "id": "shaping-product",
+      "title": "产品定型",
+      "prd": "shaping/01-product-shaping.md",
+      "kind": "shaping",
+      "navNumber": "S2",
+      "status": "draft",
+      "pages": []
+    },
+    {
+      "id": "shaping-jtbd",
+      "title": "JTBD 分析",
+      "prd": "shaping/02-jtbd.md",
+      "kind": "shaping",
+      "navNumber": "S3",
+      "status": "draft",
+      "pages": []
+    },
+    {
+      "id": "shaping-scope",
+      "title": "MVP 范围",
+      "prd": "shaping/03-scope.md",
+      "kind": "shaping",
+      "navNumber": "S4",
+      "status": "draft",
+      "pages": []
+    },
+    {
+      "id": "shaping-flows",
+      "title": "页面与流程",
+      "prd": "shaping/04-pages-and-flows.md",
+      "kind": "shaping",
+      "navNumber": "S5",
+      "status": "draft",
+      "pages": []
+    },
+    {
+      "id": "shaping-questions",
+      "title": "待确认问题",
+      "prd": "shaping/05-open-questions.md",
+      "kind": "shaping",
+      "navNumber": "S6",
+      "status": "draft",
+      "pages": []
+    },
+    {
+      "id": "shaping-brief",
+      "title": "定型摘要",
+      "prd": "shaping/06-shaped-brief.md",
+      "kind": "shaping",
+      "navNumber": "S7",
+      "status": "approved",
+      "pages": []
+    },
+    {
+      "id": "design-system",
+      "title": "视觉设计规范",
+      "prd": "reference/DESIGN.md",
+      "kind": "reference",
+      "navNumber": "R1",
+      "status": "approved",
+      "pages": []
+    },
+    {
+      "id": "foundation",
+      "title": "组件与状态",
+      "prd": "reference/components-and-states.md",
+      "kind": "reference",
+      "navNumber": "R2",
+      "status": "review",
+      "pages": [
+        "components",
+        "states"
+      ],
+      "hidden": false
+    },
+    {
+      "id": "plan",
+      "title": "PRD 板块计划",
+      "prd": "prd/00-plan.md",
+      "kind": "process",
+      "navNumber": "00",
+      "hidden": false,
+      "status": "approved",
+      "pages": []
+    }
+  ],
+  "pages": [
+    {
+      "id": "components",
+      "title": "组件展示",
+      "moduleId": "foundation",
+      "file": "prototypes/pages/components.html",
+      "annotationFile": "annotations/components.json",
+      "kind": "component-gallery",
+      "device": "desktop",
+      "viewport": {
+        "width": 1440,
+        "height": 900
+      },
+      "canvas": {
+        "x": 258,
+        "y": 135
+      }
+    },
+    {
+      "id": "states",
+      "title": "状态展示",
+      "moduleId": "foundation",
+      "file": "prototypes/pages/states.html",
+      "annotationFile": "annotations/states.json",
+      "kind": "state-gallery",
+      "device": "desktop",
+      "viewport": {
+        "width": 1440,
+        "height": 900
+      },
+      "canvas": {
+        "x": 1258,
+        "y": 473
+      }
+    }
+  ],
+  "relations": [
+    {
+      "id": "r-components-states",
+      "from": "components",
+      "to": "states",
+      "label": "公共组件 ↔ 状态与恢复",
+      "trigger": "data-nav=states"
+    },
+    {
+      "id": "r-states-components",
+      "from": "states",
+      "to": "components",
+      "label": "公共组件 ↔ 状态与恢复",
+      "trigger": "data-nav=components"
+    }
+  ]
+}
