@@ -1,6 +1,6 @@
 # AI短片工坊
 
-从零建设的 PC Web 短片创作系统。M0 提供工程底座，M1 已接入创意、故事、剧本、分镜的文本内容链、配置资源与 DeepSeek 适配器；本轮验收使用明确标识的替身，真实文本调用等待密钥注入。参考图/TTS/视频与 MP4 继续按 M2–M3 实施。需求与交互 Demo 保存在独立的 `interaction-prd-workspace/`，不参与应用构建。
+从零建设的 PC Web 短片创作系统。M0 提供工程底座，M1 已接入创意、故事、剧本、分镜的文本内容链、配置资源与 DeepSeek 适配器；已通过真实DeepSeek内容链至确认分镜及隔离故障回归。参考图/TTS/视频与 MP4 继续按 M2–M3 实施。需求与交互 Demo 保存在独立的 `interaction-prd-workspace/`，不参与应用构建。
 
 ## 工程结构
 
@@ -85,4 +85,4 @@ M0 基线唯一任务类型为本地确定性的 `file.verify`，用于底座验
 
 失败任务在创作工作台底部保留输入与配置；明确失败可按原配置重试。unknown 表示服务可能已受理，先到供应商核实，再勾选可能重复计费的确认重新提交；系统不伪造查询结果、不自动重发。每个原任务仅派生一个重试子任务，后续失败从子任务继续重试。
 
-`make test-ui` 运行 Playwright 浏览器回归，独立测试端口5181，默认使用本机 Chrome；未安装 Chrome 的环境先执行 `npx playwright install chromium`（在 apps/web 下）。测试结果被 Git 忽略。最新工程验收见 [M0/M1 验收记录](docs/engineering/m0-m1-verification.md)，原故事子阶段记录保留在 `docs/engineering/m1-story-verification.md`。真实文本密钥未注入，当前不能宣称真实模型闭环已通过。
+`make test-ui` 运行 Playwright 浏览器回归，独立测试端口5181，默认使用本机 Chrome；未安装 Chrome 的环境先执行 `npx playwright install chromium`（在 apps/web 下）。测试结果被 Git 忽略。最新工程验收见 [M0/M1 验收记录](docs/engineering/m0-m1-verification.md)，原故事子阶段记录保留在 `docs/engineering/m1-story-verification.md`。用户已通过页面保存凭据，真实DeepSeek M1验收通过；实际失败、必要修复、版本/恢复证据与边界见 [M1真实验收](docs/engineering/m1-real-verification.md)。
