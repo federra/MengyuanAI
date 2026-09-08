@@ -867,3 +867,235 @@ test("review round: pinned prompt revision is displayed and preserved until expl
   await page.getByRole("button", { name: "保存并用于此场景" }).click();
   await expect.poll(() => saved?.revision).toBe(2);
 });
+
+for (const status of [409, 503]) {
+  test(`final recovery: generation ${status} distinguishes rejected from uncertain command`, async ({
+    page,
+  }) => {
+    let revision = 1;
+    const requests: any[] = [];
+    await page.route("**/stages/script", (route) =>
+      route.fulfill({
+        json: { item: { ...story, revision }, confirmation: null, reports: [] },
+      }),
+    );
+    await page.route("**/stages/script/generate", async (route) => {
+      requests.push({
+        body: route.request().postDataJSON(),
+        key: route.request().headers()["idempotency-key"],
+      });
+      revision = 2;
+      await route.fulfill({
+        status: requests.length === 1 ? status : 202,
+        json:
+          requests.length === 1
+            ? { detail: "生成冲突或响应未知" }
+            : { id: "job" },
+      });
+    });
+    await page.getByLabel("本次剧本生成要求").fill("第一条指令");
+    await page.getByRole("button", { name: "确定故事并AI生成剧本" }).click();
+    await expect(
+      page.getByText("生成冲突或响应未知", { exact: true }),
+    ).toBeVisible();
+    await page.reload();
+    await page.getByRole("button", { name: "继续创作 →" }).click();
+    await page.getByLabel("本次剧本生成要求").fill("修订后的指令");
+    await page.getByRole("button", { name: "确定故事并AI生成剧本" }).click();
+    await expect.poll(() => requests.length).toBe(2);
+    if (status === 409) {
+      expect(requests[1].body).toEqual({
+        source_version_id: "story-v1",
+        target_revision: 2,
+        instruction: "修订后的指令",
+      });
+      expect(requests[1].key).not.toBe(requests[0].key);
+    } else expect(requests[1]).toEqual(requests[0]);
+  });
+}
+
+for (const stage of ["script", "board"] as const) {
+  test(`final recovery: regenerated ${stage} loads exact latest source and preserves old drafts`, async ({
+    page,
+  }) => {
+    const source1 = stage === "script" ? "story-v1" : "script-v1";
+    const source2 = stage === "script" ? "story-v2" : "script-v2";
+    const makeBody = (source: string, text: string) =>
+      stage === "script"
+        ? { text, scenes: [], estimatedSeconds: 10 }
+        : {
+            schemaVersion: 2,
+            scriptId: source,
+            shots: [
+              {
+                id: "shot-1",
+                prompt: text,
+                duration: 3,
+                dialogue: "",
+                dialogues: [],
+                refs: { characters: [], scenes: [], props: [], positions: [] },
+              },
+            ],
+          };
+    const old = {
+      ...story,
+      id: stage,
+      kind: stage,
+      version_id: `${stage}-v1`,
+      source_version_id: source1,
+      body: makeBody(source1, "旧生成内容"),
+    };
+    let current = { ...old };
+    const saved: any[] = [];
+    const history: any[] = [
+      {
+        ...old,
+        id: old.version_id,
+        origin: "generation",
+        created_at: project.updated_at,
+      },
+    ];
+    await page.route(`**/stages/${stage}`, async (route) => {
+      if (route.request().method() === "PUT") {
+        const b = route.request().postDataJSON();
+        saved.push(b);
+        if (
+          b.source_version_id !== current.source_version_id ||
+          b.revision !== current.revision ||
+          (stage === "board" && b.body.scriptId !== current.source_version_id)
+        ) {
+          await route.fulfill({
+            status: 409,
+            json: { detail: "来源或版本冲突" },
+          });
+          return;
+        }
+        const previous = current.version_id;
+        current = {
+          ...current,
+          body: b.body,
+          revision: current.revision + 1,
+          version_id: `${stage}-v${current.revision + 1}`,
+        };
+        history.unshift({
+          ...current,
+          id: current.version_id,
+          source_version_id: previous,
+          origin: "manual",
+          created_at: project.updated_at,
+        });
+        await route.fulfill({ json: current });
+      } else
+        await route.fulfill({
+          json: { item: current, confirmation: null, reports: [] },
+        });
+    });
+    await page.route(`**/contents/${stage}/versions`, (route) =>
+      route.fulfill({ json: history }),
+    );
+    await page
+      .getByRole("button", { name: stage === "script" ? "3　剧本" : "4　分镜" })
+      .click();
+    const editor = page.getByRole("textbox", {
+      name: stage === "script" ? "剧本正文" : "画面描述",
+      exact: true,
+    });
+    await expect(editor).toHaveValue("旧生成内容");
+    await editor.fill("尚未保存的旧来源编辑");
+    // Another completed generation has a new upstream version while the cached draft survives.
+    current = {
+      ...old,
+      revision: 2,
+      version_id: `${stage}-v2`,
+      source_version_id: source2,
+      body: makeBody(source2, "新来源生成的完整内容"),
+    };
+    history.unshift({
+      ...current,
+      id: current.version_id,
+      origin: "generation",
+      created_at: project.updated_at,
+    });
+    await page.reload();
+    await page.getByRole("button", { name: "继续创作 →" }).click();
+    await expect(editor).toHaveValue("尚未保存的旧来源编辑");
+    await page.getByRole("button", { name: "保留草稿并载入最新版本" }).click();
+    await expect(editor).toHaveValue("新来源生成的完整内容");
+    await page.getByText("保留的草稿（1）", { exact: true }).click();
+    await expect(page.getByLabel("保留草稿 1")).toContainText(
+      "尚未保存的旧来源编辑",
+    );
+    await expect(page.getByLabel("保留草稿 1")).toContainText(source1);
+    await page.screenshot({
+      path: `test-results/recovery-${stage}.png`,
+      fullPage: true,
+    });
+    await editor.fill("基于新来源的人工修改");
+    await page
+      .getByRole("button", {
+        name: stage === "script" ? "保存剧本" : "保存分镜",
+        exact: true,
+      })
+      .click();
+    await expect(
+      page.getByText("已保存新版本。", { exact: true }),
+    ).toBeVisible();
+    expect(saved[0].source_version_id).toBe(source2);
+    expect(saved[0].revision).toBe(2);
+    if (stage === "board") expect(saved[0].body.scriptId).toBe("script-v2");
+    // Manual history links to a same-item predecessor, not directly to the upstream source.
+    await page.getByText(/^版本历史（/).click();
+    await page.getByText("v3 · manual", { exact: true }).click();
+    await page
+      .getByRole("button", { name: "载入为草稿", exact: true })
+      .first()
+      .click();
+    await expect(
+      page.getByRole("button", {
+        name: stage === "script" ? "保存剧本" : "保存分镜",
+        exact: true,
+      }),
+    ).toBeEnabled();
+    // Explicitly loading an old-source history must retain its lineage, never relabel it.
+    await page.getByText("v1 · generation", { exact: true }).click();
+    await page
+      .getByRole("button", { name: "载入为草稿", exact: true })
+      .last()
+      .click();
+    await expect(editor).toHaveValue("旧生成内容");
+    await expect(
+      page.getByRole("button", {
+        name: stage === "script" ? "保存剧本" : "保存分镜",
+        exact: true,
+      }),
+    ).toBeDisabled();
+    await page.getByRole("button", { name: "保留草稿并载入最新版本" }).click();
+    await expect(editor).toHaveValue("基于新来源的人工修改");
+    await page.reload();
+    await page.getByRole("button", { name: "继续创作 →" }).click();
+    await expect(editor).toHaveValue("基于新来源的人工修改");
+    await page.getByText(/^保留的草稿（/).click();
+    await expect(page.getByLabel("保留草稿 1", { exact: true })).toContainText(
+      "尚未保存的旧来源编辑",
+    );
+    await expect(page.getByLabel("保留草稿 3", { exact: true })).toContainText(
+      source1,
+    );
+    if (stage === "board")
+      await expect(
+        page.getByLabel("保留草稿 3", { exact: true }),
+      ).toContainText('"scriptId": "script-v1"');
+    await editor.fill("恢复后的再次保存");
+    await page
+      .getByRole("button", {
+        name: stage === "script" ? "保存剧本" : "保存分镜",
+        exact: true,
+      })
+      .click();
+    await expect(
+      page.getByText("已保存新版本。", { exact: true }),
+    ).toBeVisible();
+    expect(saved[1].source_version_id).toBe(source2);
+    expect(saved[1].revision).toBe(3);
+  });
+}

@@ -7,6 +7,7 @@ type Content = components["schemas"]["ContentOut"];
 type Body =
   components["schemas"]["ScriptBody"] | components["schemas"]["BoardBody"];
 type Stage = "script" | "board";
+type StageDraft = { body: Body; revision: number; source: string };
 const path = (pid: string, iid: string) => ({ pid, iid });
 export async function generateStage(
   pid: string,
@@ -30,12 +31,20 @@ export async function generateStage(
   };
   localStorage.setItem(pendingKey, JSON.stringify(body));
   const cmd = durableCommand(`${pid}:generate:${stage}`, body);
-  unwrap(
-    await api.POST("/api/v1/projects/{pid}/stages/{stage}/generate", {
+  const result = await api.POST(
+    "/api/v1/projects/{pid}/stages/{stage}/generate",
+    {
       params: { path: { pid, stage }, header: { "idempotency-key": cmd.key } },
       body,
-    }),
+    },
   );
+  // A 409 is a definitive pre-enqueue rejection. Network/5xx outcomes remain
+  // frozen so retrying a possibly accepted paid request cannot create a new job.
+  if (result.response.status === 409) {
+    cmd.done();
+    removeDraft(pendingKey);
+  }
+  unwrap(result);
   cmd.done();
   removeDraft(pendingKey);
 }
@@ -227,8 +236,9 @@ export function StageWorkbench({
   refreshJobs: () => Promise<void>;
 }) {
   const key = `sf.${pid}.stage.${stage}`;
-  const cached = readDraft<{ body: Body; revision: number; source: string }>(
-    key,
+  const cached = readDraft<StageDraft>(key);
+  const [preserved, setPreserved] = useState<StageDraft[]>(
+    () => readDraft<StageDraft[]>(key + ".preserved") || [],
   );
   const [item, setItem] = useState<Content | null>(null),
     [body, setBody] = useState<Body | null>(cached?.body || null),
@@ -333,7 +343,36 @@ export function StageWorkbench({
       setSource(item.source_version_id || "");
     }
   }, [item, body]);
-  const dirty = !!item && JSON.stringify(body) !== JSON.stringify(item.body);
+  const sourceMismatch = !!item && source !== item.source_version_id;
+  const dirty =
+    !!item &&
+    (sourceMismatch || JSON.stringify(body) !== JSON.stringify(item.body));
+  function preserveDraft() {
+    if (!body) return;
+    const draft = { body, revision: base, source };
+    if (preserved.some((d) => JSON.stringify(d) === JSON.stringify(draft)))
+      return;
+    const next = [...preserved, draft];
+    // Fail closed: do not replace edits if their recovery copy cannot be stored.
+    localStorage.setItem(key + ".preserved", JSON.stringify(next));
+    setPreserved(next);
+  }
+  function historySource(version: components["schemas"]["VersionOut"]) {
+    // VersionOut links manual edits to previous versions of this same item.
+    // The versions endpoint returns the complete item history; follow those
+    // links until reaching its cross-stage source, as ContentOut does server-side.
+    const seen = new Set<string>();
+    let current = version;
+    while (current.source_version_id) {
+      if (seen.has(current.id))
+        throw new Error("历史来源链异常，请载入最新版本");
+      seen.add(current.id);
+      const previous = versions.find((v) => v.id === current.source_version_id);
+      if (!previous) return current.source_version_id;
+      current = previous;
+    }
+    throw new Error("历史版本缺少来源，请载入最新版本");
+  }
   async function run(action: () => Promise<void>) {
     setBusy(true);
     setError("");
@@ -388,11 +427,12 @@ export function StageWorkbench({
               <small>草稿基准 v{base}</small>
             </div>
             {stage === "script" && (
-              <SourceStory
-                key={item.source_version_id}
-                pid={pid}
-                versionId={item.source_version_id}
-              />
+              <SourceStory key={source} pid={pid} versionId={source} />
+            )}
+            {sourceMismatch && (
+              <p role="alert">
+                草稿来源与当前版本不同，暂不能保存。请保留草稿并载入最新版本，再对照复制需要的修改。
+              </p>
             )}
             {item.stale && (
               <p role="alert">上游已更新，此版本已过期。请从上游重新生成。</p>
@@ -457,7 +497,7 @@ export function StageWorkbench({
             </fieldset>
             <div className="actions">
               <button
-                disabled={busy}
+                disabled={busy || sourceMismatch}
                 onClick={() =>
                   void run(async () => {
                     accept(
@@ -483,16 +523,41 @@ export function StageWorkbench({
                 onClick={() =>
                   void run(async () => {
                     const latest = await refresh();
-                    if (latest) setBase(latest.revision);
-                    setNotice(
-                      "已读取最新基准，保留草稿；请对照版本历史合并后保存。",
-                    );
+                    if (latest) {
+                      preserveDraft();
+                      accept(latest);
+                      setNotice(
+                        "已载入最新完整内容及其来源；原草稿保留在下方，可对照复制修改。",
+                      );
+                    }
                   })
                 }
               >
-                读取最新基准
+                保留草稿并载入最新版本
               </button>
             </div>
+            {preserved.length > 0 && (
+              <details className="preserved-drafts">
+                <summary>保留的草稿（{preserved.length}）</summary>
+                <p>
+                  载入前的正文、版本与来源保留如下，可选取文字复制到当前编辑区。
+                </p>
+                {preserved.map((draft, index) => (
+                  <section key={index} aria-label={`保留草稿 ${index + 1}`}>
+                    <small>
+                      草稿基准 v{draft.revision} · 来源：{draft.source}
+                    </small>
+                    <ContentPreview body={draft.body} />
+                    <details>
+                      <summary>完整草稿数据（含引用与稳定 ID）</summary>
+                      <pre className="preserve-text">
+                        {JSON.stringify(draft, null, 2)}
+                      </pre>
+                    </details>
+                  </section>
+                ))}
+              </details>
+            )}
             {stage === "script" ? (
               <div className="method-actions">
                 <MethodSelector pid={pid} stage="storyboard" />
@@ -540,11 +605,18 @@ export function StageWorkbench({
                   <ContentPreview body={v.body} />
                   <button
                     disabled={busy}
-                    onClick={() => {
-                      setBody(v.body as Body);
-                      setBase(item.revision);
-                      setNotice("历史版已载入草稿，保存将新增版本。");
-                    }}
+                    onClick={() =>
+                      void run(async () => {
+                        const historicalSource = historySource(v);
+                        preserveDraft();
+                        setBody(v.body as Body);
+                        setBase(item.revision);
+                        setSource(historicalSource);
+                        setNotice(
+                          "历史版已按原来源载入，替换前草稿已保留；来源一致时可保存为新版本。",
+                        );
+                      })
+                    }
                   >
                     载入为草稿
                   </button>
