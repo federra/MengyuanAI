@@ -1,6 +1,6 @@
 # AI短片工坊
 
-从零建设的 PC Web 短片创作系统。M0 提供工程底座，M1 故事工程已接入 DeepSeek 适配器与版本工作台；真实文本调用验收等待密钥注入。剧本/分镜、参考图/TTS/视频与 MP4 继续按 M1–M3 实施。需求与交互 Demo 保存在独立的 `interaction-prd-workspace/`，不参与应用构建。
+从零建设的 PC Web 短片创作系统。M0 提供工程底座，M1 已接入创意、故事、剧本、分镜的文本内容链、配置资源与 DeepSeek 适配器；本轮验收使用明确标识的替身，真实文本调用等待密钥注入。参考图/TTS/视频与 MP4 继续按 M2–M3 实施。需求与交互 Demo 保存在独立的 `interaction-prd-workspace/`，不参与应用构建。
 
 ## 工程结构
 
@@ -10,10 +10,11 @@ apps/web/                  React + TypeScript + Vite 五模块应用壳
 services/backend/
   src/shortfilm/
     projects/              项目保存、owner 隔离、revision 冲突
-    creation/              故事版本、导演建议、DeepSeek 适配器与恢复
+    creation/              四阶段内容版本、建议质检/修复、DeepSeek 与恢复
     assets/                M2 资产版本领域边界
     media/                 StorageAdapter、图片验收与受控读取
     jobs/                  事务入队、dispatcher、Celery、租约恢复
+    configuration/         资源版本、模型路由、场景模板、方法及规格快照
     settings/              本地运行配置与种子概览
     data/                  R4 契约指令种子（未经真实模型验证）
   migrations/              Alembic 版本脚本
@@ -57,18 +58,22 @@ make contract   # 导出 OpenAPI，重新生成 TypeScript 类型
 
 测试必须有 PostgreSQL、Redis 正常运行；不会以 SQLite/eager mode 代替。首次测试曾在新建本地库验证，之后统一使用隔离库。`make test` 校验提交的 OpenAPI 没有漂移并构建前端。需要 Redis 的进程测试在 macOS/Linux 使用 FIFO 与 SIGKILL 注入中断。当前测试依赖存在两条 Starlette/httpx 上游弃用警告，均未影响行为验证。
 
-备份前停写：等待队列任务完成并停止 `make dev`，再 `make backup` → `make restore-check`。备份保存 PostgreSQL custom dump、媒体和 SHA256 清单；拒绝有排队/运行/待对账任务的备份。恢复演练自动创建隔离数据库及新媒体目录，验证全部数据库文件引用和 API 可读性，结束清理演练库；不覆盖当前数据。备份目录 `.local/backups/` 不加入版本库。
+备份前停写：等待队列任务完成并停止 `make dev`，再 `make backup` → `make restore-check`。备份保存 PostgreSQL custom dump、媒体和 SHA256 清单；拒绝有排队/运行/等待供应商等活动任务的备份；历史 unknown 原样保存并列出待核实任务，恢复后不会自动重投。恢复演练自动创建隔离数据库及新媒体目录，验证全部数据库文件引用和 API 可读性，结束清理演练库；不覆盖当前数据。备份目录 `.local/backups/` 不加入版本库。
 
 ## M0 范围
 
 已实现：新建/分页查询/继续/改名项目，乐观锁防覆盖；真实 PNG/JPEG/WebP 上传、类型解码/大小校验、SHA256、按项目读取；Job 与 Outbox 同事务、API 幂等键、独立派发、数据库锁、尝试记录、租约心跳、旧执行者拦截、丢失队列消息恢复；三主题应用壳与配置概览。
 
-M0 基线唯一任务类型为本地确定性的 `file.verify`，用于底座验收。不能将它的重试策略直接用于付费供应商任务。M1–M4 补齐内容/配置编辑与版本契约、生成规格、AI 适配器、任务依赖/取消/SSE/供应商对账、资产复用、媒体合成及上线身份体系。当前没有模型凭据或伪造的生成结果；初始化仅本地操作者、三类项目类型与28项未验证契约指令。
+M0 基线唯一任务类型为本地确定性的 `file.verify`，用于底座验收。不能将它的重试策略直接用于付费供应商任务。M0 原始基线保留为 Git 标签 `m0-baseline-20260908`。当前增量已提供内容/配置版本、生成规格与文本适配器；任务依赖/取消/SSE/供应商对账、资产复用、媒体合成及上线身份体系继续按后续计划实施。初始化不生成内容，仅创建操作者、项目类型、具名方法和提示词契约资源。
 
 
-## M1 故事工作台
+## M1 内容工作台与配置
 
-在项目中继续创作：保存一句话 → AI生成3个故事 → 翻页/编辑 → 导演建议 → 采用此版 → 确定此故事。正文、对话、候选、选择记录和历史版本都由 PostgreSQL 保存；浏览器只保留偏好、未保存草稿及未确认命令的幂等键。生成中离开页面不取消任务。改动正文后需重新选定，旧版始终保留。剧本/分镜按钮仅提供边界说明，本轮没有实现其生成。
+一句话 → 3个故事 → 选择或修改采用 → 剧本 → 分镜。每阶段支持正文保存、导演建议预览/采用、历史版本和独立质检；修复生成建议，采用后才追加版本。质检有问题、未完成或失败均可保留当前版本继续，来源冲突和不合法内容仍需修正。上游修改标记下游过期；分镜重排保留镜头/台词 ID，图片引用使用真实项目文件。M2 媒体和 M3 导出尚未实现，TXT 入口保留在后续范围。
+
+模型/提示词/风格三 Tab 直接打开配置：四类模型默认与环节覆盖，场景模板与资产资源库共用，Skill/提示词具名方法从故事环节开始选择；创意助手不选方法。项目画幅/分辨率、方法、模板和模型的最终版本在提交任务时冻结。环境变量仅提供首次初始化默认值，后续在设置保存实际路由。
+
+正文、对话、候选、确认、报告与历史版本由 PostgreSQL 保存；浏览器只保留偏好、未保存草稿及未确认命令的幂等键。离开页面不会取消任务，冲突保留草稿并允许读取最新基准，响应丢失可重用同一命令身份恢复。
 
 默认文本配置（来自已核对的 [DeepSeek 官方接口](https://api-docs.deepseek.com/api/create-chat-completion/)）：`SHORTFILM_TEXT_ENDPOINT=https://api.deepseek.com`、`SHORTFILM_TEXT_MODEL=deepseek-v4-pro`、`SHORTFILM_TEXT_CREDENTIAL_REF=DEEPSEEK_API_KEY`、`SHORTFILM_TEXT_JSON_MODE=json_object`、`SHORTFILM_TEXT_TIMEOUT_SECONDS=120`、`SHORTFILM_TEXT_MAX_TOKENS=8192`。DeepSeek 使用非思考模式。API 与 Worker 必须继承同一份环境。
 
@@ -76,4 +81,4 @@ M0 基线唯一任务类型为本地确定性的 `file.verify`，用于底座验
 
 失败任务在创作工作台底部保留输入与配置；明确失败可按原配置重试。unknown 表示服务可能已受理，先到供应商核实，再勾选可能重复计费的确认重新提交；系统不伪造查询结果、不自动重发。每个原任务仅派生一个重试子任务，后续失败从子任务继续重试。
 
-`make test-ui` 运行 Playwright 浏览器回归，独立测试端口5181，默认使用本机 Chrome；未安装 Chrome 的环境先执行 `npx playwright install chromium`（在 apps/web 下）。测试结果被 Git 忽略。M1 验收记录见 `docs/engineering/m1-story-verification.md`；真实文本密钥未注入，当前不能宣称真实故事闭环已通过。
+`make test-ui` 运行 Playwright 浏览器回归，独立测试端口5181，默认使用本机 Chrome；未安装 Chrome 的环境先执行 `npx playwright install chromium`（在 apps/web 下）。测试结果被 Git 忽略。最新工程验收见 [M0/M1 验收记录](docs/engineering/m0-m1-verification.md)，原故事子阶段记录保留在 `docs/engineering/m1-story-verification.md`。真实文本密钥未注入，当前不能宣称真实模型闭环已通过。
