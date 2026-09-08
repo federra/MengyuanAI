@@ -9,6 +9,11 @@ import {
   type Settings,
 } from "./api";
 import "./style.css";
+import {
+  Configuration,
+  ResourceLibrary,
+  OutputSettings,
+} from "./Configuration";
 import { StoryWorkbench } from "./StoryWorkbench";
 
 const modules = ["项目", "创作", "资产", "任务记录", "系统设置"];
@@ -22,6 +27,12 @@ const states: Record<string, string> = {
 function App() {
   const [module, setModule] = useState("项目");
   const [projects, setProjects] = useState<Project[]>([]);
+  const [sort, setSort] = useState<"updated_desc" | "updated_asc" | "name">(
+    "updated_desc",
+  );
+  const [filter, setFilter] = useState<"" | "in_progress" | "completed">("");
+  const [statistics, setStatistics] = useState<Record<string, number>>({});
+  const [newType, setNewType] = useState("");
   const [total, setTotal] = useState(0);
   const [offset, setOffset] = useState(0);
   const [selected, setSelected] = useState<Project>();
@@ -32,6 +43,14 @@ function App() {
   const [notice, setNotice] = useState("");
   const [busy, setBusy] = useState(false);
   const [creating, setCreating] = useState(false);
+  const [ratio, setRatio] = useState<"9:16" | "16:9" | "1:1">("9:16");
+  const [resolution, setResolution] = useState<"720P" | "1080P" | "4K">(
+    "1080P",
+  );
+  const [projectStyle, setProjectStyle] = useState("");
+  const [styleOptions, setStyleOptions] = useState<
+    { id: string; name: string }[]
+  >([]);
   const [name, setName] = useState("");
   const [editName, setEditName] = useState("");
 
@@ -65,18 +84,33 @@ function App() {
   async function refreshProjects(page = offset) {
     const data = unwrap(
       await api.GET("/api/v1/projects", {
-        params: { query: { offset: page, limit: 20 } },
+        params: {
+          query: { offset: page, limit: 20, sort, status: filter || undefined },
+        },
       }),
     );
     setProjects(data.items);
     setTotal(data.total);
+    setStatistics(
+      unwrap(await api.GET("/api/v1/projects/statistics")) as Record<
+        string,
+        number
+      >,
+    );
   }
   useEffect(() => {
     void run(async () => {
       await refreshProjects(offset);
       setSettings(unwrap(await api.GET("/api/v1/settings")));
+      const output = unwrap(
+        await api.GET("/api/v1/settings/bindings/{scope}/{key}", {
+          params: { path: { scope: "system", key: "output" } },
+        }),
+      );
+      setRatio((output.value?.aspect_ratio || "9:16") as typeof ratio);
+      setResolution((output.value?.resolution || "1080P") as typeof resolution);
     });
-  }, [offset]);
+  }, [offset, sort, filter]);
   useEffect(() => {
     if (!selected) {
       setFiles([]);
@@ -109,6 +143,26 @@ function App() {
       clearInterval(timer);
     };
   }, [selected?.id]);
+  async function beginProject() {
+    await run(async () => {
+      const output = unwrap(
+        await api.GET("/api/v1/settings/bindings/{scope}/{key}", {
+          params: { path: { scope: "system", key: "output" } },
+        }),
+      );
+      setRatio((output.value?.aspect_ratio || "9:16") as typeof ratio);
+      setResolution((output.value?.resolution || "1080P") as typeof resolution);
+      setProjectStyle(String(output.value?.style_resource_id || ""));
+      setStyleOptions(
+        unwrap(
+          await api.GET("/api/v1/settings/resources", {
+            params: { query: { kind: "style" } },
+          }),
+        ),
+      );
+      setCreating(true);
+    });
+  }
   async function openProject(p: Project) {
     await run(async () => {
       const fresh = unwrap(
@@ -154,6 +208,7 @@ function App() {
             {module}
             {selected && module !== "项目" ? ` / ${selected.name}` : ""}
           </span>
+          <button onClick={() => setModule("系统设置")}>设置</button>
           <label>
             UI主题{" "}
             <select value={theme} onChange={(e) => setTheme(e.target.value)}>
@@ -175,7 +230,7 @@ function App() {
               </p>
             </div>
             {module === "项目" && (
-              <button className="primary" onClick={() => setCreating(true)}>
+              <button className="primary" onClick={() => void beginProject()}>
                 ＋ 新建项目
               </button>
             )}
@@ -197,10 +252,36 @@ function App() {
             <>
               <div className="summary">
                 <span>
-                  全部项目 <b>{total}</b>
+                  全部项目 <b>{statistics.total ?? total}</b> · 创作中{" "}
+                  {statistics.in_progress ?? "—"} · 已完成{" "}
+                  {statistics.completed ?? "—"} · 失败任务{" "}
+                  {statistics.failed_jobs ?? "—"}
                 </span>
                 <span className="muted">
-                  最近编辑优先 · 正式数据保存于本地服务
+                  <select
+                    aria-label="项目状态筛选"
+                    value={filter}
+                    onChange={(e) => {
+                      setFilter(e.target.value as typeof filter);
+                      setOffset(0);
+                    }}
+                  >
+                    <option value="">全部状态</option>
+                    <option value="in_progress">创作中</option>
+                    <option value="completed">已完成</option>
+                  </select>
+                  <select
+                    aria-label="项目排序"
+                    value={sort}
+                    onChange={(e) => {
+                      setSort(e.target.value as typeof sort);
+                      setOffset(0);
+                    }}
+                  >
+                    <option value="updated_desc">最近编辑优先</option>
+                    <option value="updated_asc">最早编辑优先</option>
+                    <option value="name">项目名称</option>
+                  </select>
                 </span>
               </div>
               {!projects.length ? (
@@ -208,7 +289,7 @@ function App() {
                   <span>▦</span>
                   <h2>创建你的第一部短片</h2>
                   <p>先为项目命名，再逐步丰富故事与画面。</p>
-                  <button onClick={() => setCreating(true)}>新建项目</button>
+                  <button onClick={() => void beginProject()}>新建项目</button>
                 </section>
               ) : (
                 <div className="cards">
@@ -221,14 +302,24 @@ function App() {
                       <div className="card-body">
                         <div className="row">
                           <h2>{p.name}</h2>
-                          <span className="badge">创作中</span>
+                          <span className="badge">
+                            {p.status === "completed" ? "已完成" : "创作中"}
+                          </span>
                         </div>
                         <p className="muted">
                           {settings?.project_types.find(
                             (t) => t.id === p.type_id,
                           )?.name || "未分类"}{" "}
                           · {p.market === "zh" ? "中文市场" : "英文市场"} ·{" "}
-                          {p.stage === "story" ? "故事" : "创意"}阶段
+                          {(
+                            {
+                              idea: "创意",
+                              story: "故事",
+                              script: "剧本",
+                              board: "分镜",
+                            } as Record<string, string>
+                          )[p.stage] || p.stage}
+                          阶段
                         </p>
                         <div className="row">
                           <small>
@@ -330,11 +421,16 @@ function App() {
                     </form>
                   </section>
                 </details>
+                <details>
+                  <summary>统一生成规格</summary>
+                  <OutputSettings project={selected} onSaved={setSelected} />
+                </details>
                 <StoryWorkbench key={selected.id} pid={selected.id} />
               </>
             ) : (
               <EmptyProject />
             ))}
+          {module === "资产" && <ResourceLibrary />}
           {module === "资产" &&
             (selected ? (
               <section className="panel">
@@ -476,30 +572,7 @@ function App() {
             ) : (
               <EmptyProject />
             ))}
-          {module === "系统设置" && (
-            <section className="panel">
-              <h2>当前工作空间</h2>
-              <dl>
-                <dt>运行模式</dt>
-                <dd>本地单用户</dd>
-                <dt>项目类型</dt>
-                <dd>
-                  {settings?.project_types.map((t) => t.name).join("、") ||
-                    "读取中"}
-                </dd>
-                <dt>提示词版本</dt>
-                <dd>
-                  {settings?.prompt_count ?? "—"} 项契约指令，尚未经真实模型验证
-                </dd>
-                <dt>生成服务</dt>
-                <dd>
-                  {settings?.text_configured
-                    ? `${settings.text_model} · 配置已就绪（不代表连接验收通过）`
-                    : "请在服务端配置 DeepSeek 模型及凭据"}
-                </dd>
-              </dl>
-            </section>
-          )}
+          {module === "系统设置" && <Configuration project={selected} />}
         </main>
       </div>
       {creating && (
@@ -511,14 +584,21 @@ function App() {
             className="dialog"
           >
             <h2 id="dialog-title">新建项目</h2>
-            <p className="muted">画幅与生成规格会在首次分镜时确认。</p>
+            <p className="muted">画幅与分辨率将保存到项目，后续可统一修改。</p>
             <form
               onSubmit={(e) => {
                 e.preventDefault();
                 void run(async () => {
                   await api
                     .POST("/api/v1/projects", {
-                      body: { name, market, type_id: typeId || null },
+                      body: {
+                        name,
+                        market,
+                        type_id: typeId || null,
+                        aspect_ratio: ratio,
+                        resolution,
+                        style_resource_id: projectStyle || null,
+                      },
                     })
                     .then(unwrap);
                   await refreshProjects(0);
@@ -554,6 +634,45 @@ function App() {
                 </select>
               </label>
               <label>
+                新增项目类型
+                <input
+                  value={newType}
+                  onChange={(e) => setNewType(e.target.value)}
+                />
+              </label>
+              <button
+                type="button"
+                disabled={busy || !newType.trim()}
+                onClick={() =>
+                  void run(async () => {
+                    const t = unwrap(
+                      await api.POST("/api/v1/projects/types", {
+                        body: { name: newType },
+                      }),
+                    );
+                    setSettings(unwrap(await api.GET("/api/v1/settings")));
+                    setTypeId(t.id);
+                    setNewType("");
+                  })
+                }
+              >
+                添加类型
+              </button>
+              <label>
+                风格模板
+                <select
+                  value={projectStyle}
+                  onChange={(e) => setProjectStyle(e.target.value)}
+                >
+                  <option value="">系统默认 / 不指定</option>
+                  {styleOptions.map((s) => (
+                    <option key={s.id} value={s.id}>
+                      {s.name}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label>
                 市场
                 <select
                   value={market}
@@ -561,6 +680,30 @@ function App() {
                 >
                   <option value="zh">中文</option>
                   <option value="en">英文</option>
+                </select>
+              </label>
+              <label>
+                画幅比例
+                <select
+                  value={ratio}
+                  onChange={(e) => setRatio(e.target.value as typeof ratio)}
+                >
+                  {["9:16", "16:9", "1:1"].map((v) => (
+                    <option key={v}>{v}</option>
+                  ))}
+                </select>
+              </label>
+              <label>
+                分辨率
+                <select
+                  value={resolution}
+                  onChange={(e) =>
+                    setResolution(e.target.value as typeof resolution)
+                  }
+                >
+                  {["720P", "1080P", "4K"].map((v) => (
+                    <option key={v}>{v}</option>
+                  ))}
                 </select>
               </label>
               {error && (

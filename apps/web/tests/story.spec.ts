@@ -52,6 +52,22 @@ test.beforeEach(async ({ page }) => {
         text_model: "fixture",
         enabled_job_kinds: [],
       };
+    else if (path.includes("/bindings/"))
+      body = { revision: 1, value: { resource_id: "method-1" } };
+    else if (path.endsWith("/resources"))
+      body = [
+        {
+          id: "method-1",
+          name: "人物弧光故事法",
+          kind: "skill",
+          stage: "story",
+          revision: 1,
+          content: "强化动机",
+          required_variables: [],
+        },
+      ];
+    else if (path.includes("/stages/"))
+      body = { item: null, confirmation: null, reports: [] };
     else if (path.endsWith("/idea")) body = idea;
     else if (path.endsWith("/stories"))
       body = {
@@ -250,6 +266,10 @@ test("new project waits for server draft before allowing typing", async ({
     await gate;
     await route.fulfill({ json: null });
   });
+  await page.evaluate(
+    (key) => localStorage.removeItem(key),
+    `sf.${project.id}.stage`,
+  );
   await page.reload();
   await page.getByRole("button", { name: "继续创作 →" }).click();
   await expect(page.getByLabel("一句话创意")).toBeDisabled();
@@ -261,7 +281,7 @@ test("new project waits for server draft before allowing typing", async ({
   );
 });
 
-test("skill generation preserves writing mode and command across reload", async ({
+test("named method generation preserves binding and command across reload", async ({
   page,
 }) => {
   const keys: string[] = [];
@@ -270,7 +290,7 @@ test("skill generation preserves writing mode and command across reload", async 
     await route.abort("failed");
   });
   await page.getByText("本次写作指令与风格", { exact: true }).click();
-  await page.getByLabel("写作方式", { exact: true }).selectOption("skill");
+  await expect(page.getByLabel("story方法").first()).toHaveValue("method-1");
   await page.getByRole("button", { name: "再生成3个方案" }).click();
   await expect.poll(() => keys.length).toBe(1);
   await page.reload();
@@ -278,4 +298,425 @@ test("skill generation preserves writing mode and command across reload", async 
   await page.getByRole("button", { name: "再生成3个方案" }).click();
   await expect.poll(() => keys.length).toBe(2);
   expect(keys[1]).toBe(keys[0]);
+});
+
+test("script stage exposes editable content and settings exposes model tree", async ({
+  page,
+}) => {
+  await page.getByRole("button", { name: "3　剧本" }).click();
+  await expect(page.getByRole("heading", { name: "剧本工作台" })).toBeVisible();
+  await expect(page.getByText("请先确定故事并生成剧本。")).toBeVisible();
+  await page.getByRole("button", { name: "系统设置", exact: true }).click();
+  await expect(
+    page.getByRole("button", { name: "生文", exact: true }),
+  ).toHaveAttribute("aria-expanded", "true");
+});
+
+test("model tree keyboard independent drafts inheritance and prompt guard", async ({
+  page,
+}) => {
+  const bindings: Record<string, any> = {};
+  let writes = 0;
+  await page.route("**/bindings/**", async (route) => {
+    const key = decodeURIComponent(
+      new URL(route.request().url()).pathname.split("/").pop()!,
+    );
+    if (route.request().method() === "PUT") {
+      const b = route.request().postDataJSON();
+      bindings[key] = {
+        revision: (bindings[key]?.revision || 0) + 1,
+        value: b.value,
+      };
+      writes++;
+    }
+    await route.fulfill({
+      json: bindings[key] || { revision: 0, value: null },
+    });
+  });
+  await page.getByRole("button", { name: "系统设置", exact: true }).click();
+  await page.getByLabel("模型名称", { exact: true }).fill("draft text");
+  await page.getByRole("button", { name: "生图", exact: true }).focus();
+  await page.keyboard.press("Enter");
+  await expect(
+    page.getByRole("button", { name: "生文", exact: true }),
+  ).toHaveAttribute("aria-expanded", "true");
+  await expect(
+    page.getByRole("button", { name: "生图", exact: true }),
+  ).toHaveAttribute("aria-expanded", "true");
+  await page.getByLabel("模型名称", { exact: true }).fill("draft image");
+  await page.getByRole("button", { name: "生文", exact: true }).click();
+  await expect(page.getByLabel("模型名称", { exact: true })).toHaveValue(
+    "draft text",
+  );
+  expect(writes).toBe(0);
+  await page.getByRole("button", { name: "生文", exact: true }).press("Space");
+  await page.getByRole("button", { name: "故事质检", exact: true }).click();
+  await expect(page.getByLabel("沿用类别默认模型")).toBeChecked();
+  await page.getByLabel("沿用类别默认模型").uncheck();
+  await page.getByLabel("模型名称", { exact: true }).fill("override");
+  await page.getByRole("button", { name: "保存模型配置" }).click();
+  await expect
+    .poll(() => bindings["model:step:storyReview"]?.value?.capability)
+    .toBe("text");
+  await page.getByLabel("沿用类别默认模型").check();
+  await page.getByRole("button", { name: "保存模型配置" }).click();
+  await expect.poll(() => bindings["model:step:storyReview"]?.value).toBe(null);
+  await page.getByRole("tab", { name: "提示词", exact: true }).click();
+  await expect(
+    page.locator(".resource-nav").first().getByRole("button"),
+  ).toHaveCount(29);
+  await page.getByLabel("场景提示词正文").fill("未保存的提示词");
+  await page.getByRole("button", { name: "剧本生成", exact: true }).click();
+  await expect(
+    page.getByText("当前场景有未保存草稿，请先保存再切换。"),
+  ).toBeVisible();
+  await expect(page.getByLabel("场景提示词正文")).toHaveValue("未保存的提示词");
+});
+
+test("resource library writes shared versions visible in settings", async ({
+  page,
+}) => {
+  let resource = {
+    id: "prompt-shared",
+    name: "共用提示词",
+    kind: "prompt",
+    stage: "story",
+    revision: 1,
+    content: "原始正文",
+    required_variables: [],
+  };
+  await page.route("**/resources*", (route) =>
+    route.fulfill({ json: [resource] }),
+  );
+  await page.route("**/resources/prompt-shared", async (route) => {
+    if (route.request().method() === "PUT") {
+      resource = {
+        ...resource,
+        ...route.request().postDataJSON(),
+        revision: resource.revision + 1,
+      };
+    }
+    await route.fulfill({ json: resource });
+  });
+  await page.getByRole("button", { name: "资产", exact: true }).click();
+  await page.getByLabel("资源类型").selectOption("prompt");
+  await page.getByRole("button", { name: "共用提示词 · v1" }).click();
+  await page.getByLabel("资源正文", { exact: true }).fill("资源库写入的正文");
+  await page.getByRole("button", { name: "保存资源", exact: true }).click();
+  await expect.poll(() => resource.revision).toBe(2);
+  await page.getByRole("button", { name: "系统设置", exact: true }).click();
+  await page.getByRole("tab", { name: "提示词", exact: true }).click();
+  await page.getByLabel("场景模板").selectOption("prompt-shared");
+  await expect(page.getByLabel("场景提示词正文")).toHaveValue(
+    "资源库写入的正文",
+  );
+});
+
+test("script and board editing proposal QC continuation stable identities and recovery", async ({
+  page,
+}) => {
+  const scriptBody = {
+    text: "场景一：邮差开门。",
+    scenes: [
+      {
+        id: "scene-1",
+        heading: "场景一",
+        actions: ["邮差开门。"],
+        dialogues: [],
+      },
+    ],
+    estimatedSeconds: 12,
+  };
+  let script: any = {
+    ...story,
+    id: "script",
+    kind: "script",
+    version_id: "script-v1",
+    body: scriptBody,
+    source_version_id: "story-v1",
+  };
+  let board: any = null;
+  let confirmation: any = null;
+  let proposal: any = null;
+  let report: any = {
+    id: "report",
+    version_id: "script-v1",
+    source_version_id: "story-v1",
+    job_id: "review-job",
+    state: "succeeded",
+    output: {
+      summary: "加强动机",
+      issues: [
+        {
+          id: "issue",
+          message: "动机不足",
+          evidence: "直接开门",
+          suggestion: "先犹豫",
+        },
+      ],
+    },
+    error: null,
+    stale: false,
+    created_at: project.updated_at,
+  };
+  const shot = (id: string) => ({
+    id,
+    prompt: "邮差开门",
+    duration: 3,
+    dialogue: "你好",
+    dialogues: [
+      {
+        id: id + "-line",
+        speaker: "邮差",
+        emotion: "平静",
+        text: "你好",
+        voice: "",
+      },
+    ],
+    refs: { characters: [], scenes: [], props: [], positions: [] },
+  });
+  await page.route("**/stages/*", async (route) => {
+    const isScript = route.request().url().endsWith("/script");
+    if (route.request().method() === "PUT") {
+      const b = route.request().postDataJSON();
+      if (isScript)
+        script = {
+          ...script,
+          revision: script.revision + 1,
+          version_id: "script-v2",
+          body: b.body,
+        };
+      else board = { ...board, revision: board.revision + 1, body: b.body };
+      await route.fulfill({ json: isScript ? script : board });
+      return;
+    }
+    await route.fulfill({
+      json: {
+        item: isScript ? script : board,
+        confirmation,
+        reports: [report],
+      },
+    });
+  });
+  await page.route("**/stages/board/generate", async (route) => {
+    expect(route.request().postDataJSON().source_version_id).toBe(
+      script.version_id,
+    );
+    board = {
+      ...script,
+      id: "board",
+      kind: "board",
+      version_id: "board-v1",
+      revision: 1,
+      source_version_id: script.version_id,
+      body: {
+        schemaVersion: 2,
+        scriptId: script.version_id,
+        shots: [shot("shot-1"), shot("shot-2")],
+      },
+    };
+    await route.fulfill({ status: 202, json: { id: "job" } });
+  });
+  await page.route("**/reports", (route) => route.fulfill({ json: [report] }));
+  await page.route("**/contents/script/conversation", (route) =>
+    route.fulfill({
+      json: { messages: [], proposals: proposal ? [proposal] : [] },
+    }),
+  );
+  await page.route("**/contents/script/messages", async (route) => {
+    proposal = {
+      id: "stage-proposal",
+      base_version_id: script.version_id,
+      output: {
+        body: { ...script.body, text: "邮差犹豫后开门。" },
+        changeSummary: "增加犹豫",
+      },
+      applied_version_id: null,
+      created_at: project.updated_at,
+    };
+    await route.fulfill({ status: 202, json: { id: "modify-job" } });
+  });
+  await page.route("**/proposals/stage-proposal/apply", async (route) => {
+    script = {
+      ...script,
+      version_id: "script-v3",
+      revision: 3,
+      body: { ...script.body, text: proposal.output.body.text },
+    };
+    proposal.applied_version_id = script.version_id;
+    await route.fulfill({ json: script });
+  });
+  await page.route("**/confirm", async (route) => {
+    confirmation = route.request().postDataJSON();
+    await route.fulfill({
+      json: {
+        ...confirmation,
+        decision: "keep_current",
+        report_state: "succeeded",
+      },
+    });
+  });
+  await page.getByRole("button", { name: "3　剧本" }).click();
+  await page.getByLabel("剧本正文").fill("人工改写：邮差开门。");
+  await page.getByRole("button", { name: "保存剧本", exact: true }).click();
+  await expect.poll(() => script.revision).toBe(2);
+  await page.getByLabel("修改要求").fill("增加犹豫");
+  await page.getByRole("button", { name: "发送修改要求" }).click();
+  await expect(page.getByRole("button", { name: "采用此版" })).toBeVisible();
+  await expect(page.getByLabel("剧本正文")).toHaveValue("人工改写：邮差开门。");
+  await page.getByRole("button", { name: "采用此版" }).click();
+  await expect(page.getByLabel("剧本正文")).toHaveValue("邮差犹豫后开门。");
+  await page.getByRole("button", { name: "保留当前版继续" }).click();
+  await expect.poll(() => confirmation?.version_id).toBe("script-v3");
+  expect(report.state).toBe("succeeded");
+  await page.getByRole("button", { name: "确认剧本并AI生成分镜" }).click();
+  await expect(page.locator("[data-shot-id]")).toHaveCount(2);
+  await expect(
+    page.getByRole("button", { name: "删除台词" }).first(),
+  ).toBeDisabled();
+  await page.getByRole("button", { name: "下移镜头" }).first().click();
+  await expect(page.locator("[data-shot-id]").first()).toHaveAttribute(
+    "data-shot-id",
+    "shot-2",
+  );
+  await expect(page.locator("[data-line-id]").first()).toHaveAttribute(
+    "data-line-id",
+    "shot-2-line",
+  );
+  await page.getByRole("button", { name: "添加台词" }).first().click();
+  await page.getByRole("button", { name: "保存分镜", exact: true }).click();
+  await expect.poll(() => board.body.shots[0].dialogues.length).toBe(2);
+  const keys: string[] = [];
+  await page.route("**/contents/board/messages", async (route) => {
+    keys.push(route.request().headers()["idempotency-key"]);
+    await route.abort();
+  });
+  await page.getByLabel("修改要求").fill("加强动作");
+  await page.getByRole("button", { name: "发送修改要求" }).click();
+  await expect.poll(() => keys.length).toBe(1);
+  await page.getByRole("button", { name: "任务记录", exact: true }).click();
+  await page.getByRole("button", { name: "创作", exact: true }).click();
+  await expect(page.getByRole("heading", { name: "分镜工作台" })).toBeVisible();
+  await expect(page.getByLabel("修改要求")).toHaveValue("加强动作");
+  await page.getByRole("button", { name: "发送修改要求" }).click();
+  await expect.poll(() => keys.length).toBe(2);
+  expect(keys[1]).toBe(keys[0]);
+  for (const theme of ["light", "dark", "sky"]) {
+    await page.getByLabel("UI主题").selectOption(theme);
+    await page.screenshot({
+      path: `test-results/board-${theme}.png`,
+      fullPage: true,
+    });
+  }
+});
+
+test("paid generation waits for method binding and keeps frozen target after lost response", async ({
+  page,
+}) => {
+  let release: () => void = () => {};
+  const gate = new Promise<void>((r) => (release = r));
+  let submitted = false;
+  await page.route("**/bindings/project*/method%3Astory", async (route) => {
+    if (route.request().method() === "PUT") await gate;
+    await route.fulfill({
+      json: { revision: 2, value: { resource_id: "method-1" } },
+    });
+  });
+  await page.route("**/bindings/project*/method:story", async (route) => {
+    if (route.request().method() === "PUT") await gate;
+    await route.fulfill({
+      json: { revision: 2, value: { resource_id: "method-1" } },
+    });
+  });
+  await page.route("**/story-batches", async (route) => {
+    submitted = true;
+    await route.abort();
+  });
+  await page.getByLabel("story方法").last().selectOption("");
+  await page.getByRole("button", { name: "再生成3个方案" }).click();
+  await page.waitForTimeout(100);
+  expect(submitted).toBe(false);
+  release();
+  await expect.poll(() => submitted).toBe(true);
+  let revision = 0;
+  const requests: any[] = [];
+  await page.route("**/stages/script", (route) =>
+    route.fulfill({
+      json: {
+        item: revision ? { ...story, revision } : null,
+        reports: [],
+        confirmation: null,
+      },
+    }),
+  );
+  await page.route("**/stages/script/generate", async (route) => {
+    requests.push({
+      key: route.request().headers()["idempotency-key"],
+      body: route.request().postDataJSON(),
+    });
+    revision = 1;
+    await route.abort();
+  });
+  await page.getByRole("button", { name: "确定故事并AI生成剧本" }).click();
+  await expect.poll(() => requests.length).toBe(1);
+  await page.reload();
+  await page.getByRole("button", { name: "继续创作 →" }).click();
+  await page.getByRole("button", { name: "确定故事并AI生成剧本" }).click();
+  await expect.poll(() => requests.length).toBe(2);
+  expect(requests[1]).toEqual(requests[0]);
+  expect(requests[1].body.target_revision).toBe(0);
+});
+
+test("failed method save is isolated to its project and stage", async ({
+  page,
+}) => {
+  const second = {
+    ...project,
+    id: "22222222-2222-4222-8222-222222222222",
+    name: "第二个项目",
+  };
+  let secondSubmitted = 0;
+  await page.route("**/bindings/**", async (route) => {
+    const path = decodeURIComponent(new URL(route.request().url()).pathname);
+    if (
+      route.request().method() === "PUT" &&
+      path.includes(project.id) &&
+      path.endsWith("method:story")
+    ) {
+      await route.fulfill({
+        status: 409,
+        json: { detail: "方法版本冲突，保留选择" },
+      });
+      return;
+    }
+    await route.fulfill({
+      json: { revision: 1, value: { resource_id: "method-1" } },
+    });
+  });
+  await page.getByLabel("story方法").last().selectOption("");
+  await expect(
+    page.getByText("方法版本冲突，保留选择", { exact: true }),
+  ).toBeVisible();
+  await page.getByRole("button", { name: "再生成3个方案" }).click();
+  await expect(page.getByText(/方法配置尚未保存/)).toBeVisible();
+  await page.route("**/projects?*", (route) =>
+    route.fulfill({ json: { items: [project, second], total: 2 } }),
+  );
+  await page.route(`**/projects/${second.id}`, (route) =>
+    route.fulfill({ json: second }),
+  );
+  await page.route(`**/projects/${second.id}/story-batches`, async (route) => {
+    secondSubmitted++;
+    await route.abort();
+  });
+  await page.getByRole("button", { name: "项目", exact: true }).click();
+  await page.getByLabel("项目排序").selectOption("updated_asc");
+  await page
+    .getByRole("article")
+    .filter({ hasText: "第二个项目" })
+    .getByRole("button", { name: "继续创作 →" })
+    .click();
+  await expect(page.getByLabel("故事正文")).toBeVisible();
+  await page.getByRole("button", { name: "再生成3个方案" }).click();
+  await expect.poll(() => secondSubmitted).toBe(1);
 });

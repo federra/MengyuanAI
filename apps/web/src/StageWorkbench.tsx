@@ -1,0 +1,1076 @@
+import { useEffect, useState } from "react";
+import { api, unwrap, type MediaFile } from "./api";
+import type { components } from "./generated/api";
+import { readDraft, storeDraft, removeDraft, durableCommand } from "./commands";
+import { MethodSelector, awaitMethodSaves } from "./Configuration";
+type Content = components["schemas"]["ContentOut"];
+type Body =
+  components["schemas"]["ScriptBody"] | components["schemas"]["BoardBody"];
+type Stage = "script" | "board";
+const path = (pid: string, iid: string) => ({ pid, iid });
+export async function generateStage(pid: string, stage: Stage, source: string) {
+  await awaitMethodSaves(pid, stage === "script" ? "script" : "storyboard");
+  const current = unwrap(
+    await api.GET("/api/v1/projects/{pid}/stages/{stage}", {
+      params: { path: { pid, stage } },
+    }),
+  );
+  const pendingKey = `sf.${pid}.generate.${stage}.${source}`;
+  const body = readDraft<components["schemas"]["StageGenerate"]>(
+    pendingKey,
+  ) || {
+    source_version_id: source,
+    target_revision: current.item?.revision || 0,
+    instruction: "",
+  };
+  localStorage.setItem(pendingKey, JSON.stringify(body));
+  const cmd = durableCommand(`${pid}:generate:${stage}`, body);
+  unwrap(
+    await api.POST("/api/v1/projects/{pid}/stages/{stage}/generate", {
+      params: { path: { pid, stage }, header: { "idempotency-key": cmd.key } },
+      body,
+    }),
+  );
+  cmd.done();
+  removeDraft(pendingKey);
+}
+export function QualityPanel({
+  pid,
+  item,
+  disabled,
+  onChanged,
+}: {
+  pid: string;
+  item: Content;
+  disabled: boolean;
+  onChanged: () => Promise<void>;
+}) {
+  const [reports, setReports] = useState<components["schemas"]["ReportOut"][]>(
+      [],
+    ),
+    [error, setError] = useState(""),
+    [busy, setBusy] = useState(false),
+    [notice, setNotice] = useState("");
+  async function load() {
+    setReports(
+      unwrap(
+        await api.GET("/api/v1/projects/{pid}/contents/{iid}/reports", {
+          params: { path: path(pid, item.id) },
+        }),
+      ),
+    );
+  }
+  useEffect(() => {
+    void load().catch((e) => setError(e.message));
+    const t = setInterval(
+      () => void load().catch((e) => setError(e.message)),
+      2500,
+    );
+    return () => clearInterval(t);
+  }, [pid, item.id, item.version_id]);
+  async function run(action: () => Promise<void>) {
+    setBusy(true);
+    setError("");
+    try {
+      await action();
+      await load();
+      await onChanged();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "请求中断，提交记录保留");
+    } finally {
+      setBusy(false);
+    }
+  }
+  const latest = reports[0];
+  return (
+    <section className="quality">
+      <h3>AI质检 · 建议供参考</h3>
+      {error && <p role="alert">{error}</p>}
+      {notice && <p role="status">{notice}</p>}
+      {!latest && <p className="muted">暂无质检报告，仍可保留当前版本继续。</p>}
+      {reports.map((r) => (
+        <details key={r.id} open={r === latest}>
+          <summary>
+            {r.stale || r.version_id !== item.version_id
+              ? "报告已过期"
+              : {
+                  pending: "质检中",
+                  succeeded: "质检建议",
+                  failed: "质检失败",
+                  unknown: "质检待核实",
+                }[r.state] || r.state}{" "}
+            · {r.version_id.slice(0, 8)}
+          </summary>
+          {r.error && <p>{r.error}</p>}
+          <p>{String(r.output?.summary || "")}</p>
+          {(Array.isArray(r.output?.issues) ? r.output.issues : []).map(
+            (v, i) => {
+              const issue = v as Record<string, unknown>;
+              return (
+                <div key={i}>
+                  <p>
+                    {String(issue.message || "")}
+                    <br />
+                    依据：{String(issue.evidence || "")}
+                    <br />
+                    建议：{String(issue.suggestion || "")}
+                  </p>
+                </div>
+              );
+            },
+          )}
+        </details>
+      ))}
+      <div className="actions">
+        <button
+          disabled={disabled || busy}
+          onClick={() =>
+            void run(async () => {
+              const body = { base_version_id: item.version_id };
+              const cmd = durableCommand(`${pid}:review:${item.id}`, body);
+              unwrap(
+                await api.POST("/api/v1/projects/{pid}/contents/{iid}/review", {
+                  params: {
+                    path: path(pid, item.id),
+                    header: { "idempotency-key": cmd.key },
+                  },
+                  body,
+                }),
+              );
+              cmd.done();
+            })
+          }
+        >
+          重新质检
+        </button>
+        <button
+          disabled={
+            disabled ||
+            busy ||
+            !latest ||
+            latest.state !== "succeeded" ||
+            latest.stale ||
+            latest.version_id !== item.version_id
+          }
+          onClick={() =>
+            void run(async () => {
+              await awaitMethodSaves(
+                pid,
+                item.kind === "board" ? "storyboard" : item.kind,
+              );
+              const body = {
+                base_version_id: item.version_id,
+                report_id: latest.id,
+                text: "",
+              };
+              const cmd = durableCommand(`${pid}:repair:${item.id}`, body);
+              unwrap(
+                await api.POST("/api/v1/projects/{pid}/contents/{iid}/repair", {
+                  params: {
+                    path: path(pid, item.id),
+                    header: { "idempotency-key": cmd.key },
+                  },
+                  body,
+                }),
+              );
+              cmd.done();
+              setNotice("修复建议生成中，完成后在导演助手比较并采用。");
+            })
+          }
+        >
+          按报告生成修复建议
+        </button>
+        <button
+          disabled={disabled || busy}
+          onClick={() =>
+            void run(async () => {
+              unwrap(
+                await api.POST(
+                  "/api/v1/projects/{pid}/contents/{iid}/confirm",
+                  {
+                    params: { path: path(pid, item.id) },
+                    body: { version_id: item.version_id },
+                  },
+                ),
+              );
+              setNotice("已记录保留当前版继续，未将质检报告改为通过。");
+            })
+          }
+        >
+          保留当前版继续
+        </button>
+      </div>
+    </section>
+  );
+}
+export function StageWorkbench({
+  pid,
+  stage,
+  onNext,
+  refreshJobs,
+}: {
+  pid: string;
+  stage: Stage;
+  onNext: () => void;
+  refreshJobs: () => Promise<void>;
+}) {
+  const key = `sf.${pid}.stage.${stage}`;
+  const cached = readDraft<{ body: Body; revision: number; source: string }>(
+    key,
+  );
+  const [item, setItem] = useState<Content | null>(null),
+    [body, setBody] = useState<Body | null>(cached?.body || null),
+    [base, setBase] = useState(cached?.revision || 0),
+    [source, setSource] = useState(cached?.source || ""),
+    [loaded, setLoaded] = useState(false),
+    [busy, setBusy] = useState(false),
+    [error, setError] = useState(""),
+    [notice, setNotice] = useState("");
+  const [confirmed, setConfirmed] = useState(false);
+  const [files, setFiles] = useState<MediaFile[]>([]),
+    [versions, setVersions] = useState<components["schemas"]["VersionOut"][]>(
+      [],
+    ),
+    [conversation, setConversation] = useState<
+      components["schemas"]["ConversationOut"]
+    >({ messages: [], proposals: [] }),
+    [request, setRequest] = useState(readDraft<string>(key + ".message") || ""),
+    [closed, setClosed] = useState(false);
+  async function refresh() {
+    const s = unwrap(
+      await api.GET("/api/v1/projects/{pid}/stages/{stage}", {
+        params: { path: { pid, stage } },
+      }),
+    );
+    setItem(s.item);
+    setConfirmed(!!s.item && s.confirmation?.version_id === s.item.version_id);
+    return s.item;
+  }
+  useEffect(() => {
+    let live = true;
+    void refresh()
+      .then((i) => {
+        if (!live) return;
+        if (!cached && i) {
+          setBody(i.body as Body);
+          setBase(i.revision);
+          setSource(i.source_version_id || "");
+        }
+        setLoaded(true);
+      })
+      .catch((e) => setError(e.message));
+    void api
+      .GET("/api/v1/projects/{pid}/files", { params: { path: { pid } } })
+      .then(unwrap)
+      .then(setFiles)
+      .catch((e) => setError(e.message));
+    const t = setInterval(
+      () => void refresh().catch((e) => setError(e.message)),
+      2500,
+    );
+    return () => {
+      live = false;
+      clearInterval(t);
+    };
+  }, [pid, stage]);
+  useEffect(() => {
+    if (loaded && body) storeDraft(key, { body, revision: base, source });
+  }, [loaded, body, base, source, key]);
+  useEffect(() => storeDraft(key + ".message", request), [request, key]);
+  useEffect(() => {
+    if (!item) return;
+    const iid = item.id;
+    let live = true;
+    async function poll() {
+      const [c, v] = await Promise.all([
+        api.GET("/api/v1/projects/{pid}/contents/{iid}/conversation", {
+          params: { path: { pid, iid } },
+        }),
+        api.GET("/api/v1/projects/{pid}/contents/{iid}/versions", {
+          params: { path: { pid, iid } },
+        }),
+      ]);
+      if (live) {
+        setConversation(unwrap(c));
+        setVersions(unwrap(v));
+      }
+    }
+    void poll().catch((e) => setError(e.message));
+    const t = setInterval(
+      () => void poll().catch((e) => setError(e.message)),
+      2500,
+    );
+    return () => {
+      live = false;
+      clearInterval(t);
+    };
+  }, [item?.id, pid]);
+  // First asynchronous generation may arrive after an empty stage was opened.
+  useEffect(() => {
+    if (item && !body) {
+      setBody(item.body as Body);
+      setBase(item.revision);
+      setSource(item.source_version_id || "");
+    }
+  }, [item, body]);
+  const dirty = !!item && JSON.stringify(body) !== JSON.stringify(item.body);
+  async function run(action: () => Promise<void>) {
+    setBusy(true);
+    setError("");
+    setNotice("");
+    try {
+      await action();
+      await refresh();
+      await refreshJobs();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "连接中断，草稿与提交记录保留");
+    } finally {
+      setBusy(false);
+    }
+  }
+  function accept(next: Content) {
+    setItem(next);
+    setBody(next.body as Body);
+    setBase(next.revision);
+    setSource(next.source_version_id || "");
+  }
+  return (
+    <>
+      <h2>{stage === "script" ? "剧本" : "分镜"}工作台</h2>
+      {error && (
+        <p role="alert" className="alert">
+          {error}
+        </p>
+      )}
+      {notice && (
+        <p role="status" className="notice">
+          {notice}
+        </p>
+      )}
+      {!item || !body ? (
+        <section className="empty">
+          <p>
+            {!loaded
+              ? "读取中…"
+              : stage === "script"
+                ? "请先确定故事并生成剧本。"
+                : "请先确认剧本并生成分镜。"}
+          </p>
+        </section>
+      ) : (
+        <div className={`editor-with-director ${closed ? "closed" : ""}`}>
+          <section className="panel story-editor">
+            <div className="row">
+              <h3>
+                当前版本 v{item.revision}
+                {confirmed ? " · 已确认" : ""}
+              </h3>
+              <small>草稿基准 v{base}</small>
+            </div>
+            {item.stale && (
+              <p role="alert">上游已更新，此版本已过期。请从上游重新生成。</p>
+            )}
+            <fieldset disabled={busy} className="editor-fields">
+              {stage === "script" ? (
+                <>
+                  <label className="field">
+                    剧本正文
+                    <textarea
+                      aria-label="剧本正文"
+                      className="story-text"
+                      value={(body as components["schemas"]["ScriptBody"]).text}
+                      onChange={(e) =>
+                        setBody({ ...body, text: e.target.value } as Body)
+                      }
+                    />
+                  </label>
+                  <label className="field">
+                    估算秒数
+                    <input
+                      type="number"
+                      value={
+                        (body as components["schemas"]["ScriptBody"])
+                          .estimatedSeconds
+                      }
+                      onChange={(e) =>
+                        setBody({
+                          ...body,
+                          estimatedSeconds: Number(e.target.value),
+                        } as Body)
+                      }
+                    />
+                  </label>
+                  <details>
+                    <summary>场景结构（保存后按正文同步）</summary>
+                    {(body as components["schemas"]["ScriptBody"]).scenes.map(
+                      (s) => (
+                        <div key={s.id}>
+                          <h3>{s.heading}</h3>
+                          {s.actions?.map((a, i) => (
+                            <p key={i}>{a}</p>
+                          ))}
+                          {s.dialogues?.map((d, i) => (
+                            <p key={i}>
+                              {d.speaker} · {d.emotion}：{d.text}
+                            </p>
+                          ))}
+                        </div>
+                      ),
+                    )}
+                  </details>
+                </>
+              ) : (
+                <BoardEditor
+                  pid={pid}
+                  body={body as components["schemas"]["BoardBody"]}
+                  setBody={setBody}
+                  files={files}
+                />
+              )}
+            </fieldset>
+            <div className="actions">
+              <button
+                disabled={busy}
+                onClick={() =>
+                  void run(async () => {
+                    accept(
+                      unwrap(
+                        await api.PUT("/api/v1/projects/{pid}/stages/{stage}", {
+                          params: { path: { pid, stage } },
+                          body: {
+                            revision: base,
+                            source_version_id: source,
+                            body,
+                          },
+                        }),
+                      ),
+                    );
+                    setNotice("已保存新版本。");
+                  })
+                }
+              >
+                保存{stage === "script" ? "剧本" : "分镜"}
+              </button>
+              <button
+                disabled={busy}
+                onClick={() =>
+                  void run(async () => {
+                    const latest = await refresh();
+                    if (latest) setBase(latest.revision);
+                    setNotice(
+                      "已读取最新基准，保留草稿；请对照版本历史合并后保存。",
+                    );
+                  })
+                }
+              >
+                读取最新基准
+              </button>
+            </div>
+            <QualityPanel
+              pid={pid}
+              item={item}
+              disabled={busy || dirty || base !== item.revision}
+              onChanged={async () => {
+                await refresh();
+                await refreshJobs();
+              }}
+            />
+            {stage === "script" ? (
+              <div className="method-actions">
+                <MethodSelector pid={pid} stage="storyboard" />
+                <button
+                  className="primary"
+                  disabled={busy || dirty || base !== item.revision}
+                  onClick={() =>
+                    void run(async () => {
+                      await generateStage(pid, "board", item.version_id);
+                      onNext();
+                    })
+                  }
+                >
+                  确认剧本并AI生成分镜
+                </button>
+              </div>
+            ) : (
+              <p className="muted">
+                确认分镜使用“保留当前版继续”。参考图、配音和视频生成尚待 M2
+                接入。
+              </p>
+            )}
+            <details className="version-history">
+              <summary>版本历史（{versions.length}）</summary>
+              {versions.map((v) => (
+                <details key={v.id}>
+                  <summary>
+                    v{v.revision} · {v.origin}
+                  </summary>
+                  <ContentPreview body={v.body} />
+                  <button
+                    disabled={busy}
+                    onClick={() => {
+                      setBody(v.body as Body);
+                      setBase(item.revision);
+                      setNotice("历史版已载入草稿，保存将新增版本。");
+                    }}
+                  >
+                    载入为草稿
+                  </button>
+                </details>
+              ))}
+            </details>
+          </section>
+          {closed ? (
+            <button
+              className="director-toggle"
+              onClick={() => setClosed(false)}
+            >
+              展开导演助手
+            </button>
+          ) : (
+            <section className="panel director">
+              <div className="row">
+                <h2>AI导演助手</h2>
+                <button onClick={() => setClosed(true)}>收起导演助手</button>
+              </div>
+              <MethodSelector
+                pid={pid}
+                stage={stage === "script" ? "script" : "storyboard"}
+              />
+              {conversation.messages.map((m) => (
+                <p className="preserve-text" key={m.id}>
+                  {m.role === "user" ? "我" : "导演"}：{m.text}
+                </p>
+              ))}
+              <label className="field">
+                修改要求
+                <textarea
+                  aria-label="修改要求"
+                  disabled={busy}
+                  value={request}
+                  onChange={(e) => setRequest(e.target.value)}
+                />
+              </label>
+              <button
+                disabled={
+                  busy || dirty || base !== item.revision || !request.trim()
+                }
+                onClick={() =>
+                  void run(async () => {
+                    await awaitMethodSaves(
+                      pid,
+                      stage === "script" ? "script" : "storyboard",
+                    );
+                    const input = {
+                      base_version_id: item.version_id,
+                      text: request,
+                    };
+                    const cmd = durableCommand(
+                      `${pid}:message:${item.id}`,
+                      input,
+                    );
+                    unwrap(
+                      await api.POST(
+                        "/api/v1/projects/{pid}/contents/{iid}/messages",
+                        {
+                          params: {
+                            path: path(pid, item.id),
+                            header: { "idempotency-key": cmd.key },
+                          },
+                          body: input,
+                        },
+                      ),
+                    );
+                    cmd.done();
+                    setRequest("");
+                  })
+                }
+              >
+                发送修改要求
+              </button>
+              {conversation.proposals.map((p) => (
+                <details
+                  className="proposal"
+                  key={p.id}
+                  open={!p.applied_version_id}
+                >
+                  <summary>
+                    {p.applied_version_id
+                      ? "已采用"
+                      : p.base_version_id !== item.version_id
+                        ? "建议已过期"
+                        : "AI建议版"}
+                  </summary>
+                  <p>{String(p.output.changeSummary || "")}</p>
+                  <ContentPreview
+                    body={
+                      (p.output.body || p.output) as Record<string, unknown>
+                    }
+                  />
+                  <button
+                    disabled={
+                      busy ||
+                      dirty ||
+                      base !== item.revision ||
+                      !!p.applied_version_id ||
+                      p.base_version_id !== item.version_id
+                    }
+                    onClick={() =>
+                      void run(async () =>
+                        accept(
+                          unwrap(
+                            await api.POST(
+                              "/api/v1/projects/{pid}/proposals/{proposal_id}/apply",
+                              { params: { path: { pid, proposal_id: p.id } } },
+                            ),
+                          ),
+                        ),
+                      )
+                    }
+                  >
+                    采用此版
+                  </button>
+                </details>
+              ))}
+            </section>
+          )}
+        </div>
+      )}
+    </>
+  );
+}
+function ContentPreview({ body }: { body: Record<string, unknown> }) {
+  const shots = body.shots as components["schemas"]["Shot"][] | undefined;
+  return (
+    <div className="preserve-text">
+      {String(body.text || "")}
+      {shots?.map((s, i) => (
+        <p key={s.id}>
+          镜头 {i + 1} · {s.prompt}
+          <br />
+          {s.dialogues.map((d) => `${d.speaker}：${d.text}`).join("\n")}
+        </p>
+      ))}
+    </div>
+  );
+}
+function BoardEditor({
+  pid,
+  body,
+  setBody,
+  files,
+}: {
+  pid: string;
+  body: components["schemas"]["BoardBody"];
+  setBody: (b: Body) => void;
+  files: MediaFile[];
+}) {
+  type Shot = components["schemas"]["Shot"];
+  function change(index: number, shot: Shot) {
+    setBody({
+      ...body,
+      shots: body.shots.map((s, i) =>
+        i === index
+          ? {
+              ...shot,
+              dialogue: shot.dialogues
+                .map((d) => d.text)
+                .join("\n")
+                .trim(),
+            }
+          : s,
+      ),
+    });
+  }
+  function move(i: number, step: number) {
+    const shots = [...body.shots];
+    [shots[i], shots[i + step]] = [shots[i + step], shots[i]];
+    setBody({ ...body, shots });
+  }
+  return (
+    <div className="board-editor">
+      <div className="table-wrap">
+        <table className="board-table">
+          <thead>
+            <tr>
+              <th>序号</th>
+              <th>多段台词</th>
+              <th>图片引用</th>
+              <th>提示词 / 时长</th>
+              <th>视频</th>
+              <th>独立音频 TTS</th>
+              <th>操作</th>
+            </tr>
+          </thead>
+          <tbody>
+            {body.shots.map((s, i) => (
+              <tr key={s.id} data-shot-id={s.id}>
+                <td>
+                  <h3>镜头 {i + 1}</h3>
+                  <details>
+                    <summary>稳定 ID</summary>
+                    <small>{s.id}</small>
+                  </details>
+                </td>
+                <td>
+                  {s.dialogues.map((d, j) => (
+                    <div
+                      className="dialogue-line"
+                      key={d.id}
+                      data-line-id={d.id}
+                    >
+                      {(["speaker", "emotion", "text", "voice"] as const).map(
+                        (f) => (
+                          <label
+                            className={
+                              "field " + (f === "text" ? "line-text" : "")
+                            }
+                            key={f}
+                          >
+                            {
+                              {
+                                speaker: "说话人",
+                                emotion: "情绪",
+                                text: "台词",
+                                voice: "音色",
+                              }[f]
+                            }
+                            <input
+                              value={d[f]}
+                              onChange={(e) =>
+                                change(i, {
+                                  ...s,
+                                  dialogues: s.dialogues.map((line, k) =>
+                                    j === k
+                                      ? { ...line, [f]: e.target.value }
+                                      : line,
+                                  ),
+                                })
+                              }
+                            />
+                          </label>
+                        ),
+                      )}
+                      <button
+                        disabled={s.dialogues.length === 1}
+                        onClick={() =>
+                          change(i, {
+                            ...s,
+                            dialogues: s.dialogues.filter((_, k) => k !== j),
+                          })
+                        }
+                      >
+                        删除台词
+                      </button>
+                    </div>
+                  ))}
+                  <button
+                    onClick={() =>
+                      change(i, {
+                        ...s,
+                        dialogues: [
+                          ...s.dialogues,
+                          {
+                            id: crypto.randomUUID(),
+                            speaker: "",
+                            emotion: "",
+                            text: "",
+                            voice: "",
+                          },
+                        ],
+                      })
+                    }
+                  >
+                    添加台词
+                  </button>
+                </td>
+                <td>
+                  <details>
+                    <summary>图片引用（角色 / 场景 / 道具 / 站位）</summary>
+                    {!files.length ? (
+                      <p>暂无项目图片，请先在资产页上传。空引用可保存。</p>
+                    ) : (
+                      (
+                        ["characters", "scenes", "props", "positions"] as const
+                      ).map((kind) => (
+                        <label className="field" key={kind}>
+                          {
+                            {
+                              characters: "角色",
+                              scenes: "场景",
+                              props: "道具",
+                              positions: "站位",
+                            }[kind]
+                          }
+                          <select
+                            multiple
+                            value={s.refs[kind] || []}
+                            onChange={(e) =>
+                              change(i, {
+                                ...s,
+                                refs: {
+                                  ...s.refs,
+                                  [kind]: Array.from(
+                                    e.target.selectedOptions,
+                                    (o) => o.value,
+                                  ),
+                                },
+                              })
+                            }
+                          >
+                            {files
+                              .filter((f) => f.mime.startsWith("image/"))
+                              .map((f) => (
+                                <option key={f.id} value={f.id}>
+                                  {f.filename}
+                                </option>
+                              ))}
+                          </select>
+                          <div className="reference-previews">
+                            {(s.refs[kind] || []).map((id) => (
+                              <a
+                                key={id}
+                                href={`/api/v1/projects/${pid}/files/${id}`}
+                                target="_blank"
+                                rel="noreferrer"
+                              >
+                                <img
+                                  src={`/api/v1/projects/${pid}/files/${id}`}
+                                  alt={
+                                    files.find((f) => f.id === id)?.filename ||
+                                    id
+                                  }
+                                />
+                                <small>{id}</small>
+                              </a>
+                            ))}
+                          </div>
+                        </label>
+                      ))
+                    )}
+                  </details>
+                </td>
+                <td>
+                  <label className="field">
+                    画面描述
+                    <textarea
+                      rows={7}
+                      value={s.prompt}
+                      onChange={(e) =>
+                        change(i, { ...s, prompt: e.target.value })
+                      }
+                    />
+                  </label>
+                  <label className="field">
+                    镜头秒数
+                    <input
+                      type="number"
+                      min="0.1"
+                      step="0.1"
+                      value={s.duration}
+                      onChange={(e) =>
+                        change(i, { ...s, duration: Number(e.target.value) })
+                      }
+                    />
+                  </label>
+                </td>
+                <td>
+                  <p className="muted">视频生成待 M2 接入</p>
+                </td>
+                <td>
+                  <p className="muted">独立配音待 M2 接入</p>
+                </td>
+                <td>
+                  {" "}
+                  <div className="shot-actions">
+                    <button disabled={!i} onClick={() => move(i, -1)}>
+                      上移镜头
+                    </button>
+                    <button
+                      disabled={i === body.shots.length - 1}
+                      onClick={() => move(i, 1)}
+                    >
+                      下移镜头
+                    </button>
+                    <button
+                      disabled={body.shots.length === 1}
+                      onClick={() =>
+                        setBody({
+                          ...body,
+                          shots: body.shots.filter((_, j) => j !== i),
+                        })
+                      }
+                    >
+                      删除镜头
+                    </button>
+                  </div>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      <button
+        onClick={() =>
+          setBody({
+            ...body,
+            shots: [
+              ...body.shots,
+              {
+                id: crypto.randomUUID(),
+                dialogue: "",
+                dialogues: [
+                  {
+                    id: crypto.randomUUID(),
+                    speaker: "",
+                    emotion: "",
+                    text: "",
+                    voice: "",
+                  },
+                ],
+                prompt: "新镜头",
+                duration: 3,
+                refs: { characters: [], scenes: [], props: [], positions: [] },
+              },
+            ],
+          })
+        }
+      >
+        添加镜头
+      </button>
+    </div>
+  );
+}
+
+export function IdeaDirector({
+  pid,
+  item,
+  disabled,
+  onAdopt,
+}: {
+  pid: string;
+  item: Content;
+  disabled: boolean;
+  onAdopt: (i: Content) => void;
+}) {
+  const key = `sf.${pid}.idea.message`;
+  const [request, setRequest] = useState(readDraft<string>(key) || ""),
+    [conversation, setConversation] = useState<
+      components["schemas"]["ConversationOut"]
+    >({ messages: [], proposals: [] }),
+    [busy, setBusy] = useState(false),
+    [error, setError] = useState(""),
+    [closed, setClosed] = useState(false);
+  useEffect(() => storeDraft(key, request), [key, request]);
+  useEffect(() => {
+    let live = true;
+    async function load() {
+      const c = unwrap(
+        await api.GET("/api/v1/projects/{pid}/contents/{iid}/conversation", {
+          params: { path: path(pid, item.id) },
+        }),
+      );
+      if (live) setConversation(c);
+    }
+    void load().catch((e) => setError(e.message));
+    const t = setInterval(
+      () => void load().catch((e) => setError(e.message)),
+      2500,
+    );
+    return () => {
+      live = false;
+      clearInterval(t);
+    };
+  }, [pid, item.id]);
+  async function run(action: () => Promise<void>) {
+    setBusy(true);
+    setError("");
+    try {
+      await action();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "提交中断，草稿保留");
+    } finally {
+      setBusy(false);
+    }
+  }
+  return closed ? (
+    <button onClick={() => setClosed(false)}>展开创意助手</button>
+  ) : (
+    <section className="panel director">
+      <div className="row">
+        <h2>创意助手</h2>
+        <button onClick={() => setClosed(true)}>收起创意助手</button>
+      </div>
+      <p className="muted">完善一句话创意，采用建议后才更新。</p>
+      {error && <p role="alert">{error}</p>}
+      {conversation.messages.map((m) => (
+        <p key={m.id}>{m.text}</p>
+      ))}
+      <label className="field">
+        创意修改要求
+        <textarea
+          disabled={disabled || busy}
+          value={request}
+          onChange={(e) => setRequest(e.target.value)}
+        />
+      </label>
+      <button
+        disabled={disabled || busy || !request.trim()}
+        onClick={() =>
+          void run(async () => {
+            const body = { base_version_id: item.version_id, text: request };
+            const cmd = durableCommand(`${pid}:message:${item.id}`, body);
+            unwrap(
+              await api.POST("/api/v1/projects/{pid}/contents/{iid}/messages", {
+                params: {
+                  path: path(pid, item.id),
+                  header: { "idempotency-key": cmd.key },
+                },
+                body,
+              }),
+            );
+            cmd.done();
+            setRequest("");
+          })
+        }
+      >
+        发送创意修改要求
+      </button>
+      {conversation.proposals.map((p) => (
+        <details key={p.id} open={!p.applied_version_id}>
+          <summary>
+            {p.applied_version_id
+              ? "已采用"
+              : p.base_version_id !== item.version_id
+                ? "建议已过期"
+                : "AI创意建议"}
+          </summary>
+          <ContentPreview
+            body={(p.output.body || p.output) as Record<string, unknown>}
+          />
+          <button
+            disabled={
+              disabled ||
+              busy ||
+              !!p.applied_version_id ||
+              p.base_version_id !== item.version_id
+            }
+            onClick={() =>
+              void run(async () =>
+                onAdopt(
+                  unwrap(
+                    await api.POST(
+                      "/api/v1/projects/{pid}/proposals/{proposal_id}/apply",
+                      { params: { path: { pid, proposal_id: p.id } } },
+                    ),
+                  ),
+                ),
+              )
+            }
+          >
+            采用创意建议
+          </button>
+        </details>
+      ))}
+    </section>
+  );
+}

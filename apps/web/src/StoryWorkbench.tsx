@@ -1,5 +1,13 @@
 import { useEffect, useState } from "react";
 import { api, unwrap, type Job } from "./api";
+import { readDraft, storeDraft, removeDraft, durableCommand } from "./commands";
+import {
+  StageWorkbench,
+  QualityPanel,
+  generateStage,
+  IdeaDirector,
+} from "./StageWorkbench";
+import { MethodSelector, awaitMethodSaves } from "./Configuration";
 import type { components } from "./generated/api";
 
 type Content = components["schemas"]["ContentOut"];
@@ -14,43 +22,14 @@ const states: Record<string, string> = {
   failed: "失败",
   unknown: "待核实",
 };
-function readDraft<T>(key: string): T | null {
-  try {
-    return JSON.parse(localStorage.getItem(key) || "null");
-  } catch {
-    return null;
-  }
-}
-function durableCommand(scope: string, body: unknown) {
-  const storageKey = "sf.pending." + scope;
-  const input = JSON.stringify(body);
-  const commands = readDraft<Record<string, string>>(storageKey) || {};
-  const key = commands[input] || crypto.randomUUID();
-  commands[input] = key;
-  // Fail closed if paid commands cannot survive a page reload.
-  localStorage.setItem(storageKey, JSON.stringify(commands));
-  return {
-    key,
-    done: () => {
-      const latest = readDraft<Record<string, string>>(storageKey) || {};
-      delete latest[input];
-      localStorage.setItem(storageKey, JSON.stringify(latest));
-    },
-  };
-}
-function storeDraft(key: string, value: unknown) {
-  try {
-    localStorage.setItem(key, JSON.stringify(value));
-  } catch {}
-}
-function removeDraft(key: string) {
-  try {
-    localStorage.removeItem(key);
-  } catch {}
-}
-
 export function StoryWorkbench({ pid }: { pid: string }) {
-  const [stage, setStage] = useState("创意");
+  const [stage, updateStage] = useState(
+    () => readDraft<string>(`sf.${pid}.stage`) || "创意",
+  );
+  function setStage(next: string) {
+    storeDraft(`sf.${pid}.stage`, next);
+    updateStage(next);
+  }
   const [idea, setIdea] = useState<Content | null>(null);
   const [text, setText] = useState("");
   const [revision, setRevision] = useState(0);
@@ -58,15 +37,6 @@ export function StoryWorkbench({ pid }: { pid: string }) {
   const [instruction, setInstruction] = useState(
     () => readDraft<string>(`sf.${pid}.instruction`) || "",
   );
-  const [style, setStyle] = useState(
-    () => readDraft<string>(`sf.${pid}.style`) || "",
-  );
-  const [writingMode, setWritingMode] = useState<"prompt" | "skill">(() =>
-    readDraft<string>(`sf.${pid}.writingMode`) === "skill" ? "skill" : "prompt",
-  );
-  useEffect(() => {
-    storeDraft(`sf.${pid}.writingMode`, writingMode);
-  }, [pid, writingMode]);
   const [page, setPage] = useState<Page>({
     items: [],
     total: 0,
@@ -109,7 +79,9 @@ export function StoryWorkbench({ pid }: { pid: string }) {
       api.GET("/api/v1/projects/{pid}/jobs", { params: { path: { pid } } }),
     ]);
     setPage(unwrap(p));
-    setJobs(unwrap(j).filter((j) => j.kind.startsWith("story.")));
+    setJobs(
+      unwrap(j).filter((j) => /^(idea|story|script|board)\./.test(j.kind)),
+    );
   }
   useEffect(() => {
     let live = true;
@@ -125,7 +97,7 @@ export function StoryWorkbench({ pid }: { pid: string }) {
         setText(draft?.text ?? String(saved?.body.text || ""));
         setRevision(draft?.revision ?? saved?.revision ?? 0);
         setLoaded(true);
-        if (saved) setStage("故事");
+        if (saved && !readDraft<string>(`sf.${pid}.stage`)) setStage("故事");
       })
       .catch((e) => {
         if (live) setError(e.message);
@@ -146,7 +118,11 @@ export function StoryWorkbench({ pid }: { pid: string }) {
         ]);
         if (live) {
           setPage(unwrap(p));
-          setJobs(unwrap(j).filter((j) => j.kind.startsWith("story.")));
+          setJobs(
+            unwrap(j).filter((j) =>
+              /^(idea|story|script|board)\./.test(j.kind),
+            ),
+          );
         }
       } catch (e) {
         if (live) setError(e instanceof Error ? e.message : "无法读取状态");
@@ -176,12 +152,13 @@ export function StoryWorkbench({ pid }: { pid: string }) {
     return saved;
   }
   async function generate() {
+    await awaitMethodSaves(pid, "story");
     const saved = await saveIdea();
     const body = {
       idea_version_id: saved.version_id,
       instruction,
-      style,
-      writing_mode: writingMode,
+      style: "",
+      writing_mode: "prompt" as const,
     };
     const cmd = commandKey("generate", body);
     unwrap(
@@ -269,10 +246,6 @@ export function StoryWorkbench({ pid }: { pid: string }) {
             {...{
               instruction,
               setInstruction,
-              style,
-              setStyle,
-              writingMode,
-              setWritingMode,
               pid,
             }}
           />
@@ -284,6 +257,18 @@ export function StoryWorkbench({ pid }: { pid: string }) {
             AI生成3个故事方案
           </button>
         </section>
+      )}
+      {stage === "创意" && idea && (
+        <IdeaDirector
+          pid={pid}
+          item={idea}
+          disabled={busy || text !== String(idea.body.text)}
+          onAdopt={(i) => {
+            setIdea(i);
+            setText(String(i.body.text));
+            setRevision(i.revision);
+          }}
+        />
       )}
       {stage === "故事" && (
         <>
@@ -302,10 +287,6 @@ export function StoryWorkbench({ pid }: { pid: string }) {
               {...{
                 instruction,
                 setInstruction,
-                style,
-                setStyle,
-                writingMode,
-                setWritingMode,
                 pid,
               }}
             />
@@ -359,7 +340,7 @@ export function StoryWorkbench({ pid }: { pid: string }) {
               </section>
               <StoryEditor
                 key={active.id}
-                {...{ pid, story: active, page, refresh }}
+                {...{ pid, story: active, page, refresh, setStage }}
               />
             </div>
           ) : (
@@ -371,19 +352,42 @@ export function StoryWorkbench({ pid }: { pid: string }) {
           )}
         </>
       )}
-      {!["创意", "故事"].includes(stage) && (
+      {(stage === "剧本" || stage === "分镜") && (
+        <StageWorkbench
+          key={stage}
+          pid={pid}
+          stage={stage === "剧本" ? "script" : "board"}
+          onNext={() => setStage("分镜")}
+          refreshJobs={refresh}
+        />
+      )}
+      {stage === "导出" && (
         <section className="empty">
-          <h2>{stage}工作台</h2>
-          <p>本轮交付到故事选定；此阶段尚未接入。</p>
-          <button onClick={() => setStage("故事")}>返回故事</button>
+          <h2>导出工作台</h2>
+          <p>
+            图像、配音、视频生成与真实 MP4 导出将在 M2–M3
+            接入。当前可确认分镜并保留文本版本。
+          </p>
         </section>
       )}
       {jobs.length > 0 && (
         <section className="panel story-jobs">
           <h2>文本任务</h2>
-          {jobs.map((job) => (
-            <TextJob key={job.id} job={job} refresh={refresh} />
-          ))}
+          {jobs
+            .filter((j) => j.state !== "succeeded")
+            .map((job) => (
+              <TextJob key={job.id} job={job} refresh={refresh} />
+            ))}
+          <details>
+            <summary>
+              已完成任务（{jobs.filter((j) => j.state === "succeeded").length}）
+            </summary>
+            {jobs
+              .filter((j) => j.state === "succeeded")
+              .map((job) => (
+                <TextJob key={job.id} job={job} refresh={refresh} />
+              ))}
+          </details>
         </section>
       )}
     </>
@@ -393,35 +397,17 @@ export function StoryWorkbench({ pid }: { pid: string }) {
 function GenerationControls({
   instruction,
   setInstruction,
-  style,
-  setStyle,
-  writingMode,
-  setWritingMode,
   pid,
 }: {
   instruction: string;
   setInstruction: (s: string) => void;
-  style: string;
-  setStyle: (s: string) => void;
-  writingMode: "prompt" | "skill";
-  setWritingMode: (s: "prompt" | "skill") => void;
   pid: string;
 }) {
   return (
     <div className="generation-controls">
+      <MethodSelector pid={pid} stage="story" />
       <label className="field">
-        写作方式
-        <select
-          aria-label="写作方式"
-          value={writingMode}
-          onChange={(e) => setWritingMode(e.target.value as "prompt" | "skill")}
-        >
-          <option value="prompt">提示词</option>
-          <option value="skill">Skill 指令文本</option>
-        </select>
-      </label>
-      <label className="field">
-        {writingMode === "skill" ? "Skill 指令（仅作为文本使用）" : "写作指令"}
+        本次补充要求
         <textarea
           rows={3}
           value={instruction}
@@ -432,18 +418,7 @@ function GenerationControls({
           }}
         />
       </label>
-      <label className="field">
-        成片视觉风格
-        <input
-          value={style}
-          maxLength={2000}
-          placeholder="可选，例如温暖写实"
-          onChange={(e) => {
-            setStyle(e.target.value);
-            storeDraft(`sf.${pid}.style`, e.target.value);
-          }}
-        />
-      </label>
+      <p className="muted">成片风格与画幅使用项目统一生成规格。</p>
     </div>
   );
 }
@@ -453,7 +428,9 @@ function StoryEditor({
   story,
   page,
   refresh,
+  setStage,
 }: {
+  setStage: (stage: string) => void;
   pid: string;
   story: Content;
   page: Page;
@@ -643,6 +620,28 @@ function StoryEditor({
               : "确定此故事"}
           </button>
         </div>
+        <div className="method-actions">
+          <MethodSelector pid={pid} stage="script" />
+          <button
+            className="primary"
+            disabled={busy || dirty || base !== story.revision}
+            onClick={() =>
+              void run(async () => {
+                await generateStage(pid, "script", story.version_id);
+                await refresh();
+                setStage("剧本");
+              })
+            }
+          >
+            确定故事并AI生成剧本
+          </button>
+        </div>
+        <QualityPanel
+          pid={pid}
+          item={story}
+          disabled={busy || dirty}
+          onChanged={refresh}
+        />
         <details className="version-history">
           <summary>版本历史（{versions.length}）</summary>
           {versions.map((v) => (
@@ -691,6 +690,7 @@ function StoryEditor({
               </button>
             </div>
           </div>
+          <MethodSelector pid={pid} stage="story" />
           <div className="conversation">
             {conversation.messages.map((m) => (
               <p key={m.id} className={m.role}>
@@ -724,6 +724,7 @@ function StoryEditor({
             }
             onClick={() =>
               void run(async () => {
+                await awaitMethodSaves(pid, "story");
                 const input = {
                   base_version_id: story.version_id,
                   text: request,
@@ -765,7 +766,14 @@ function StoryEditor({
                     : "AI建议版"}
               </summary>
               <p>{String(p.output.changeSummary)}</p>
-              <p className="preserve-text">{String(p.output.text)}</p>
+              <p className="preserve-text">
+                {String(
+                  (p.output.body as Record<string, unknown> | undefined)
+                    ?.text ||
+                    p.output.text ||
+                    "",
+                )}
+              </p>
               <button
                 className="primary"
                 disabled={
@@ -814,7 +822,23 @@ export function TextJob({
     <article className="text-job">
       <div className="row">
         <strong>
-          {job.kind === "story.generate" ? "生成三个故事" : "导演修改建议"}
+          {(
+            {
+              "story.generate": "生成三个故事",
+              "story.revise": "故事导演建议",
+              "idea.revise": "创意导演建议",
+              "script.generate": "生成剧本",
+              "board.generate": "生成分镜",
+              "script.revise": "剧本导演建议",
+              "board.revise": "分镜导演建议",
+              "story.review": "故事质检",
+              "script.review": "剧本质检",
+              "board.review": "分镜质检",
+              "story.repair": "故事修复建议",
+              "script.repair": "剧本修复建议",
+              "board.repair": "分镜修复建议",
+            } as Record<string, string>
+          )[job.kind] || job.kind}
         </strong>
         <span className="badge">{states[job.state] || job.state}</span>
       </div>
