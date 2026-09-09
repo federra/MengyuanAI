@@ -1,6 +1,6 @@
 # AI短片工坊
 
-从零建设的 PC Web 短片创作系统。M0 提供工程底座，M1 已接入创意、故事、剧本、分镜的文本内容链、配置资源与 DeepSeek 适配器；已通过真实DeepSeek内容链至确认分镜及隔离故障回归。参考图/TTS/视频与 MP4 继续按 M2–M3 实施。需求与交互 Demo 保存在独立的 `interaction-prd-workspace/`，不参与应用构建。
+从零建设的 PC Web 短片创作系统。M0 提供工程底座，M1 已接入创意、故事、剧本、分镜的文本内容链、配置资源与 DeepSeek 适配器；已通过真实DeepSeek内容链至确认分镜及隔离故障回归。M2 已完成真实参考图/TTS/三镜视频、前镜尾帧和中镜故障恢复验收，详见 [M2 最终验收](docs/engineering/m2-final-verification.md)；音轨/字幕合成 MP4 继续按 M3 实施。需求与交互 Demo 保存在独立的 `interaction-prd-workspace/`，不参与应用构建。
 
 ## 工程结构
 
@@ -46,7 +46,7 @@ make dev
 
 安装 Docker Engine/Desktop 与 Compose v2 后：`make compose-bootstrap` → `make compose-dev`。外部仅绑定 127.0.0.1:5180，API、PostgreSQL、Redis 留在容器网络内。所有基础镜像已固定标签及官方多架构摘要，见 `infra/images.json`；api/worker/dispatcher 共用后端构建，数据库迁移成功才启动业务。
 
-本机未安装 Docker，因此容器构建及启动尚未实测；M0 实际验收使用上方原生进程。媒体 Worker 当前运行文件校验；固定 FFmpeg 构建与编码器验证将在 M2/M3 加入，不宣称已有真实编码能力。
+本机未安装 Docker，因此容器构建及启动尚未实测；M0 实际验收使用上方原生进程。媒体 Worker 已支持真实媒体校验、供应商任务和 FFmpeg 尾帧提取；M3 成片音轨/字幕合成尚未实现。
 
 ## 验证与恢复
 
