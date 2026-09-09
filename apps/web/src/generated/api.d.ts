@@ -4,6 +4,109 @@
  */
 
 export interface paths {
+    "/api/v1/projects/{pid}/finishing": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get State */
+        get: operations["get_state_api_v1_projects__pid__finishing_get"];
+        /** Save */
+        put: operations["save_api_v1_projects__pid__finishing_put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/projects/{pid}/finishing/defaults": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Defaults */
+        get: operations["defaults_api_v1_projects__pid__finishing_defaults_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/projects/{pid}/exports": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Submit */
+        post: operations["submit_api_v1_projects__pid__exports_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/projects/{pid}/exports/{jid}/retry": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Retry */
+        post: operations["retry_api_v1_projects__pid__exports__jid__retry_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/projects/{pid}/exports/{jid}/download": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Download */
+        get: operations["download_api_v1_projects__pid__exports__jid__download_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/projects/{pid}/finishing/music": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Upload Music */
+        post: operations["upload_music_api_v1_projects__pid__finishing_music_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/settings/asset-credentials": {
         parameters: {
             query?: never;
@@ -1186,6 +1289,30 @@ export interface components {
             /** File */
             file: string;
         };
+        /** Body_upload_music_api_v1_projects__pid__finishing_music_post */
+        Body_upload_music_api_v1_projects__pid__finishing_music_post: {
+            /** File */
+            file: string;
+        };
+        /** Clip */
+        Clip: {
+            /**
+             * Shot Id
+             * Format: uuid
+             */
+            shot_id: string;
+            /** Video Id */
+            video_id?: string | null;
+            /**
+             * Trim Start
+             * @default 0
+             */
+            trim_start: number;
+            /** Duration */
+            duration: number;
+            /** Lines */
+            lines?: components["schemas"]["LineTiming"][];
+        };
         /** ConfirmCreate */
         ConfirmCreate: {
             /**
@@ -1332,6 +1459,93 @@ export interface components {
              */
             voice: string;
         };
+        /** EditDraft */
+        EditDraft: {
+            /** Board Version Id */
+            board_version_id?: string | null;
+            /**
+             * Filename
+             * @default 我的作品
+             */
+            filename: string;
+            /** Clips */
+            clips?: components["schemas"]["Clip"][];
+            /**
+             * Fps
+             * @default 24
+             * @enum {integer}
+             */
+            fps: 24 | 25 | 30;
+            /**
+             * Fit
+             * @default pad
+             * @enum {string}
+             */
+            fit: "pad" | "crop";
+            /**
+             * Narration
+             * @default true
+             */
+            narration: boolean;
+            /**
+             * Subtitles
+             * @default true
+             */
+            subtitles: boolean;
+            /**
+             * Original Audio
+             * @default false
+             */
+            original_audio: boolean;
+            /**
+             * Voice Volume
+             * @default 1
+             */
+            voice_volume: number;
+            /**
+             * Original Volume
+             * @default 0.5
+             */
+            original_volume: number;
+            /** Music File Id */
+            music_file_id?: string | null;
+            /**
+             * Music Volume
+             * @default 0.15
+             */
+            music_volume: number;
+            /**
+             * Continuity Ack
+             * @default false
+             */
+            continuity_ack: boolean;
+        };
+        /** EditSave */
+        EditSave: {
+            /** Revision */
+            revision: number;
+            draft: components["schemas"]["EditDraft"];
+        };
+        /** EditState */
+        EditState: {
+            /** Revision */
+            revision: number;
+            draft: components["schemas"]["EditDraft"];
+            /** Specification */
+            specification: {
+                [key: string]: unknown;
+            };
+            /** Blockers */
+            blockers: string[];
+            /** Timeline */
+            timeline: {
+                [key: string]: unknown;
+            }[];
+            /** Exports */
+            exports: {
+                [key: string]: unknown;
+            }[];
+        };
         /** EntityCreate */
         EntityCreate: {
             /**
@@ -1418,6 +1632,11 @@ export interface components {
              * @default false
              */
             three_view: boolean;
+            /** Revision */
+            revision: number;
+        };
+        /** ExportCreate */
+        ExportCreate: {
             /** Revision */
             revision: number;
         };
@@ -1550,6 +1769,16 @@ export interface components {
             name: string | null;
             /** Voice */
             voice: string | null;
+        };
+        /** LineTiming */
+        LineTiming: {
+            /**
+             * Line Id
+             * Format: uuid
+             */
+            line_id: string;
+            /** Start */
+            start: number;
         };
         /** MediaRetry */
         MediaRetry: {
@@ -2342,6 +2571,241 @@ export interface components {
 }
 export type $defs = Record<string, never>;
 export interface operations {
+    get_state_api_v1_projects__pid__finishing_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                pid: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EditState"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    save_api_v1_projects__pid__finishing_put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                pid: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["EditSave"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EditState"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    defaults_api_v1_projects__pid__finishing_defaults_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                pid: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EditState"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    submit_api_v1_projects__pid__exports_post: {
+        parameters: {
+            query?: never;
+            header: {
+                "idempotency-key": string;
+            };
+            path: {
+                pid: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ExportCreate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["JobOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    retry_api_v1_projects__pid__exports__jid__retry_post: {
+        parameters: {
+            query?: never;
+            header: {
+                "idempotency-key": string;
+            };
+            path: {
+                pid: string;
+                jid: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["JobOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    download_api_v1_projects__pid__exports__jid__download_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                pid: string;
+                jid: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    upload_music_api_v1_projects__pid__finishing_music_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                pid: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "multipart/form-data": components["schemas"]["Body_upload_music_api_v1_projects__pid__finishing_music_post"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FileOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     get_asset_credentials_api_v1_settings_asset_credentials_get: {
         parameters: {
             query?: never;

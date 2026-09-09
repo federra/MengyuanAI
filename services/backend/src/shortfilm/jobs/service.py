@@ -80,6 +80,10 @@ def execute_job(job_id):
     try:
         with Session() as db:
             j = db.get(Job, as_uuid(job_id))
+            if j.kind == "export.render":
+                from shortfilm.finishing.execution import execute_export
+                execute_export(job_id, token)
+                return
             from shortfilm.media.execution import media_kind
             if media_kind(j.kind):
                 from shortfilm.media.execution import execute_media
@@ -131,7 +135,7 @@ def recover_jobs():
             if media_kind(j.kind) and recover_media(db, j):
                 continue
             # Only local deterministic jobs may be automatically resubmitted.
-            j.state = "queued" if j.kind == "file.verify" else "unknown"
+            j.state = "queued" if j.kind in ("file.verify", "export.render") else "unknown"
             j.lease_token, j.lease_until, j.updated_at = None, None, now()
             db.add(JobEvent(job_id=j.id, state=j.state))
             if j.state == "queued":

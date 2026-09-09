@@ -55,6 +55,8 @@ def generate_image(
 ):
     project = owned_project(db, pid, lock=True)
     job = commands.image_job(db, project, idempotency_key, body)
+    from shortfilm.finishing.service import invalidate_completed
+    invalidate_completed(db, pid)
     db.commit()
     return job
 
@@ -68,6 +70,8 @@ def generate_audio(
 ):
     project = owned_project(db, pid, lock=True)
     job = commands.audio_job(db, project, idempotency_key, body)
+    from shortfilm.finishing.service import invalidate_completed
+    invalidate_completed(db, pid)
     db.commit()
     return job
 
@@ -81,6 +85,8 @@ def generate_video(
 ):
     project = owned_project(db, pid, lock=True)
     jobs = commands.videos(db, project, idempotency_key, body)
+    from shortfilm.finishing.service import invalidate_completed
+    invalidate_completed(db, pid)
     db.commit()
     return jobs
 
@@ -126,6 +132,8 @@ def bind_line(pid: UUID, line_id: UUID, body: LineBind, db: Session = Depends(se
         db.add(binding)
     db.flush()
     result = binding_out(db, binding)
+    from shortfilm.finishing.service import invalidate_completed
+    invalidate_completed(db, pid)
     db.commit()
     return result
 
@@ -191,6 +199,8 @@ def confirm_result(pid: UUID, rid: UUID, db: Session = Depends(session)):
         )
     db.flush()
     result = outcome_out(db, project, output)
+    from shortfilm.finishing.service import invalidate_completed
+    invalidate_completed(db, pid)
     db.commit()
     return result
 
@@ -289,6 +299,8 @@ def retry(
         waiting = db.get(Job, dependency.child_id)
         if waiting.state == "waiting_dependency":
             dependency.parent_id = job.id
+    from shortfilm.finishing.service import invalidate_completed
+    invalidate_completed(db, pid)
     db.commit()
     return job
 
@@ -312,6 +324,8 @@ def cancel(pid: UUID, jid: UUID, db: Session = Depends(session)):
             job_id=job.id, state="cancel_requested" if job.state != "cancelled" else "cancelled"
         )
     )
+    from shortfilm.finishing.service import invalidate_completed
+    invalidate_completed(db, pid)
     db.commit()
     return job
 
@@ -325,6 +339,8 @@ def control_sequence(pid: UUID, sid: UUID, body: SequenceControl, db: Session = 
     if not sequence:
         raise HTTPException(404, "顺序任务不存在")
     sequence.paused = body.paused
+    from shortfilm.finishing.service import invalidate_completed
+    invalidate_completed(db, pid)
     db.commit()
     return {"id": str(sid), "paused": sequence.paused}
 
@@ -374,6 +390,8 @@ def bind_previous(pid: UUID, shot_id: UUID, body: PreviousBind, db: Session = De
     item = db.get(ContentItem, version.item_id)
     new_version = append_version(db, project, item, value, "manual", upstream(db, version).id)
     db.add(PreviousFrame(project_id=pid, shot_id=shot_id, outcome_id=output.id))
+    from shortfilm.finishing.service import invalidate_completed
+    invalidate_completed(db, pid)
     db.commit()
     return {**previous_context(output), "board_version_id": str(new_version.id)}
 
@@ -422,5 +440,7 @@ def replace_reference(
         revision=body.revision + 1,
     )
     db.add(row)
+    from shortfilm.finishing.service import invalidate_completed
+    invalidate_completed(db, pid)
     db.commit()
     return row

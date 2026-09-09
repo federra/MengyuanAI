@@ -96,6 +96,12 @@ def fingerprint(body):
 
 
 def existing_job(db, pid, key, command):
+    from shortfilm.finishing.models import ExportCommand
+    alias = db.get(ExportCommand, (pid, key))
+    if alias:
+        if alias.fingerprint != fingerprint(command):
+            raise HTTPException(409, "同一幂等键不能用于不同输入")
+        return db.get(Job, alias.job_id)
     job = db.scalar(
         select(Job).where(
             Job.project_id == pid,

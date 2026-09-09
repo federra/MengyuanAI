@@ -57,7 +57,7 @@
 | `conversations`、`messages`、`proposals`、`quality_reports` | project_id、stage、target_id、base_version；role、content；source_versions、proposed_output、state；issues、evidence、check_status | 对话与建议隔离；报告绑定输入；采用建议是独立事务，不直接覆盖当前内容 |
 | `model_configs`、`prompt_versions`、`config_bindings` | provider、capabilities、credential_ref、revision；interaction_key、template、variables_schema、output_schema；scope、project_id、version_id | 模型与模板版本不可变；系统默认与项目覆盖分开；凭据原文不落快照 |
 | `generation_jobs`、`job_attempts`、`job_dependencies`、`job_events`、`outbox` | project_id、kind、state、source_fingerprint、snapshot、idempotency_key；provider_task_id、lease_until、error；parent_job_id；event_seq | 任务持久化、可追溯与恢复；幂等键按操作者和操作范围唯一；依赖不得形成环 |
-| `export_versions`、`export_clips` | project_id、revision、source_versions、settings、output_file_id、job_id；shot_version_id、video_asset_version_id、position、trim、audio_refs | 冻结导出清单；成片绑定真实文件，不只绑定供应商 URL |
+| `export_versions`、`export_commands` | project_id、revision、draft（含有序clips及shot_id/video_id/trim/line_id时序）；project_id+key、fingerprint、job_id | M3以不可变JSON剪辑替代独立export_clips表；来源快照在Job，成片文件在JobResult，命令别名保障跨键去重 |
 
 图 2：主要数据关系；上表补充配置、对话、台词和文件细节。
 
@@ -310,3 +310,12 @@ V10 配置工程增量（方案，未声称生产实现）：新增按 capabilit
 用户确认 Seedream/Seedance/MiniMax 组合及前镜末帧作为多图参考的连续性语义，不要求严格 first_frame 与多图同时生效。模型适配器提交前校验具体能力；当前工作台先支持整数4–15秒及720P/1080P，2.0 fast/mini仅720P，其他规格显式阻断而非静默降级。准确模型ID以账户开通配置为准。
 
 M2扩展沿用M1 Job/Outbox/租约，media_runs保存供应商受理编号与内部下载回执；media_outcomes保存实际文件和尾帧；job_dependencies保存前驱依赖，media_sequences保存暂停状态。同步返回未能持久保存时保守归unknown；已知外部任务恢复优先查询原ID。镜头图片的追加绑定版本保留原refId，任务冻结实际fileId和引用版本；此前M1的文件UUID引用继续兼容。工程事实记录在docs/engineering/m2-verification.md，迁移、生产试用和真实付费验收分别记录，不能以新增代码或替身测试宣布M2已完成。
+
+
+## M3 本地实现增量 · 2026-09-09
+
+在完整M2基线9c077d4及本地回退标签m2-baseline-20260909上创建codex/m3-real-export。新增finishing领域与两个导出表，复用现有文件存储、Job/Outbox、项目锁、租约心跳和写入保护。导出快照冻结当前已确认分镜、稳定镜头/台词ID、所选视频/最新配音结果及文件哈希；预检复用M2来源有效性，AI建议质检不作为门槛。
+
+FFmpeg由独立Worker执行，临时文件隔离，确定性编码失败可重试、租约丢失可恢复，无供应商调用。编码前后核对来源哈希，提交结果时再次检查当前剪辑；真实MP4落盘并校验成功且来源仍当前才标完成。具体裁剪、混音、字幕时序与超长阻断按PRD10。中文字幕由Pillow渲染透明图叠加，避免本机FFmpeg缺少libass；Linux运行依赖Noto CJK字体，可通过SHORTFILM_SUBTITLE_FONT指定路径，缺失时报错而非吞字幕。
+
+工程已生成复用真实卡通三镜/两句配音的12秒720P成片，未新增付费调用；工程回归、真实成片及备份证据见docs/engineering/m3-verification.md。该项目素材已有人工准备，不能替代用户从一句话独立完成下载的M3退出条件；用户试用、最终UI和容器运行仍未计入通过，不进入M4。

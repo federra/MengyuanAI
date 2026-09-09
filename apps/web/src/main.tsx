@@ -419,6 +419,7 @@ function App() {
                                   story: "故事",
                                   script: "剧本",
                                   board: "分镜",
+                                  finishing: "导出",
                                 } as Record<string, string>
                               )[p.stage] || p.stage}
                               阶段

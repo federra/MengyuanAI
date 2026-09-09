@@ -1630,3 +1630,78 @@ test("asset AK SK are write-only and never enter browser drafts", async ({ page 
   await expect(page.getByLabel("TOS 桶名",{exact:true})).toHaveValue("mengyuanaibucket");
   await expect(page.getByRole("button",{name:"检查已保存的读取权限（可能产生请求费）",exact:true})).toBeDisabled();
 });
+
+
+test('M3 saves export draft, restores unsaved edits and blocks incomplete media', async ({ page }) => {
+  const draft = { board_version_id: null, filename: '我的作品', clips: [], fps: 24, fit: 'pad', narration: true, subtitles: true, original_audio: false, voice_volume: 1, original_volume: .5, music_file_id: null, music_volume: .15, continuity_ack: false };
+  let state = { revision: 0, draft, specification: { width: 1280, height: 720, aspect_ratio: '16:9', resolution: '720P' }, blockers: ['请先确认当前分镜'], timeline: [], exports: [] };
+  await page.route('**/finishing', async route => {
+    if (route.request().method() === 'PUT') {
+      state = { ...state, revision: state.revision + 1, draft: route.request().postDataJSON().draft };
+    }
+    await route.fulfill({ json: state });
+  });
+  await page.getByRole('button', { name: /5.*导出/ }).click();
+  await page.getByLabel('成片文件名').fill('我的三镜');
+  await page.getByRole('button', { name: '保存剪辑' }).click();
+  await expect(page.getByText('已保存剪辑 v1', { exact: true })).toBeVisible();
+  await expect(page.getByRole('button', { name: '生成真实 MP4' })).toBeDisabled();
+  await page.getByLabel('成片文件名').fill('未保存的剪辑');
+  await page.reload();
+  await page.getByRole('button', { name: '继续创作 →' }).click();
+  await expect(page.getByLabel('成片文件名')).toHaveValue('未保存的剪辑');
+});
+
+function finishingFixture() {
+  return { revision: 0, draft: { board_version_id: null, filename: '初始剪辑', clips: [], fps: 24, fit: 'pad', narration: true, subtitles: true, original_audio: false, voice_volume: 1, original_volume: .5, music_file_id: null, music_volume: .15, continuity_ack: false }, specification: { width: 1280, height: 720, aspect_ratio: '16:9', resolution: '720P' }, blockers: ['缺少视频'], timeline: [], exports: [] };
+}
+
+test('M3 late polling cannot roll back saved revision', async ({ page }) => {
+  let state = finishingFixture();
+  let hold = false;
+  let held = false;
+  let release = () => {};
+  await page.route('**/finishing', async route => {
+    if (route.request().method() === 'PUT') {
+      state = { ...state, revision: 1, draft: route.request().postDataJSON().draft };
+      await route.fulfill({ json: state });
+    } else {
+      const snapshot = structuredClone(state);
+      if (hold && !held) { held = true; await new Promise<void>(resolve => { release = resolve; }); }
+      await route.fulfill({ json: snapshot });
+    }
+  });
+  await page.getByRole('button', { name: /5.*导出/ }).click();
+  await expect(page.getByLabel('成片文件名')).toHaveValue('初始剪辑');
+  hold = true;
+  await expect.poll(() => held).toBe(true);
+  await page.getByLabel('成片文件名').fill('新保存');
+  await page.getByRole('button', { name: '保存剪辑' }).click();
+  await expect(page.getByText('已保存剪辑 v1', { exact: true })).toBeVisible();
+  release();
+  await page.waitForTimeout(250);
+  await expect(page.getByText('已保存剪辑 v1', { exact: true })).toBeVisible();
+  await expect(page.getByRole('button', { name: '保留草稿，使用最新保存基准' })).toHaveCount(0);
+});
+
+test('M3 late music upload cannot overwrite a reentered draft', async ({ page }) => {
+  let release = () => {};
+  let started = false;
+  await page.route('**/finishing', route => route.fulfill({ json: finishingFixture() }));
+  await page.route('**/finishing/music', async route => {
+    started = true;
+    await new Promise<void>(resolve => { release = resolve; });
+    await route.fulfill({ json: { id: 'music-file' } });
+  });
+  await page.getByRole('button', { name: /5.*导出/ }).click();
+  await page.getByLabel('上传背景音乐').setInputFiles({ name: 'music.mp3', mimeType: 'audio/mpeg', buffer: Buffer.from('fixture') });
+  await expect.poll(() => started).toBe(true);
+  await page.getByRole('button', { name: /2.*故事/ }).click();
+  await page.getByRole('button', { name: /5.*导出/ }).click();
+  await page.getByLabel('成片文件名').fill('返回后新草稿');
+  release();
+  await page.waitForTimeout(250);
+  await page.reload();
+  await page.getByRole('button', { name: '继续创作 →' }).click();
+  await expect(page.getByLabel('成片文件名')).toHaveValue('返回后新草稿');
+});

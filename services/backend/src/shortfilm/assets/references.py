@@ -80,6 +80,8 @@ def attach_image(pid: UUID, body: ReferenceCreate, db: Session = Depends(session
         db.add(image)
         db.flush()
     result = image_out(db, project, image)
+    from shortfilm.finishing.service import invalidate_completed
+    invalidate_completed(db, pid)
     db.commit()
     return result
 
@@ -109,5 +111,7 @@ def confirm_image(
         )
         db.flush()
     result = image_out(db, project, image)
+    from shortfilm.finishing.service import invalidate_completed
+    invalidate_completed(db, pid)
     db.commit()
     return result

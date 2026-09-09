@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { FinishingWorkbench } from "./FinishingWorkbench";
 import { api, unwrap, type Job } from "./api";
 import { readDraft, storeDraft, removeDraft, durableCommand } from "./commands";
 import {
@@ -396,15 +397,7 @@ export function StoryWorkbench({
           refreshJobs={refresh}
         />
       )}
-      {stage === "导出" && (
-        <section className="empty">
-          <h2>导出工作台</h2>
-          <p>
-            图像、配音、视频生成与真实 MP4 导出将在 M2–M3
-            接入。当前可确认分镜并保留文本版本。
-          </p>
-        </section>
-      )}
+      {stage === "导出" && <FinishingWorkbench key={pid} pid={pid} />}
       {jobs.length > 0 && (
         <section className="panel story-jobs">
           <h2>文本任务</h2>
@@ -885,6 +878,7 @@ export function jobTitle(kind: string) {
         "board.generate": "生成分镜",
         "script.revise": "剧本导演建议",
         "board.revise": "分镜导演建议",
+        "export.render": "成片合成",
         "story.review": "故事质检",
         "script.review": "剧本质检",
         "board.review": "分镜质检",

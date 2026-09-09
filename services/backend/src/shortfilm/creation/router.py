@@ -72,6 +72,8 @@ def save_idea(pid: UUID, body: IdeaSave, db: Session = Depends(session)):
     old = current_version(db, item)
     if not old or old.body["text"] != body.text:
         append_version(db, p, item, {"text": body.text}, "manual", old.id if old else None)
+    from shortfilm.finishing.service import invalidate_completed
+    invalidate_completed(db, pid)
     db.commit()
     return content_out(db, item)
 
@@ -131,6 +133,8 @@ def save_story(pid: UUID, iid: UUID, body: StorySave, db: Session = Depends(sess
     old = current_version(db, item)
     if old.body != body.body.model_dump():
         append_version(db, p, item, body.body.model_dump(), "manual", old.id)
+    from shortfilm.finishing.service import invalidate_completed
+    invalidate_completed(db, pid)
     db.commit()
     return content_out(db, item)
 
@@ -154,6 +158,8 @@ def select_story(pid: UUID, iid: UUID, body: SelectStory, db: Session = Depends(
 
     confirm(db, p, item, body.version_id)
     p.stage, p.updated_at, p.revision = "story", now(), p.revision + 1
+    from shortfilm.finishing.service import invalidate_completed
+    invalidate_completed(db, pid)
     db.commit()
     return list_stories(pid, 0, db)
 
@@ -183,6 +189,8 @@ def generate(
     snapshot.update(configuration(db, p, "story.generate", snapshot))
     snapshot["review_configuration"] = automatic_configuration(db, p, "story", snapshot)
     job = enqueue(db, p, idempotency_key, command, "story.generate", snapshot)
+    from shortfilm.finishing.service import invalidate_completed
+    invalidate_completed(db, pid)
     db.commit()
     return job
 
@@ -240,6 +248,8 @@ def send_message(
         snapshot["review_configuration"] = automatic_configuration(db, p, item.kind, snapshot)
     job = enqueue(db, p, idempotency_key, command, command["kind"], snapshot)
     db.add(Message(item_id=iid, job_id=job.id, role="user", text=body.text))
+    from shortfilm.finishing.service import invalidate_completed
+    invalidate_completed(db, pid)
     db.commit()
     return job
 
@@ -296,5 +306,7 @@ def apply_proposal(pid: UUID, proposal_id: UUID, db: Session = Depends(session))
             ),
         )
     proposal.applied_version_id = v.id
+    from shortfilm.finishing.service import invalidate_completed
+    invalidate_completed(db, pid)
     db.commit()
     return content_out(db, item)

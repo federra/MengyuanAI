@@ -32,6 +32,8 @@ def create_entity(pid: UUID, body: EntityCreate, db: Session = Depends(session))
     version = append_entity(db, entity, body)
     project.updated_at = now()
     result = entity_out(entity, version)
+    from shortfilm.finishing.service import invalidate_completed
+    invalidate_completed(db, pid)
     db.commit()
     return result
 
@@ -53,6 +55,8 @@ def update_entity(pid: UUID, eid: UUID, body: EntityUpdate, db: Session = Depend
         previous = append_entity(db, entity, body)
         project.updated_at = now()
     result = entity_out(entity, previous)
+    from shortfilm.finishing.service import invalidate_completed
+    invalidate_completed(db, pid)
     db.commit()
     return result
 

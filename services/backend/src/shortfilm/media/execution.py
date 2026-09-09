@@ -342,6 +342,8 @@ def complete(jid, token, raw, receipt):
             )
         )
         transition(db, job, "cancelled" if run.cancelled else "succeeded")
+        from shortfilm.finishing.service import invalidate_completed
+        invalidate_completed(db, project.id)
 
 
 def execute_media(jid, token):

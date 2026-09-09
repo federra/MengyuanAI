@@ -6,6 +6,375 @@
     "version": "0.1.0"
   },
   "paths": {
+    "/api/v1/projects/{pid}/finishing": {
+      "get": {
+        "tags": [
+          "finishing"
+        ],
+        "summary": "Get State",
+        "operationId": "get_state_api_v1_projects__pid__finishing_get",
+        "parameters": [
+          {
+            "name": "pid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Pid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EditState"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "finishing"
+        ],
+        "summary": "Save",
+        "operationId": "save_api_v1_projects__pid__finishing_put",
+        "parameters": [
+          {
+            "name": "pid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Pid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EditSave"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EditState"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/projects/{pid}/finishing/defaults": {
+      "get": {
+        "tags": [
+          "finishing"
+        ],
+        "summary": "Defaults",
+        "operationId": "defaults_api_v1_projects__pid__finishing_defaults_get",
+        "parameters": [
+          {
+            "name": "pid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Pid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EditState"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/projects/{pid}/exports": {
+      "post": {
+        "tags": [
+          "finishing"
+        ],
+        "summary": "Submit",
+        "operationId": "submit_api_v1_projects__pid__exports_post",
+        "parameters": [
+          {
+            "name": "pid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Pid"
+            }
+          },
+          {
+            "name": "idempotency-key",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128,
+              "title": "Idempotency-Key"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ExportCreate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "202": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JobOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/projects/{pid}/exports/{jid}/retry": {
+      "post": {
+        "tags": [
+          "finishing"
+        ],
+        "summary": "Retry",
+        "operationId": "retry_api_v1_projects__pid__exports__jid__retry_post",
+        "parameters": [
+          {
+            "name": "pid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Pid"
+            }
+          },
+          {
+            "name": "jid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Jid"
+            }
+          },
+          {
+            "name": "idempotency-key",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128,
+              "title": "Idempotency-Key"
+            }
+          }
+        ],
+        "responses": {
+          "202": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JobOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/projects/{pid}/exports/{jid}/download": {
+      "get": {
+        "tags": [
+          "finishing"
+        ],
+        "summary": "Download",
+        "operationId": "download_api_v1_projects__pid__exports__jid__download_get",
+        "parameters": [
+          {
+            "name": "pid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Pid"
+            }
+          },
+          {
+            "name": "jid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Jid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/projects/{pid}/finishing/music": {
+      "post": {
+        "tags": [
+          "finishing"
+        ],
+        "summary": "Upload Music",
+        "operationId": "upload_music_api_v1_projects__pid__finishing_music_post",
+        "parameters": [
+          {
+            "name": "pid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Pid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_upload_music_api_v1_projects__pid__finishing_music_post"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FileOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/settings/asset-credentials": {
       "get": {
         "tags": [
@@ -4222,6 +4591,69 @@
         ],
         "title": "Body_upload_api_v1_projects__pid__files_post"
       },
+      "Body_upload_music_api_v1_projects__pid__finishing_music_post": {
+        "properties": {
+          "file": {
+            "type": "string",
+            "contentMediaType": "application/octet-stream",
+            "title": "File"
+          }
+        },
+        "type": "object",
+        "required": [
+          "file"
+        ],
+        "title": "Body_upload_music_api_v1_projects__pid__finishing_music_post"
+      },
+      "Clip": {
+        "properties": {
+          "shot_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Shot Id"
+          },
+          "video_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Video Id"
+          },
+          "trim_start": {
+            "type": "number",
+            "maximum": 36000.0,
+            "minimum": 0.0,
+            "title": "Trim Start",
+            "default": 0
+          },
+          "duration": {
+            "type": "number",
+            "maximum": 600.0,
+            "exclusiveMinimum": 0.0,
+            "title": "Duration"
+          },
+          "lines": {
+            "items": {
+              "$ref": "#/components/schemas/LineTiming"
+            },
+            "type": "array",
+            "maxItems": 100,
+            "title": "Lines"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "shot_id",
+          "duration"
+        ],
+        "title": "Clip"
+      },
       "ConfirmCreate": {
         "properties": {
           "version_id": {
@@ -4564,6 +4996,182 @@
         ],
         "title": "Dialogue"
       },
+      "EditDraft": {
+        "properties": {
+          "board_version_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Board Version Id"
+          },
+          "filename": {
+            "type": "string",
+            "maxLength": 100,
+            "minLength": 1,
+            "pattern": "^[^/\\\\\\x00-\\x1f]+$",
+            "title": "Filename",
+            "default": "我的作品"
+          },
+          "clips": {
+            "items": {
+              "$ref": "#/components/schemas/Clip"
+            },
+            "type": "array",
+            "maxItems": 200,
+            "title": "Clips"
+          },
+          "fps": {
+            "type": "integer",
+            "enum": [
+              24,
+              25,
+              30
+            ],
+            "title": "Fps",
+            "default": 24
+          },
+          "fit": {
+            "type": "string",
+            "enum": [
+              "pad",
+              "crop"
+            ],
+            "title": "Fit",
+            "default": "pad"
+          },
+          "narration": {
+            "type": "boolean",
+            "title": "Narration",
+            "default": true
+          },
+          "subtitles": {
+            "type": "boolean",
+            "title": "Subtitles",
+            "default": true
+          },
+          "original_audio": {
+            "type": "boolean",
+            "title": "Original Audio",
+            "default": false
+          },
+          "voice_volume": {
+            "type": "number",
+            "maximum": 2.0,
+            "minimum": 0.1,
+            "title": "Voice Volume",
+            "default": 1
+          },
+          "original_volume": {
+            "type": "number",
+            "maximum": 1.0,
+            "minimum": 0.0,
+            "title": "Original Volume",
+            "default": 0.5
+          },
+          "music_file_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Music File Id"
+          },
+          "music_volume": {
+            "type": "number",
+            "maximum": 1.0,
+            "minimum": 0.0,
+            "title": "Music Volume",
+            "default": 0.15
+          },
+          "continuity_ack": {
+            "type": "boolean",
+            "title": "Continuity Ack",
+            "default": false
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "EditDraft"
+      },
+      "EditSave": {
+        "properties": {
+          "revision": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Revision"
+          },
+          "draft": {
+            "$ref": "#/components/schemas/EditDraft"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "revision",
+          "draft"
+        ],
+        "title": "EditSave"
+      },
+      "EditState": {
+        "properties": {
+          "revision": {
+            "type": "integer",
+            "title": "Revision"
+          },
+          "draft": {
+            "$ref": "#/components/schemas/EditDraft"
+          },
+          "specification": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Specification"
+          },
+          "blockers": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Blockers"
+          },
+          "timeline": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "type": "array",
+            "title": "Timeline"
+          },
+          "exports": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "type": "array",
+            "title": "Exports"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "revision",
+          "draft",
+          "specification",
+          "blockers",
+          "timeline",
+          "exports"
+        ],
+        "title": "EditState"
+      },
       "EntityCreate": {
         "properties": {
           "kind": {
@@ -4715,6 +5323,21 @@
           "revision"
         ],
         "title": "EntityUpdate"
+      },
+      "ExportCreate": {
+        "properties": {
+          "revision": {
+            "type": "integer",
+            "minimum": 1.0,
+            "title": "Revision"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "revision"
+        ],
+        "title": "ExportCreate"
       },
       "FileOut": {
         "properties": {
@@ -5040,6 +5663,28 @@
           "voice"
         ],
         "title": "LineBindingOut"
+      },
+      "LineTiming": {
+        "properties": {
+          "line_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Line Id"
+          },
+          "start": {
+            "type": "number",
+            "maximum": 36000.0,
+            "minimum": 0.0,
+            "title": "Start"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "line_id",
+          "start"
+        ],
+        "title": "LineTiming"
       },
       "MediaRetry": {
         "properties": {

@@ -24,9 +24,14 @@ def submit(
     idempotency_key: str = Header(min_length=1, max_length=128),
     db: Session = Depends(session),
 ):
+    owned_project(db, pid, lock=True)
     f = owned_file(db, pid, body.file_id)
     snapshot = {"schemaVersion": 1, "kind": body.kind, "file_id": str(f.id), "sha256": f.sha256}
     fingerprint = hashlib.sha256(json.dumps(snapshot, sort_keys=True).encode()).hexdigest()
+    from shortfilm.creation.service import existing_job
+    existing = existing_job(db, pid, idempotency_key, snapshot)
+    if existing:
+        return existing
     jid = uuid4()
     inserted = db.execute(
         insert(Job)
