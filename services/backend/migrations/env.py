@@ -1,6 +1,8 @@
 from alembic import context
 from shortfilm.db import engine
 from shortfilm.models import Base
+from shortfilm.assets import models as asset_models  # noqa: F401
+from shortfilm.media import models as media_models  # noqa: F401
 from shortfilm import config_models  # noqa: F401
 
 if context.is_offline_mode():

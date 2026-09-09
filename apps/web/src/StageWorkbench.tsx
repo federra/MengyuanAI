@@ -1,4 +1,13 @@
 import { useEffect, useState } from "react";
+import {
+  useMedia,
+  BoardMedia,
+  MediaToolbar,
+  ShotVideo,
+  ShotAudio,
+  ShotPosition,
+} from "./MediaWorkbench";
+import { EntityManager } from "./EntityManager";
 import { api, unwrap, type MediaFile } from "./api";
 import type { components } from "./generated/api";
 import { readDraft, storeDraft, removeDraft, durableCommand } from "./commands";
@@ -417,6 +426,7 @@ export function StageWorkbench({
           {notice}
         </p>
       )}
+      {stage === "board" && <EntityManager key={pid} pid={pid} />}
       {!item || !body ? (
         <section className="empty">
           <p>
@@ -500,12 +510,26 @@ export function StageWorkbench({
                   </details>
                 </>
               ) : (
-                <BoardEditor
+                <BoardMedia
+                  key={pid}
                   pid={pid}
-                  body={body as components["schemas"]["BoardBody"]}
-                  setBody={setBody}
-                  files={files}
-                />
+                  version={item.version_id}
+                  enabled={
+                    !busy &&
+                    !dirty &&
+                    base === item.revision &&
+                    !item.stale &&
+                    confirmed
+                  }
+                  onFiles={setFiles}
+                >
+                  <BoardEditor
+                    pid={pid}
+                    body={body as components["schemas"]["BoardBody"]}
+                    setBody={setBody}
+                    files={files}
+                  />
+                </BoardMedia>
               )}
             </fieldset>
             <div className="actions">
@@ -604,8 +628,7 @@ export function StageWorkbench({
               </div>
             ) : (
               <p className="muted">
-                确认分镜使用“保留当前版继续”。参考图、配音和视频生成尚待 M2
-                接入。
+                确认分镜使用“保留当前版继续”。生成任务保留输入快照；参考图须人工确认后才能用于视频。
               </p>
             )}
             <details className="version-history">
@@ -809,6 +832,10 @@ function BoardEditor({
   files: MediaFile[];
 }) {
   type Shot = components["schemas"]["Shot"];
+  const media = useMedia();
+  const refFile = (shot: string, ref: string) =>
+    media.references.find((r) => r.shot_id === shot && r.ref_id === ref)
+      ?.file_id || ref;
   function change(index: number, shot: Shot) {
     setBody({
       ...body,
@@ -832,6 +859,7 @@ function BoardEditor({
   }
   return (
     <div className="board-editor">
+      <MediaToolbar body={body} />
       <div className="table-wrap">
         <table className="board-table">
           <thead>
@@ -895,7 +923,19 @@ function BoardEditor({
                               />
                             ) : (
                               <input
-                                value={d[f]}
+                                value={
+                                  f === "speaker"
+                                    ? media.bindings.find(
+                                        (b) => b.line_id === d.id,
+                                      )?.name || d[f]
+                                    : d[f]
+                                }
+                                readOnly={
+                                  f === "speaker" &&
+                                  !!media.bindings.find(
+                                    (b) => b.line_id === d.id,
+                                  )?.entity_id
+                                }
                                 onChange={(e) =>
                                   change(i, {
                                     ...s,
@@ -947,6 +987,18 @@ function BoardEditor({
                 <td>
                   <details open>
                     <summary>图片引用（角色 / 场景 / 道具 / 站位）</summary>
+                    <ShotPosition
+                      shot={s}
+                      onBind={(id) =>
+                        change(i, {
+                          ...s,
+                          refs: {
+                            ...s.refs,
+                            positions: [...(s.refs.positions || []), id],
+                          },
+                        })
+                      }
+                    />
                     {!files.length ? (
                       <div>
                         {["角色", "场景", "道具", "站位"].map((name) => (
@@ -996,21 +1048,57 @@ function BoardEditor({
                           </select>
                           <div className="reference-previews">
                             {(s.refs[kind] || []).map((id) => (
-                              <a
-                                key={id}
-                                href={`/api/v1/projects/${pid}/files/${id}`}
-                                target="_blank"
-                                rel="noreferrer"
-                              >
-                                <img
-                                  src={`/api/v1/projects/${pid}/files/${id}`}
-                                  alt={
-                                    files.find((f) => f.id === id)?.filename ||
-                                    id
-                                  }
-                                />
-                                <small>{id}</small>
-                              </a>
+                              <div key={id}>
+                                <a
+                                  href={`/api/v1/projects/${pid}/files/${refFile(s.id, id)}`}
+                                  target="_blank"
+                                  rel="noreferrer"
+                                >
+                                  <img
+                                    src={`/api/v1/projects/${pid}/files/${refFile(s.id, id)}`}
+                                    alt={
+                                      files.find((f) => f.id === id)
+                                        ?.filename || id
+                                    }
+                                  />
+                                  <small>{id}</small>
+                                </a>
+                                <label className="field">
+                                  替换图片（保留引用ID）
+                                  <select
+                                    disabled={!media.enabled || media.busy}
+                                    value={refFile(s.id, id)}
+                                    onChange={(e) =>
+                                      void media
+                                        .run(
+                                          `/shots/${s.id}/references/${id}`,
+                                          {
+                                            board_version_id: media.version,
+                                            revision:
+                                              media.references.find(
+                                                (r) =>
+                                                  r.shot_id === s.id &&
+                                                  r.ref_id === id,
+                                              )?.revision || 0,
+                                            file_id: e.target.value,
+                                          },
+                                          "PUT",
+                                        )
+                                        .catch(() => {})
+                                    }
+                                  >
+                                    {files
+                                      .filter((f) =>
+                                        f.mime.startsWith("image/"),
+                                      )
+                                      .map((f) => (
+                                        <option key={f.id} value={f.id}>
+                                          {f.filename}
+                                        </option>
+                                      ))}
+                                  </select>
+                                </label>
+                              </div>
                             ))}
                           </div>
                         </label>
@@ -1043,10 +1131,10 @@ function BoardEditor({
                   </label>
                 </td>
                 <td>
-                  <p className="muted">视频生成待 M2 接入</p>
+                  <ShotVideo shot={s} previousShotId={body.shots[i - 1]?.id} />
                 </td>
                 <td>
-                  <p className="muted">独立配音待 M2 接入</p>
+                  <ShotAudio shot={s} />
                 </td>
                 <td>
                   {" "}

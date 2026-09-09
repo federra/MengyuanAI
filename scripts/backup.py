@@ -50,7 +50,7 @@ def backup():
     destination.mkdir(parents=True)
     with connect(connection_url) as conn:
         active = conn.execute(
-            "SELECT count(*) FROM generation_jobs WHERE state IN ('queued','running','waiting_provider')"
+            "SELECT count(*) FROM generation_jobs WHERE state IN ('queued','running','waiting_provider','waiting_dependency','cancel_requested')"
         ).fetchone()[0]
         if active:
             raise SystemExit("仍有在途任务，请完成或对账后停写备份。")

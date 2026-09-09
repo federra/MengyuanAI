@@ -188,7 +188,9 @@ export function ModelCredentials({
       </button>
       <button onClick={() => setRefresh((v) => v + 1)}>刷新凭据状态</button>
       <p className="muted">
-        连接测试会向已保存的文本模型发送一个小请求，可能消耗供应商用量。
+        {value?.capability === "text"
+          ? "连接测试会向已保存的文本模型发送一个小请求，可能消耗供应商用量。"
+          : "媒体密钥可在此保存；真实能力验证从分镜工作台发起生成，会消耗供应商用量。保存密钥不发起生成。"}
       </p>
       <button
         disabled={dirty || !status || value?.capability !== "text" || !!secret}

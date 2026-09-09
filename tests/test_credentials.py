@@ -259,3 +259,17 @@ def test_broken_vault_symlink_cannot_fall_back_to_environment(tmp_path, monkeypa
     monkeypatch.setenv("LINK_KEY", "environment-fallback")
     with pytest.raises(credentials.CredentialError):
         credentials.resolve("LINK_KEY", "https://example.com")
+
+
+def test_public_origin_allows_settings_but_rejects_cross_site_writes(monkeypatch):
+    from fastapi.testclient import TestClient
+    from shortfilm.config import settings
+    from shortfilm.main import app
+    monkeypatch.setattr(settings, 'public_origin', 'https://121.199.40.214')
+    with TestClient(app) as client:
+        response = client.put('/api/v1/settings/asset-credentials', json={}, headers={'Origin': 'https://121.199.40.214'})
+        assert response.status_code == 422
+        response = client.post('/api/v1/projects', json={}, headers={'Origin': 'https://foreign.example'})
+        assert response.status_code == 403
+        response = client.post('/api/v1/projects', json={}, headers={'Sec-Fetch-Site': 'cross-site'})
+        assert response.status_code == 403

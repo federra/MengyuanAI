@@ -1,3 +1,4 @@
+import { AssetCredentials } from "./AssetCredentials";
 import { ModelCredentials } from "./ModelCredentials";
 import { useEffect, useState } from "react";
 import { api, unwrap, type Project } from "./api";
@@ -749,6 +750,55 @@ function ModelSettings() {
                   沿用类别默认模型
                 </label>
               )}
+              {category !== "text" && (
+                <div className="actions">
+                  <button
+                    onClick={() => {
+                      const defaults: Record<
+                        string,
+                        Record<string, unknown>
+                      > = {
+                        image: {
+                          provider: "volcengine",
+                          model: "doubao-seedream-4-5-251128",
+                          endpoint: "https://ark.cn-beijing.volces.com/api/v3",
+                          credential_ref: "ARK_API_KEY",
+                          timeout_seconds: 120,
+                        },
+                        video: {
+                          provider: "volcengine",
+                          model: "doubao-seedance-2-0-mini-260615",
+                          endpoint: "https://ark.cn-beijing.volces.com/api/v3",
+                          credential_ref: "ARK_API_KEY",
+                          timeout_seconds: 120,
+                        },
+                        audio: {
+                          provider: "minimax",
+                          model: "speech-2.8-hd",
+                          endpoint: "https://api.minimax.cn/v1",
+                          credential_ref: "MINIMAX_API_KEY",
+                          timeout_seconds: 120,
+                        },
+                      };
+                      setDrafts((d) => ({
+                        ...d,
+                        [node]: {
+                          ...d[node],
+                          inherit: false,
+                          value: defaults[category],
+                        },
+                      }));
+                    }}
+                  >
+                    填入已选供应商配置草稿
+                  </button>
+                  <small>
+                    {category === "video"
+                      ? "已选 Seedance 2.0 Mini；本流程使用 720P，多参考模式以尾帧作参考，不保证严格首帧。"
+                      : "填入后保存模型配置，再通过下方密码框保存密钥。"}
+                  </small>
+                </div>
+              )}
               <div className="model-fields">
                 {[
                   "provider",
@@ -818,6 +868,7 @@ function ModelSettings() {
               />
             </fieldset>
           )}
+          {category === "video" && <AssetCredentials />}
           {error && <p role="alert">{error}</p>}
           {notice && <p role="status">{notice}</p>}
         </div>

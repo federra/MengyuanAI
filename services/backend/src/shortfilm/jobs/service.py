@@ -80,6 +80,11 @@ def execute_job(job_id):
     try:
         with Session() as db:
             j = db.get(Job, as_uuid(job_id))
+            from shortfilm.media.execution import media_kind
+            if media_kind(j.kind):
+                from shortfilm.media.execution import execute_media
+                execute_media(job_id, token)
+                return
             if is_text(j.kind):
                 snapshot = j.snapshot
             else:
@@ -122,6 +127,9 @@ def recover_jobs():
             attempt = db.scalar(select(JobAttempt).where(JobAttempt.token == j.lease_token))
             if attempt:
                 attempt.state, attempt.finished_at = "interrupted", now()
+            from shortfilm.media.execution import media_kind, recover_media
+            if media_kind(j.kind) and recover_media(db, j):
+                continue
             # Only local deterministic jobs may be automatically resubmitted.
             j.state = "queued" if j.kind == "file.verify" else "unknown"
             j.lease_token, j.lease_until, j.updated_at = None, None, now()

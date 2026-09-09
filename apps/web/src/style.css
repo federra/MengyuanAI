@@ -1445,3 +1445,20 @@ dd {
 .settings-dialog-body .model-settings .config-layout {
   height: calc(85vh - 305px);
 }
+
+.entity-reference-list { display:flex; flex-wrap:wrap; gap:16px; }
+.entity-reference-list article { width:180px; padding:12px; border:1px solid var(--line); border-radius:8px; }
+.entity-reference-list img { width:100%; height:140px; object-fit:contain; }
+.entity-dialog table { width:100%; }
+.entity-dialog td { max-width:420px; white-space:pre-wrap; overflow-wrap:anywhere; }
+.entity-dialog footer { gap:20px; }
+
+.media-toolbar { flex-wrap: wrap; }
+.board-table video { display: block; width: 220px; max-width: 100%; }
+.board-table audio { display: block; width: 230px; max-width: 100%; }
+.tail-preview { width: 90px; max-height: 90px; object-fit: contain; }
+.media-history article { border-bottom: 1px solid var(--line); padding-block: 8px; }
+.media-history pre { max-width: 260px; max-height: 300px; overflow: auto; }
+.audio-line { display: flex; flex-direction: column; min-width: 210px; }
+.board-table th:nth-child(6) { width: 260px; }
+.audio-line button { align-self: flex-start; }

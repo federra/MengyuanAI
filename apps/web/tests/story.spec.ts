@@ -1302,3 +1302,331 @@ test("UI alignment: four themes and settings dismissal preserve editor and model
     "unsaved-model-draft",
   );
 });
+
+test("M2 element editor keeps draft across closing and theme changes, surfaces conflicts", async ({
+  page,
+}) => {
+  const entity = {
+    id: "entity-1",
+    version_id: "entity-v1",
+    revision: 1,
+    kind: "character",
+    name: "邮差",
+    description: "蓝制服",
+    voice: "",
+    three_view: false,
+  };
+  await page.route("**/entities", (route) => route.fulfill({ json: [entity] }));
+  await page.route("**/entities/entity-1", (route) =>
+    route.fulfill({
+      status: 409,
+      json: { detail: "元素已更新，请读取最新版本并合并草稿" },
+    }),
+  );
+  await page.getByRole("button", { name: "4　分镜" }).click();
+  await page.getByRole("button", { name: "角色管理", exact: true }).click();
+  const dialog = page.getByRole("dialog", { name: "角色管理", exact: true });
+  await expect(dialog).toBeVisible();
+  await dialog.getByRole("button", { name: "编辑邮差", exact: true }).click();
+  await dialog.getByLabel("元素描述").fill("人工草稿：红制服");
+  await dialog.getByRole("button", { name: "关闭元素管理" }).click();
+  await page.getByLabel("UI主题").selectOption("noir");
+  await page.getByRole("button", { name: "角色管理", exact: true }).click();
+  await expect(dialog.getByLabel("元素描述")).toHaveValue("人工草稿：红制服");
+  await dialog.getByRole("button", { name: "保存元素", exact: true }).click();
+  await expect(dialog.getByRole("alert")).toContainText("元素已更新");
+  await expect(dialog.getByLabel("元素描述")).toHaveValue("人工草稿：红制服");
+  await dialog.screenshot({ path: "test-results/m2-element-dialog.png" });
+  await dialog.press("Escape");
+  await expect(dialog).not.toBeVisible();
+  await expect(
+    page.getByRole("button", { name: "角色管理", exact: true }),
+  ).toBeFocused();
+});
+
+test("M2 reference preview and explicit confirmation use saved image identity", async ({
+  page,
+}) => {
+  await page.route(`**/api/v1/projects/${project.id}`, (route) =>
+    route.fulfill({
+      json: { ...project, generation_settings: { revision: 1 } },
+    }),
+  );
+  const entity = {
+    id: "entity-1",
+    version_id: "ev1",
+    revision: 1,
+    kind: "character",
+    name: "邮差",
+    description: "蓝制服",
+    voice: "",
+    three_view: false,
+  };
+  const image = {
+    id: "image-1",
+    entity_id: "entity-1",
+    entity_version_id: "ev1",
+    file_id: "file-1",
+    kind: "character",
+    name: "邮差",
+    stale: false,
+    confirmed: false,
+  };
+  await page.route("**/entities", (route) => route.fulfill({ json: [entity] }));
+  await page.route("**/reference-images", (route) =>
+    route.fulfill({ json: [image] }),
+  );
+  await page.route("**/reference-images/image-1/confirm", async (route) => {
+    expect(route.request().postDataJSON()).toEqual({
+      specification_revision: 1,
+    });
+    image.confirmed = true;
+    await route.fulfill({ json: image });
+  });
+  await page.getByRole("button", { name: "4　分镜" }).click();
+  await page.getByRole("button", { name: "角色管理", exact: true }).click();
+  const dialog = page.getByRole("dialog", { name: "角色管理", exact: true });
+  await dialog.getByRole("button", { name: "编辑邮差", exact: true }).click();
+  await expect(
+    dialog.getByRole("link", { name: "预览邮差参考图" }),
+  ).toHaveAttribute("href", `/api/v1/projects/${project.id}/files/file-1`);
+  await dialog.getByRole("button", { name: "确认此参考图" }).click();
+  await expect(dialog.getByText("已确认", { exact: true })).toBeVisible();
+});
+
+test("M2 recovers multiple new drafts including description-only drafts", async ({
+  page,
+}) => {
+  await page.route("**/entities", (route) => route.fulfill({ json: [] }));
+  await page.getByRole("button", { name: "4　分镜" }).click();
+  await page.getByRole("button", { name: "角色管理", exact: true }).click();
+  const dialog = page.getByRole("dialog", { name: "角色管理", exact: true });
+  await dialog.getByLabel("元素描述").fill("未命名草稿");
+  await dialog.getByRole("button", { name: "新增角色", exact: true }).click();
+  await dialog.getByLabel("元素名称").fill("第二草稿");
+  await dialog.getByRole("button", { name: "新增角色", exact: true }).click();
+  await dialog
+    .getByRole("button", { name: "恢复草稿：未命名草稿", exact: true })
+    .click();
+  await expect(dialog.getByLabel("元素描述")).toHaveValue("未命名草稿");
+  await dialog
+    .getByRole("button", { name: "恢复草稿：第二草稿", exact: true })
+    .click();
+  await expect(dialog.getByLabel("元素名称")).toHaveValue("第二草稿");
+});
+
+test("M2 conflict draft can be compared and saved against refreshed revision", async ({
+  page,
+}) => {
+  const entity = {
+    id: "entity-1",
+    version_id: "v1",
+    revision: 1,
+    kind: "character",
+    name: "邮差",
+    description: "蓝制服",
+    voice: "",
+    three_view: false,
+  };
+  await page.route("**/entities", (route) => route.fulfill({ json: [entity] }));
+  await page.route("**/reference-images", (route) =>
+    route.fulfill({ json: [] }),
+  );
+  await page.route("**/entities/entity-1", (route) => {
+    const body = route.request().postDataJSON();
+    if (body.revision !== entity.revision)
+      return route.fulfill({ status: 409, json: { detail: "元素已更新" } });
+    Object.assign(entity, body, { revision: entity.revision + 1 });
+    return route.fulfill({ json: entity });
+  });
+  await page.getByRole("button", { name: "4　分镜" }).click();
+  await page.getByRole("button", { name: "角色管理", exact: true }).click();
+  const dialog = page.getByRole("dialog", { name: "角色管理", exact: true });
+  await dialog.getByRole("button", { name: "编辑邮差", exact: true }).click();
+  await dialog.getByLabel("元素描述").fill("红制服草稿");
+  entity.revision = 2;
+  entity.description = "其他窗口的绿制服";
+  await dialog.getByRole("button", { name: "保存元素", exact: true }).click();
+  await expect(dialog.getByRole("alert")).toContainText("元素已更新");
+  await dialog.getByRole("button", { name: "关闭元素管理" }).click();
+  await page.getByRole("button", { name: "角色管理", exact: true }).click();
+  await expect(
+    dialog.getByRole("cell", { name: "v2", exact: true }),
+  ).toBeVisible();
+  await dialog.getByRole("button", { name: "编辑邮差", exact: true }).click();
+  await dialog
+    .getByRole("button", { name: "恢复草稿：邮差", exact: true })
+    .click();
+  await expect(dialog.getByLabel("元素描述")).toHaveValue("红制服草稿");
+  await expect(
+    dialog.getByText("当前已保存描述：其他窗口的绿制服", { exact: true }),
+  ).toBeVisible();
+  await dialog.getByRole("button", { name: "保存元素", exact: true }).click();
+  await expect(dialog.getByRole("status")).toContainText("元素已保存");
+  expect(entity.revision).toBe(3);
+  expect(entity.description).toBe("红制服草稿");
+});
+
+async function setupMediaBoard(page: import("@playwright/test").Page) {
+  const shot = {
+    id: "shot-media",
+    prompt: "邮差打开信封",
+    duration: 5,
+    dialogue: "原始台词",
+    dialogues: [
+      {
+        id: "line-media",
+        speaker: "邮差",
+        emotion: "坚定",
+        text: "原始台词",
+        voice: "male-qn-qingse",
+      },
+    ],
+    refs: { characters: [], scenes: [], props: [], positions: [] },
+  };
+  const item = {
+    ...story,
+    id: "board-media",
+    kind: "board",
+    version_id: "board-media-v1",
+    source_version_id: "script-v1",
+    body: { schemaVersion: 2, scriptId: "script-v1", shots: [shot] },
+  };
+  await page.route("**/stages/board", (route) =>
+    route.fulfill({
+      json: {
+        item,
+        confirmation: { version_id: item.version_id },
+        reports: [],
+      },
+    }),
+  );
+  await page.getByRole("button", { name: "4　分镜" }).click();
+  return { shot, item };
+}
+
+test("M2 media submission preserves command after lost response and keeps explicit performance", async ({
+  page,
+}) => {
+  const keys: string[] = [];
+  await page.route("**/media/audio", async (route) => {
+    keys.push(route.request().headers()["idempotency-key"]);
+    expect(route.request().postDataJSON()).toMatchObject({
+      line_id: "line-media",
+      emotion: "happy",
+      speed: 1,
+    });
+    if (keys.length === 1) return route.abort("failed");
+    return route.fulfill({ status: 202, json: { id: "audio-job" } });
+  });
+  await setupMediaBoard(page);
+  await page
+    .getByRole("combobox", { name: "配音表现", exact: true })
+    .selectOption("happy");
+  await page
+    .getByRole("button", { name: "生成第1段配音", exact: true })
+    .click();
+  await expect(
+    page.getByRole("alert").filter({ hasText: /fetch|Failed|操作/i }),
+  ).toBeVisible();
+  await page.reload();
+  await page.getByRole("button", { name: "继续创作 →" }).click();
+  await page.getByRole("button", { name: "4　分镜" }).click();
+  await expect(
+    page.getByRole("combobox", { name: "配音表现", exact: true }),
+  ).toHaveValue("happy");
+  await page
+    .getByRole("button", { name: "生成第1段配音", exact: true })
+    .click();
+  await expect.poll(() => keys.length).toBe(2);
+  expect(keys[1]).toBe(keys[0]);
+  await expect(page.getByRole("textbox", { name: "台词", exact: true })).toHaveValue(
+    "原始台词",
+  );
+  await page.getByRole("textbox", { name: "台词", exact: true }).fill("未保存草稿");
+  await expect(
+    page.getByRole("button", { name: "生成第1段配音", exact: true }),
+  ).toBeDisabled();
+});
+
+test("M2 media reload renders exact stored audio video and stale state", async ({
+  page,
+}) => {
+  await page.route("**/media/results", (route) =>
+    route.fulfill({
+      json: [
+        {
+          id: "video-v1",
+          job_id: "video-job",
+          kind: "media.video",
+          target_id: "shot-media",
+          file_id: "video-file",
+          tail_file_id: "tail-file",
+          metadata: { duration: 5 },
+          stale: true,
+          confirmed: false,
+        },
+        {
+          id: "audio-v1",
+          job_id: "audio-job",
+          kind: "media.audio",
+          target_id: "line-media",
+          file_id: "audio-file",
+          tail_file_id: null,
+          metadata: { duration: 6 },
+          stale: false,
+          confirmed: false,
+        },
+      ],
+    }),
+  );
+  await setupMediaBoard(page);
+  await expect(page.locator("video")).toHaveAttribute(
+    "src",
+    `/api/v1/projects/${project.id}/files/video-file`,
+  );
+  await expect(page.locator("audio")).toHaveAttribute(
+    "src",
+    `/api/v1/projects/${project.id}/files/audio-file`,
+  );
+  await expect(
+    page.getByText("最近结果 · 待更新", { exact: true }),
+  ).toBeVisible();
+  await expect(page.getByText(/长于镜头，请调整时长或语速/)).toBeVisible();
+  await page.getByRole("button", { name: "收起导演助手" }).click();
+  await page
+    .locator(".board-editor")
+    .screenshot({ path: "test-results/m2-media-workbench.png" });
+});
+
+test("asset AK SK are write-only and never enter browser drafts", async ({ page }) => {
+  let saved = false;
+  await page.route("**/settings/asset-credentials", async route => {
+    if (route.request().method() === "PUT") {
+      const body = route.request().postDataJSON();
+      expect(body.access_key).toBe("dummy-asset-ak");
+      expect(body.secret_key).toBe("dummy-asset-sk");
+      expect(body.bucket).toBe("mengyuanaibucket");
+      saved = true;
+    }
+    await route.fulfill({json: {configured:saved,revision:saved ? 1 : 0,configuration:null,connection_state:"not_tested"}});
+  });
+  await page.getByRole("button", {name:"系统设置",exact:true}).click();
+  await page.getByRole("button", {name:/大模型配置/}).click();
+  await page.getByRole("button", {name:"生视频",exact:true}).click();
+  await page.getByText("方舟素材上传与审核配置", {exact:true}).click();
+  const ak = page.getByLabel("素材 Access Key",{exact:true});
+  const sk = page.getByLabel("素材 Secret Key",{exact:true});
+  await expect(ak).toHaveAttribute("type","password");
+  await ak.fill("dummy-asset-ak"); await sk.fill("dummy-asset-sk");
+  expect(await page.evaluate(()=>JSON.stringify(localStorage))).not.toContain("dummy-asset");
+  await page.getByRole("button",{name:"保存素材配置与 AK/SK",exact:true}).click();
+  await expect(ak).toHaveValue(""); await expect(sk).toHaveValue("");
+  await expect(page.getByRole("status")).toContainText("尚未验证");
+  await page.route("**/settings/asset-credentials", route => route.fulfill({json:{
+    configured:true, revision:2, configuration:{bucket:"changed-remote-bucket",region:"cn-beijing",project_name:"another-project"},connection_state:"not_tested"
+  }}));
+  await page.getByRole("button",{name:"读取最新素材配置基准（保留输入）",exact:true}).click();
+  await expect(page.getByLabel("TOS 桶名",{exact:true})).toHaveValue("mengyuanaibucket");
+  await expect(page.getByRole("button",{name:"检查已保存的读取权限（可能产生请求费）",exact:true})).toBeDisabled();
+});

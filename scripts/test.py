@@ -13,6 +13,8 @@ from sqlalchemy.engine import make_url
 ROOT = Path(__file__).resolve().parents[1]
 os.chdir(ROOT)
 url = make_url(settings.database_url)
+if url.query:
+    raise SystemExit("隔离测试拒绝数据库URL查询参数，避免覆盖临时数据库目标。")
 name = "shortfilm_test_" + uuid4().hex[:12]
 admin = url.set(drivername="postgresql", database="postgres").render_as_string(hide_password=False)
 with connect(admin, autocommit=True) as conn:

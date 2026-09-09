@@ -575,6 +575,13 @@
         "overrideVersion",
         "effectiveText"
       ]
+    },
+    "m2Decision": {
+      "date": "2026-09-09",
+      "provider": "Seedance",
+      "previousFrameMode": "multi-reference",
+      "strictFirstFrame": false,
+      "referenceMapping": "ordered actual input images mapped by stable refId; previous video and actual frame version retained"
     }
   },
   {
@@ -603,6 +610,12 @@
         "overrideVersion",
         "effectiveText"
       ]
+    },
+    "m2Decision": {
+      "date": "2026-09-09",
+      "provider": "MiniMax speech-2.8-hd",
+      "performance": "explicit provider emotion and speed; source dialogue/emotion unchanged",
+      "freeSystemPrompt": false
     }
   },
   {

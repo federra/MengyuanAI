@@ -6,6 +6,7 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_prefix="SHORTFILM_", extra="ignore")
+    public_origin: str = ""
     database_url: str = "postgresql+psycopg://shortfilm@127.0.0.1:55432/shortfilm"
     redis_url: str = "redis://127.0.0.1:56379/0"
     storage_root: Path = Path(".local/media")

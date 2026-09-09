@@ -14,6 +14,8 @@ logger = logging.getLogger(__name__)
 
 def dispatch_once():
     recover_jobs()
+    from shortfilm.media.execution import release_waiting
+    release_waiting()
     # Publish outside a database transaction. A crash between send and mark may
     # duplicate delivery, which the worker's row lock and result PK absorb.
     with Session() as db:
