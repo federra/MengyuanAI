@@ -51,7 +51,8 @@
       "templateVariable": "{{storyCount}}",
       "outputValidation": "stories.length === request.storyCount",
       "legacyTemplates": "preserve versions; applicationConstraints overrides fixed count"
-    }
+    },
+    "sourceSaveContract": "生成前等待700ms自动保存落库，冻结精确源版本；无独立本次补充要求，冲突保留草稿"
   },
   {
     "id": "P02",
@@ -94,7 +95,8 @@
         "overrideVersion",
         "effectiveText"
       ]
-    }
+    },
+    "sourceSaveContract": "生成前等待700ms自动保存落库，冻结精确源版本；无独立本次补充要求，冲突保留草稿"
   },
   {
     "id": "P03",
@@ -137,7 +139,8 @@
       "milestone": "M1",
       "status": "engineering-fixture-verified",
       "validation": "49项后端、19项浏览器及实际HTTP文本替身内容链通过；真实DeepSeek密钥未注入，输出质量/耗时/费用待验收"
-    }
+    },
+    "sourceSaveContract": "生成前等待700ms自动保存落库，冻结精确源版本；无独立本次补充要求，冲突保留草稿"
   },
   {
     "id": "P04",
@@ -849,7 +852,7 @@
     "inputs": "上传完整原文、文件名、来源ID",
     "output": "单一title/logline，正文保持原文",
     "acceptance": "只提炼1张卡；不得改写或截断原文",
-    "demoStatus": "本地规则演示",
+    "demoStatus": "可选语义增强；当前TXT导入不调用",
     "modelCategory": "text",
     "modelResolution": [
       "projectExplicitVideoModel",
@@ -868,6 +871,18 @@
         "overrideVersion",
         "effectiveText"
       ]
+    },
+    "deterministicImport": {
+      "invokesModel": false,
+      "autoReview": false,
+      "title": "文件名去扩展名",
+      "logline": "原文首句摘录",
+      "preserveFullText": true,
+      "maxBytes": 1048576,
+      "encoding": "strict UTF-8 (optional BOM)",
+      "sourceMode": "txt",
+      "aiCharacterLimit": 50000,
+      "overLimit": "保存全文；后续故事AI明确阻止并提示先选改编范围"
     }
   },
   {
@@ -987,6 +1002,8 @@
       "milestone": "M1",
       "status": "engineering-fixture-verified",
       "validation": "49项后端、19项浏览器及实际HTTP文本替身内容链通过；真实DeepSeek密钥未注入，输出质量/耗时/费用待验收"
-    }
+    },
+    "sourceSaveContract": "生成前等待700ms自动保存落库，冻结精确源版本；无独立本次补充要求，冲突保留草稿",
+    "trigger": "右侧导演助手手动点击故事质检；不自动调用"
   }
 ]

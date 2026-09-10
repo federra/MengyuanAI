@@ -128,7 +128,6 @@ test("saving locks fields and retains current draft on conflict", async ({
     });
   });
   await page.getByLabel("故事正文").fill("我的新结局");
-  await page.getByRole("button", { name: "保存修改", exact: true }).click();
   await expect(page.getByLabel("故事正文")).toBeDisabled();
   await expect(page.getByLabel("修改要求")).toBeDisabled();
   release();
@@ -171,8 +170,8 @@ test("proposal stays separate until apply; selection saves exact new version", a
 }) => {
   let current = { ...story };
   let applied = false;
-  let selected: string | null = null;
-  let selectionRevision = 0;
+  const selected: string | null = null;
+  const selectionRevision = 0;
   const proposal = {
     id: "proposal",
     base_version_id: "story-v1",
@@ -221,27 +220,18 @@ test("proposal stays separate until apply; selection saves exact new version", a
     };
     await route.fulfill({ json: current });
   });
-  await page.route("**/stories/story/select", async (route) => {
-    expect(route.request().postDataJSON().version_id).toBe("story-v2");
-    selected = "story-v2";
-    selectionRevision = 1;
-    await route.fulfill({
-      json: {
-        items: [current],
-        total: 1,
-        selected_version_id: selected,
-        selection_revision: 1,
-      },
-    });
+  let generatedVersion: string | null = null;
+  await page.route("**/stages/script/generate", async (route) => {
+    generatedVersion = route.request().postDataJSON().source_version_id;
+    await route.abort();
   });
   await expect(page.getByRole("button", { name: "采用此版" })).toBeVisible();
   await expect(page.getByLabel("故事正文")).toHaveValue(story.body.text);
   await page.getByRole("button", { name: "采用此版" }).click();
   await expect(page.getByLabel("故事正文")).toHaveValue(proposal.output.text);
-  await page.getByRole("button", { name: "确定此故事" }).click();
-  await expect(
-    page.getByRole("button", { name: "此版本已选定" }),
-  ).toBeDisabled();
+  await expect(page.getByRole("button", { name: "确定此故事" })).toHaveCount(0);
+  await page.getByRole("button", { name: "确定故事并AI生成剧本" }).click();
+  await expect.poll(() => generatedVersion).toBe("story-v2");
   await expect(page.getByText("已采用", { exact: true })).toBeVisible();
   for (const theme of ["dark", "sky"]) {
     await page.getByLabel("UI主题").selectOption(theme);
@@ -289,7 +279,6 @@ test("named method generation preserves binding and command across reload", asyn
     keys.push(route.request().headers()["idempotency-key"]);
     await route.abort("failed");
   });
-  await page.getByText("本次写作指令与风格", { exact: true }).click();
   await expect(page.getByLabel("story方法").first()).toHaveValue("method-1");
   await page.getByRole("button", { name: "再生成3个方案" }).click();
   await expect.poll(() => keys.length).toBe(1);
@@ -896,21 +885,19 @@ for (const status of [409, 503]) {
             : { id: "job" },
       });
     });
-    await page.getByLabel("本次剧本生成要求").fill("第一条指令");
     await page.getByRole("button", { name: "确定故事并AI生成剧本" }).click();
     await expect(
       page.getByText("生成冲突或响应未知", { exact: true }),
     ).toBeVisible();
     await page.reload();
     await page.getByRole("button", { name: "继续创作 →" }).click();
-    await page.getByLabel("本次剧本生成要求").fill("修订后的指令");
     await page.getByRole("button", { name: "确定故事并AI生成剧本" }).click();
     await expect.poll(() => requests.length).toBe(2);
     if (status === 409) {
       expect(requests[1].body).toEqual({
         source_version_id: "story-v1",
         target_revision: 2,
-        instruction: "修订后的指令",
+        instruction: "",
       });
       expect(requests[1].key).not.toBe(requests[0].key);
     } else expect(requests[1]).toEqual(requests[0]);
@@ -2106,7 +2093,12 @@ test("U01–U07 four themes nine pages measured evidence", async ({
     await page.evaluate(() => document.fonts.ready);
     await page.evaluate(() => scrollTo(0, 0));
     await page.mouse.move(0, 0);
-    await page.evaluate(()=>new Promise<void>(resolve=>requestAnimationFrame(()=>requestAnimationFrame(()=>resolve()))));
+    await page.evaluate(
+      () =>
+        new Promise<void>((resolve) =>
+          requestAnimationFrame(() => requestAnimationFrame(() => resolve())),
+        ),
+    );
     await page.screenshot({ path: `${out}${name}-${theme}.png` });
     const value = await page.evaluate(() => {
       const selectors = [
@@ -2240,18 +2232,23 @@ test("U01–U07 four themes nine pages measured evidence", async ({
         .click();
       await capture(name, theme);
       if (name === "settings") {
-        await page.getByRole("button",{name:"设置",exact:true}).click();
-        await expect(page.getByRole("tab",{name:"模型",exact:true})).toBeVisible();
-        await capture("settings-model",theme);
+        await page.getByRole("button", { name: "设置", exact: true }).click();
+        await expect(
+          page.getByRole("tab", { name: "模型", exact: true }),
+        ).toBeVisible();
+        await capture("settings-model", theme);
         for (const tab of ["提示词", "风格模板"]) {
           const control = page.getByRole("tab", { name: tab, exact: true });
           if (await control.count()) {
             await control.click();
-            await expect(control).toHaveAttribute("aria-selected","true");
+            await expect(control).toHaveAttribute("aria-selected", "true");
             await capture(`settings-${tab}`, theme);
           }
         }
-        await page.getByRole("dialog",{name:"设置",exact:true}).getByRole("button",{name:"关闭",exact:true}).click();
+        await page
+          .getByRole("dialog", { name: "设置", exact: true })
+          .getByRole("button", { name: "关闭", exact: true })
+          .click();
       }
     }
   }
@@ -2293,4 +2290,142 @@ test("U01–U07 four themes nine pages measured evidence", async ({
       "720x450 CSS layout viewport equivalent; physical browser zoom separately pending",
   });
   await writeFile(`${out}measurements.json`, JSON.stringify(measures, null, 2));
+});
+
+test("story generation saves the visible draft before submitting its exact version", async ({
+  page,
+}) => {
+  const events: string[] = [];
+  await page.route("**/stories/story", async (route) => {
+    expect(route.request().postDataJSON().body.text).toBe(
+      "编辑后马上生成的故事全文",
+    );
+    events.push("save");
+    await route.fulfill({
+      json: {
+        ...story,
+        revision: 2,
+        version_id: "story-v2",
+        body: { ...story.body, text: "编辑后马上生成的故事全文" },
+      },
+    });
+  });
+  await page.route("**/stages/script/generate", async (route) => {
+    expect(route.request().postDataJSON().source_version_id).toBe("story-v2");
+    events.push("generate");
+    await route.abort();
+  });
+  await page.getByLabel("故事正文").fill("编辑后马上生成的故事全文");
+  await page.getByRole("button", { name: "确定故事并AI生成剧本" }).click();
+  await expect.poll(() => events).toEqual(["save", "generate"]);
+  await expect(
+    page.getByRole("button", { name: "保存修改", exact: true }),
+  ).toHaveCount(0);
+  await expect(page.getByLabel("本次剧本生成要求")).toHaveCount(0);
+});
+
+test("automatic story save failure pauses retries and preserves the draft", async ({
+  page,
+}) => {
+  let attempts = 0;
+  await page.route("**/stories/story", async (route) => {
+    attempts++;
+    await route.fulfill({
+      status: 409,
+      json: { detail: "故事已更新，草稿保留" },
+    });
+  });
+  await page.getByLabel("故事正文").fill("不应被服务端旧版本覆盖的草稿");
+  await expect.poll(() => attempts).toBe(1);
+  await expect(
+    page.getByRole("alert").filter({ hasText: "故事版本冲突，草稿已保留" }),
+  ).toBeVisible();
+  await page.waitForTimeout(1600);
+  expect(attempts).toBe(1);
+  await expect(page.getByLabel("故事正文")).toHaveValue(
+    "不应被服务端旧版本覆盖的草稿",
+  );
+});
+
+test("story review lives in the director and more candidates follow the cards", async ({
+  page,
+}) => {
+  await expect(
+    page
+      .locator(".director")
+      .getByRole("button", { name: "重新质检", exact: true }),
+  ).toBeVisible();
+  await expect(
+    page
+      .locator(".story-editor")
+      .getByRole("button", { name: "重新质检", exact: true }),
+  ).toHaveCount(0);
+  const more = await page
+    .getByRole("button", { name: "再生成3个方案" })
+    .boundingBox();
+  const cards = await page
+    .locator(".candidates .candidate")
+    .last()
+    .boundingBox();
+  expect(cards).not.toBeNull();
+  expect(more!.y).toBeGreaterThanOrEqual(cards!.y + cards!.height);
+  for (const theme of ["light", "dark", "sky", "noir"]) {
+    await page.getByLabel("UI主题").selectOption(theme);
+    await page.screenshot({
+      path: `test-results/flow-story-${theme}.png`,
+      fullPage: true,
+    });
+  }
+});
+
+test("slow story and conversation polls do not overlap or roll back a saved version", async ({
+  page,
+}) => {
+  let release: () => void = () => {};
+  const gate = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  let storyPolls = 0;
+  let conversationPolls = 0;
+  let current = { ...story };
+  await page.route(/\/stories(?:\?.*)?$/, async (route) => {
+    storyPolls++;
+    const snapshot = current;
+    if (storyPolls === 1) await gate;
+    await route.fulfill({
+      json: {
+        items: [snapshot],
+        total: 1,
+        selected_version_id: null,
+        selection_revision: 0,
+      },
+    });
+  });
+  await page.route("**/conversation", async (route) => {
+    conversationPolls++;
+    await gate;
+    await route.fulfill({ json: { messages: [], proposals: [] } });
+  });
+  await expect.poll(() => storyPolls).toBe(1);
+  await expect.poll(() => conversationPolls).toBe(1);
+  await page.waitForTimeout(2800);
+  expect(storyPolls).toBe(1);
+  expect(conversationPolls).toBe(1);
+  await page.route("**/stories/story", async (route) => {
+    current = {
+      ...story,
+      version_id: "story-v2",
+      revision: 2,
+      body: { ...story.body, text: route.request().postDataJSON().body.text },
+    };
+    await route.fulfill({ json: current });
+  });
+  await page.getByLabel("故事正文").fill("慢轮询不能回滚的新版本");
+  await expect(page.locator(".candidate.current")).toContainText("v2");
+  release();
+  await page.waitForTimeout(150);
+  await expect(page.locator(".candidate.current")).toContainText("v2");
+  await expect(page.getByLabel("故事正文")).toHaveValue(
+    "慢轮询不能回滚的新版本",
+  );
 });

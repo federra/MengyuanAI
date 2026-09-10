@@ -115,6 +115,8 @@ def generate_stage(
         raise HTTPException(409, "来源阶段不正确")
     if source_item.revision != source.revision or is_stale(db, source):
         raise HTTPException(409, "来源内容已过期")
+    if len(source.body.get("text", "")) > 50000:
+        raise HTTPException(422, "全文已保留；超过当前上下文预算，请先确定改编范围并保存故事新版本")
     context = {**command, "input": source.body, "source": source.body, "market": p.market}
     frozen = configuration(db, p, command["kind"], context)
     # This decision and downstream enqueue are a single transaction.
@@ -158,6 +160,8 @@ def content_command(db, p, item, version_id, kind, text="", report_id=None):
     v = current_version(db, item)
     if v is None or v.id != version_id or is_stale(db, v):
         raise HTTPException(409, "内容或来源版本已变化")
+    if len(v.body.get("text", "")) > 50000:
+        raise HTTPException(422, "全文已保留；超过当前上下文预算，请先确定改编范围并保存故事新版本")
     parent = upstream(db, v)
     context = {
         "kind": kind,

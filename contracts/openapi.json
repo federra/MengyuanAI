@@ -2270,6 +2270,70 @@
         }
       }
     },
+    "/api/v1/projects/{pid}/stories/import-txt": {
+      "post": {
+        "tags": [
+          "creation"
+        ],
+        "summary": "Upload Story Txt",
+        "operationId": "upload_story_txt_api_v1_projects__pid__stories_import_txt_post",
+        "parameters": [
+          {
+            "name": "pid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Pid"
+            }
+          },
+          {
+            "name": "idempotency-key",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128,
+              "title": "Idempotency-Key"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TxtImport"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StoriesOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/projects/{pid}/versions/{version_id}": {
       "get": {
         "tags": [
@@ -8286,6 +8350,15 @@
       },
       "StoriesOut": {
         "properties": {
+          "source_mode": {
+            "type": "string",
+            "enum": [
+              "idea",
+              "txt"
+            ],
+            "title": "Source Mode",
+            "default": "idea"
+          },
           "items": {
             "items": {
               "$ref": "#/components/schemas/ContentOut"
@@ -8346,7 +8419,7 @@
           },
           "text": {
             "type": "string",
-            "maxLength": 50000,
+            "maxLength": 1048576,
             "minLength": 1,
             "title": "Text"
           }
@@ -8379,6 +8452,42 @@
           "body"
         ],
         "title": "StorySave"
+      },
+      "TxtImport": {
+        "properties": {
+          "filename": {
+            "type": "string",
+            "maxLength": 255,
+            "minLength": 1,
+            "title": "Filename"
+          },
+          "text": {
+            "type": "string",
+            "maxLength": 1048576,
+            "minLength": 1,
+            "title": "Text"
+          },
+          "expected_story_version_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Expected Story Version Id"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "filename",
+          "text",
+          "expected_story_version_id"
+        ],
+        "title": "TxtImport"
       },
       "TypeCreate": {
         "properties": {

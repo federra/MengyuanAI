@@ -610,6 +610,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/projects/{pid}/stories/import-txt": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Upload Story Txt */
+        post: operations["upload_story_txt_api_v1_projects__pid__stories_import_txt_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/projects/{pid}/versions/{version_id}": {
         parameters: {
             query?: never;
@@ -2774,6 +2791,12 @@ export interface components {
         };
         /** StoriesOut */
         StoriesOut: {
+            /**
+             * Source Mode
+             * @default idea
+             * @enum {string}
+             */
+            source_mode: "idea" | "txt";
             /** Items */
             items: components["schemas"]["ContentOut"][];
             /** Total */
@@ -2799,6 +2822,15 @@ export interface components {
             /** Revision */
             revision: number;
             body: components["schemas"]["StoryBody"];
+        };
+        /** TxtImport */
+        TxtImport: {
+            /** Filename */
+            filename: string;
+            /** Text */
+            text: string;
+            /** Expected Story Version Id */
+            expected_story_version_id: string | null;
         };
         /** TypeCreate */
         TypeCreate: {
@@ -4369,6 +4401,43 @@ export interface operations {
             cookie?: never;
         };
         requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StoriesOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    upload_story_txt_api_v1_projects__pid__stories_import_txt_post: {
+        parameters: {
+            query?: never;
+            header: {
+                "idempotency-key": string;
+            };
+            path: {
+                pid: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TxtImport"];
+            };
+        };
         responses: {
             /** @description Successful Response */
             200: {

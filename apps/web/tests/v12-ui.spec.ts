@@ -25,7 +25,26 @@ test.beforeEach(async ({ page }) => {
         total: 3,
         statistics: { total: 3, in_progress: 3, completed: 0, failed_jobs: 0 },
       };
-    else if (p === "/api/v1/settings")
+    else if (/^\/api\/v1\/projects\/[^/]+$/.test(p)) {
+      const id = p.split("/").at(-1)!;
+      const number = id === pid ? 1 : Number(id.at(-1));
+      body = {
+        id,
+        name: `独立验收项目${number}`,
+        market: "zh",
+        revision: 1,
+        stage: "idea",
+        status: "in_progress",
+        type_id: null,
+        generation_settings: {
+          aspectRatio: "16:9",
+          resolution: "720P",
+          width: 1280,
+          height: 720,
+        },
+        updated_at: "2026-09-10T00:00:00Z",
+      };
+    } else if (p === "/api/v1/settings")
       body = {
         project_types: [],
         prompt_count: 0,
@@ -34,6 +53,8 @@ test.beforeEach(async ({ page }) => {
         enabled_job_kinds: [],
       };
     else if (p.includes("/bindings/")) body = { revision: 0, value: null };
+    else if (p.endsWith("/conversation"))
+      body = { messages: [], proposals: [] };
     else if (p.endsWith("/idea")) body = null;
     else if (p.endsWith("/stories"))
       body = {
@@ -61,8 +82,16 @@ for (const theme of ["light", "dark", "sky", "noir"])
       .locator(".cards article")
       .evaluateAll((es) => es.map((e) => e.getBoundingClientRect().y));
     expect(Math.max(...cards) - Math.min(...cards)).toBeLessThanOrEqual(2);
+    await page.screenshot({
+      path: `test-results/flow-projects-${theme}.png`,
+      fullPage: true,
+    });
     await page.getByRole("button", { name: "继续创作 →" }).first().click();
     await expect(page.getByLabel("一句话创意")).toBeEnabled();
+    await page.screenshot({
+      path: `test-results/flow-idea-${theme}.png`,
+      fullPage: true,
+    });
     expect((await page.getByLabel("一句话创意").boundingBox())!.height).toBe(
       115,
     );
@@ -89,3 +118,217 @@ for (const theme of ["light", "dark", "sky", "noir"])
       "非真人卡通，三镜，两句台词。",
     );
   });
+
+test("idea flow has no manual save or supplemental request controls", async ({
+  page,
+}) => {
+  await page.getByRole("button", { name: "继续创作 →" }).first().click();
+  await expect(page.getByLabel("一句话创意")).toBeVisible();
+  await expect(
+    page.getByRole("button", { name: "保存创意", exact: true }),
+  ).toHaveCount(0);
+  await expect(
+    page.getByRole("button", { name: "读取最新基准", exact: true }),
+  ).toHaveCount(0);
+  await expect(page.getByLabel("本次补充要求")).toHaveCount(0);
+});
+
+test("successful project creation enters the idea stage directly", async ({
+  page,
+}) => {
+  await page.route("**/api/v1/projects", async (route) => {
+    if (route.request().method() !== "POST") return route.fallback();
+    await route.fulfill({
+      status: 201,
+      json: {
+        id: pid,
+        name: "新创意项目",
+        market: "zh",
+        revision: 1,
+        stage: "idea",
+        status: "in_progress",
+        generation_settings: null,
+        type_id: null,
+        updated_at: "2026-09-10T00:00:00Z",
+      },
+    });
+  });
+  await page.getByLabel("项目名称", { exact: true }).fill("新创意项目");
+  await page.getByRole("button", { name: "创建项目", exact: true }).click();
+  await expect(page.getByLabel("一句话创意")).toBeEnabled();
+});
+
+test("TXT upload opens a single full story and does not generate candidates", async ({
+  page,
+}) => {
+  const fullText =
+    "小纸船离开码头。\n" + "它沿着星光寻找自己的家。".repeat(100);
+  let imports = 0;
+  let generated = 0;
+  await page.route("**/stories/import-txt", async (route) => {
+    imports++;
+    expect(route.request().postDataJSON()).toEqual({
+      filename: "纸船.txt",
+      text: fullText,
+      expected_story_version_id: null,
+    });
+    expect(route.request().headers()["idempotency-key"]).toBeTruthy();
+    await page.route(/\/stories(?:\?.*)?$/, (getRoute) =>
+      getRoute.fulfill({
+        json: {
+          items: [
+            {
+              id: "txt-story",
+              kind: "story",
+              revision: 1,
+              version_id: "txt-v1",
+              body: {
+                title: "纸船",
+                logline: "",
+                direction: "",
+                text: fullText,
+              },
+              batch_id: null,
+              source_version_id: null,
+              stale: false,
+            },
+          ],
+          total: 1,
+          selected_version_id: "txt-v1",
+          selection_revision: 1,
+          source_mode: "txt",
+        },
+      }),
+    );
+    await route.fulfill({
+      json: {
+        items: [
+          {
+            id: "txt-story",
+            kind: "story",
+            revision: 1,
+            version_id: "txt-v1",
+            body: { title: "纸船", logline: "", direction: "", text: fullText },
+            batch_id: null,
+            source_version_id: null,
+            stale: false,
+          },
+        ],
+        total: 1,
+        selected_version_id: "txt-v1",
+        selection_revision: 1,
+        source_mode: "txt",
+      },
+    });
+  });
+  await page.route("**/story-batches", async (route) => {
+    generated++;
+    await route.abort();
+  });
+  await page.getByRole("button", { name: "继续创作 →" }).first().click();
+  await page.getByLabel("上传TXT故事").setInputFiles({
+    name: "纸船.txt",
+    mimeType: "text/plain",
+    buffer: Buffer.from(fullText),
+  });
+  await expect(page.getByLabel("故事正文")).toHaveValue(fullText);
+  await expect(
+    page.getByRole("button", { name: /再生成\d+个方案/ }),
+  ).toHaveCount(0);
+  expect(imports).toBe(1);
+  expect(generated).toBe(0);
+});
+
+test("idea edits save automatically with the current candidate count", async ({
+  page,
+}) => {
+  const saves: any[] = [];
+  await page.route("**/idea", async (route) => {
+    if (route.request().method() !== "PUT") return route.fallback();
+    const payload = route.request().postDataJSON();
+    saves.push(payload);
+    await route.fulfill({
+      json: {
+        id: "idea",
+        kind: "idea",
+        revision: 1,
+        version_id: "idea-v1",
+        body: { text: payload.text, storyCount: payload.story_count },
+        batch_id: null,
+        source_version_id: null,
+        stale: false,
+      },
+    });
+  });
+  await page.getByRole("button", { name: "继续创作 →" }).first().click();
+  await page.getByLabel("一句话创意").fill("纸船寻找星星的家");
+  await page.getByLabel("故事数量").fill("2");
+  await expect.poll(() => saves.length).toBe(1);
+  expect(saves[0]).toMatchObject({ text: "纸船寻找星星的家", story_count: 2 });
+  await expect(page.getByLabel("一句话创意")).toHaveValue("纸船寻找星星的家");
+});
+
+test("uncertain TXT import reuses frozen command when the same file is selected", async ({
+  page,
+}) => {
+  const requests: any[] = [];
+  await page.route("**/stories/import-txt", async (route) => {
+    requests.push({
+      body: route.request().postDataJSON(),
+      key: route.request().headers()["idempotency-key"],
+    });
+    await route.abort();
+  });
+  await page.getByRole("button", { name: "继续创作 →" }).first().click();
+  const file = {
+    name: "纸船.txt",
+    mimeType: "text/plain",
+    buffer: Buffer.from("小纸船看见了星星。"),
+  };
+  await page.getByLabel("上传TXT故事").setInputFiles(file);
+  await expect.poll(() => requests.length).toBe(1);
+  await page.route(/\/stories(?:\?.*)?$/, (route) =>
+    route.fulfill({
+      json: {
+        items: [],
+        total: 0,
+        selected_version_id: "new-server-story-v2",
+        selection_revision: 2,
+        source_mode: "idea",
+      },
+    }),
+  );
+  await page.reload();
+  await page.getByRole("button", { name: "继续创作 →" }).first().click();
+  await page.getByLabel("上传TXT故事").setInputFiles(file);
+  await expect.poll(() => requests.length).toBe(2);
+  expect(requests[1]).toEqual(requests[0]);
+});
+
+for (const invalid of ["encoding", "size"] as const) {
+  test(`invalid TXT ${invalid} preserves current state without sending import`, async ({
+    page,
+  }) => {
+    let imported = false;
+    await page.route("**/stories/import-txt", async (route) => {
+      imported = true;
+      await route.abort();
+    });
+    await page.getByRole("button", { name: "继续创作 →" }).first().click();
+    await page.getByLabel("上传TXT故事").setInputFiles({
+      name: "坏文件.txt",
+      mimeType: "text/plain",
+      buffer:
+        invalid === "encoding"
+          ? Buffer.from([0xff, 0xfe, 0xff])
+          : Buffer.alloc(1024 * 1024 + 1, 65),
+    });
+    await expect(
+      page.getByRole("alert").filter({
+        hasText: invalid === "encoding" ? /TXT须使用UTF-8编码/ : /不超过1MB/,
+      }),
+    ).toBeVisible();
+    await expect(page.getByLabel("一句话创意")).toBeVisible();
+    expect(imported).toBe(false);
+  });
+}

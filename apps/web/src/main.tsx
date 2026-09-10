@@ -371,7 +371,7 @@ function App() {
                     onSubmit={(e) => {
                       e.preventDefault();
                       void run(async () => {
-                        await api
+                        const created = await api
                           .POST("/api/v1/projects", {
                             body: {
                               name,
@@ -383,9 +383,14 @@ function App() {
                             },
                           })
                           .then(unwrap);
-                        await refreshProjects(0);
+                        setSelected(created);
+                        setEditName(created.name);
+                        setFiles([]);
+                        setJobs([]);
+                        setModule("创作");
                         setOffset(0);
                         setName("");
+                        await refreshProjects(0);
                       });
                     }}
                   >

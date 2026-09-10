@@ -2,16 +2,24 @@ from datetime import datetime
 from typing import Literal
 from uuid import UUID
 
-from pydantic import Field, ValidationInfo, model_validator
+from pydantic import ConfigDict, Field, ValidationInfo, field_validator, model_validator
 
 from shortfilm.schemas import DTO
 
 
 class StoryBody(DTO):
+    model_config = ConfigDict(from_attributes=True, extra="forbid", str_strip_whitespace=False)
     title: str = Field(min_length=1, max_length=200)
     logline: str = Field(min_length=1, max_length=1000)
     direction: str = Field(min_length=1, max_length=500)
-    text: str = Field(min_length=1, max_length=50000)
+    text: str = Field(min_length=1, max_length=1048576)
+
+    @field_validator("title", "logline", "direction", "text")
+    @classmethod
+    def nonblank(cls, value):
+        if not value.lstrip("\ufeff").strip() or "\x00" in value:
+            raise ValueError("故事字段不能为空或包含二进制内容")
+        return value
 
 
 class BatchOutput(DTO):
@@ -88,6 +96,7 @@ class VersionOut(DTO):
 
 
 class StoriesOut(DTO):
+    source_mode: Literal["idea", "txt"] = "idea"
     items: list[ContentOut]
     total: int
     selected_version_id: UUID | None

@@ -37,6 +37,8 @@ export function StoryWorkbench({
     updateStage(next);
   }
   const [idea, setIdea] = useState<Content | null>(null);
+  const txtInput = useRef<HTMLInputElement>(null);
+  const pollEpoch = useRef(0);
   const [text, setText] = useState("");
   const [storyCount, setStoryCount] = useState("3");
   const [draftDirty, setDraftDirty] = useState(false);
@@ -44,10 +46,9 @@ export function StoryWorkbench({
   const running = useRef(false);
   const [revision, setRevision] = useState(0);
   const [loaded, setLoaded] = useState(false);
-  const [instruction, setInstruction] = useState(
-    () => readDraft<string>(`sf.${pid}.instruction`) || "",
-  );
+
   const [page, setPage] = useState<Page>({
+    source_mode: "idea",
     items: [],
     total: 0,
     selection_revision: 0,
@@ -85,12 +86,14 @@ export function StoryWorkbench({
     }
   }
   async function refresh() {
+    const epoch = ++pollEpoch.current;
     const [p, j] = await Promise.all([
       api.GET("/api/v1/projects/{pid}/stories", {
         params: { path: { pid }, query: { offset } },
       }),
       api.GET("/api/v1/projects/{pid}/jobs", { params: { path: { pid } } }),
     ]);
+    if (epoch !== pollEpoch.current) return;
     setPage(unwrap(p));
     setJobs(
       unwrap(j).filter((j) => /^(idea|story|script|board)\./.test(j.kind)),
@@ -132,7 +135,11 @@ export function StoryWorkbench({
   }, [pid]);
   useEffect(() => {
     let live = true;
+    let inFlight = false;
     const poll = async () => {
+      if (inFlight) return;
+      inFlight = true;
+      const epoch = ++pollEpoch.current;
       try {
         const [p, j] = await Promise.all([
           api.GET("/api/v1/projects/{pid}/stories", {
@@ -140,8 +147,14 @@ export function StoryWorkbench({
           }),
           api.GET("/api/v1/projects/{pid}/jobs", { params: { path: { pid } } }),
         ]);
-        if (live) {
-          setPage(unwrap(p));
+        if (live && epoch === pollEpoch.current) {
+          const current = unwrap(p);
+          setPage(current);
+          if (
+            current.source_mode === "txt" &&
+            !readDraft<string>(`sf.${pid}.stage`)
+          )
+            setStage("故事");
           setJobs(
             unwrap(j).filter((j) =>
               /^(idea|story|script|board)\./.test(j.kind),
@@ -149,7 +162,10 @@ export function StoryWorkbench({
           );
         }
       } catch (e) {
-        if (live) setError(e instanceof Error ? e.message : "无法读取状态");
+        if (live && epoch === pollEpoch.current)
+          setError(e instanceof Error ? e.message : "无法读取状态");
+      } finally {
+        inFlight = false;
       }
     };
     void poll();
@@ -166,19 +182,119 @@ export function StoryWorkbench({
     else removeDraft(`sf.${pid}.idea`);
   }, [text, revision, storyCount, loaded, pid, draftDirty]);
   const active = page.items.find((i) => i.id === activeId) || page.items[0];
+  useEffect(() => {
+    if (
+      stage !== "创意" ||
+      !loaded ||
+      !draftDirty ||
+      busy ||
+      error ||
+      !text.trim() ||
+      !validCount
+    )
+      return;
+    const timer = setTimeout(() => void run(saveIdeaOnly), 700);
+    return () => clearTimeout(timer);
+  }, [text, storyCount, draftDirty, loaded, busy, error, stage]);
+  async function saveIdeaOnly() {
+    await saveIdea();
+  }
   async function saveIdea() {
     if (!validCount) throw new Error("故事数量须为1～3的整数");
-    const saved = unwrap(
-      await api.PUT("/api/v1/projects/{pid}/idea", {
-        params: { path: { pid } },
-        body: { text, revision, story_count: Number(storyCount) },
-      }),
-    );
+    if (!draftDirty && idea) return idea;
+    const response = await api.PUT("/api/v1/projects/{pid}/idea", {
+      params: { path: { pid } },
+      body: { text, revision, story_count: Number(storyCount) },
+    });
+    let saved: Content;
+    if (response.response.status === 409) {
+      const latest = unwrap(
+        await api.GET("/api/v1/projects/{pid}/idea", {
+          params: { path: { pid } },
+        }),
+      );
+      if (
+        !latest ||
+        latest.body.text !== text ||
+        (latest.body.story_count ?? 3) !== Number(storyCount)
+      ) {
+        setIdea(latest);
+        throw new Error(
+          "创意版本冲突，草稿已保留，请核对下方服务端版本后再继续。",
+        );
+      }
+      saved = latest;
+    } else saved = unwrap(response);
     setIdea(saved);
     setRevision(saved.revision);
     setDraftDirty(false);
     removeDraft(`sf.${pid}.idea`);
     return saved;
+  }
+  async function importTxt(file: File) {
+    if (!/\.txt$/i.test(file.name) || file.size > 1024 * 1024 || !file.size)
+      throw new Error("请选择非空且不超过1MB的TXT文件");
+    let source: string;
+    try {
+      source = new TextDecoder("utf-8", {
+        fatal: true,
+        ignoreBOM: true,
+      }).decode(await file.arrayBuffer());
+    } catch {
+      throw new Error("TXT须使用UTF-8编码，请转换后重试；原故事保持不变。");
+    }
+    if (!source.trim()) throw new Error("TXT内容不能为空");
+    const pendingKey = `sf.${pid}.txt-input`;
+    const previous = readDraft<{
+      filename: string;
+      text: string;
+      expected_story_version_id: string | null;
+    }>(pendingKey);
+    const input =
+      previous?.filename === file.name && previous.text === source
+        ? previous
+        : {
+            filename: file.name,
+            text: source,
+            expected_story_version_id: page.selected_version_id,
+          };
+    localStorage.setItem(pendingKey, JSON.stringify(input));
+    const command = commandKey("import-txt", input);
+    pollEpoch.current++;
+    const response = await api.POST(
+      "/api/v1/projects/{pid}/stories/import-txt",
+      {
+        params: { path: { pid }, header: { "idempotency-key": command.key } },
+        body: input,
+      },
+    );
+    if (response.response.status === 409 || response.response.status === 422) {
+      try {
+        command.done();
+      } catch {}
+      removeDraft(pendingKey);
+    }
+    unwrap(response);
+    // A receipt may describe an earlier successful attempt; render the current table.
+    const result = unwrap(
+      await api.GET("/api/v1/projects/{pid}/stories", {
+        params: { path: { pid }, query: { offset: 0 } },
+      }),
+    );
+    try {
+      command.done();
+    } catch {
+      /* The committed story remains authoritative. */
+    }
+    removeDraft(pendingKey);
+    pollEpoch.current++;
+    setPage(result);
+    setOffset(0);
+    setActiveId(result.items[0]?.id || "");
+    setStage("故事");
+    setNotice(
+      "TXT全文已保存。卡片标题取自文件名，摘要为原文摘录，可在故事资料中修改。",
+    );
   }
   async function generate() {
     await awaitMethodSaves(pid, "story");
@@ -186,7 +302,7 @@ export function StoryWorkbench({
     const body = {
       idea_version_id: saved.version_id,
       story_count: Number(storyCount),
-      instruction,
+      instruction: "",
       style: "",
       writing_mode: "prompt" as const,
     };
@@ -262,53 +378,58 @@ export function StoryWorkbench({
                   maxLength={10000}
                 />
               </label>
-              <div className="actions">
+              <div className="txt-upload">
                 <button
-                  disabled={busy || !loaded || !text.trim() || !validCount}
-                  onClick={() =>
-                    void run(async () => {
-                      await saveIdea();
-                      setNotice("创意版本已保存");
-                    })
-                  }
+                  disabled={busy || !loaded}
+                  onClick={() => txtInput.current?.click()}
                 >
-                  保存创意
+                  若已有小说故事，可点击上传
                 </button>
-                <button
-                  disabled={busy}
-                  onClick={() =>
-                    void run(async () => {
-                      const saved = unwrap(
-                        await api.GET("/api/v1/projects/{pid}/idea", {
-                          params: { path: { pid } },
-                        }),
-                      );
-                      setIdea(saved);
-                      setRevision(saved?.revision || 0);
-                      if (!loaded) setText(String(saved?.body.text || ""));
-                      setLoaded(true);
-                      setNotice("已读取最新基准，输入草稿保留，请合并后保存。");
-                    })
-                  }
-                >
-                  读取最新基准
-                </button>
+                <input
+                  ref={txtInput}
+                  type="file"
+                  accept=".txt,text/plain"
+                  hidden
+                  aria-label="上传TXT故事"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    e.target.value = "";
+                    if (file) void run(() => importTxt(file));
+                  }}
+                />
+                <small className="muted">
+                  TXT · UTF-8 · 不超过1MB，保留全文
+                </small>
               </div>
-              <details className="idea-instructions">
-                <summary>本次补充要求</summary>
-                <label className="field">
-                  补充写作要求
-                  <textarea
-                    rows={3}
-                    value={instruction}
-                    maxLength={10000}
-                    onChange={(e) => {
-                      setInstruction(e.target.value);
-                      storeDraft(`sf.${pid}.instruction`, e.target.value);
+              <p className="muted" role="status">
+                {busy
+                  ? "正在保存或提交…"
+                  : draftDirty
+                    ? "草稿已保留，停止输入后自动保存"
+                    : idea
+                      ? "内容已保存"
+                      : "输入后自动保存"}
+              </p>
+              {error && draftDirty && text.trim() && validCount && (
+                <button disabled={busy} onClick={() => void run(saveIdeaOnly)}>
+                  重试自动保存
+                </button>
+              )}
+              {error && idea && idea.revision !== revision && (
+                <details className="alert" open>
+                  <summary>核对创意版本冲突</summary>
+                  <p className="preserve-text">{String(idea.body.text)}</p>
+                  <button
+                    onClick={() => {
+                      setRevision(idea.revision);
+                      setError("");
+                      setDraftDirty(true);
                     }}
-                  />
-                </label>
-              </details>
+                  >
+                    已核对，以我的草稿保存新版
+                  </button>
+                </details>
+              )}
               <div className="idea-generation-row">
                 <MethodSelector pid={pid} stage="story" />
                 <div className="idea-generate-actions">
@@ -357,12 +478,6 @@ export function StoryWorkbench({
               <h1>故事工作台</h1>
               <p>比较故事方案，打磨细节，确定你想讲述的故事。</p>
             </div>
-            <button
-              disabled={busy || !loaded || !text.trim() || !validCount}
-              onClick={() => void run(generate)}
-            >
-              再生成{validCount ? storyCount : ""}个方案
-            </button>
           </div>
 
           {active ? (
@@ -407,10 +522,18 @@ export function StoryWorkbench({
                     ↓
                   </button>
                 </div>
+                {page.source_mode !== "txt" && (
+                  <button
+                    disabled={busy || !loaded || !text.trim() || !validCount}
+                    onClick={() => void run(generate)}
+                  >
+                    再生成{validCount ? storyCount : ""}个方案
+                  </button>
+                )}
               </section>
               <StoryEditor
                 key={active.id}
-                {...{ pid, story: active, page, refresh, setStage }}
+                {...{ pid, story: active, refresh, setStage }}
               />
             </div>
           ) : (
@@ -422,20 +545,6 @@ export function StoryWorkbench({
               <button onClick={() => setStage("创意")}>回到创意</button>
             </section>
           )}
-          <details className="writing-options">
-            <summary>本次写作指令与风格</summary>
-            <GenerationControls
-              {...{
-                instruction,
-                setInstruction,
-                pid,
-              }}
-            />
-            <small>
-              使用已保存创意 v{idea?.revision || 0}
-              ；创意草稿改变时会先保存新版本。
-            </small>
-          </details>
         </>
       )}
       {(stage === "剧本" || stage === "分镜") && (
@@ -472,59 +581,17 @@ export function StoryWorkbench({
   );
 }
 
-function GenerationControls({
-  instruction,
-  setInstruction,
-  pid,
-}: {
-  instruction: string;
-  setInstruction: (s: string) => void;
-  pid: string;
-}) {
-  return (
-    <div className="generation-controls">
-      <MethodSelector pid={pid} stage="story" />
-      <label className="field">
-        本次补充要求
-        <textarea
-          rows={3}
-          value={instruction}
-          maxLength={10000}
-          onChange={(e) => {
-            setInstruction(e.target.value);
-            storeDraft(`sf.${pid}.instruction`, e.target.value);
-          }}
-        />
-      </label>
-      <p className="muted">成片风格与画幅使用项目统一生成规格。</p>
-    </div>
-  );
-}
-
 function StoryEditor({
   pid,
   story,
-  page,
   refresh,
   setStage,
 }: {
   setStage: (stage: string) => void;
   pid: string;
   story: Content;
-  page: Page;
   refresh: () => Promise<void>;
 }) {
-  const [generationInstruction, setGenerationInstruction] = useState(
-    () => readDraft<string>(`sf.${pid}.generate.script.instruction`) || "",
-  );
-  useEffect(
-    () =>
-      storeDraft(
-        `sf.${pid}.generate.script.instruction`,
-        generationInstruction,
-      ),
-    [pid, generationInstruction],
-  );
   const draftKey = `sf.${pid}.${story.id}`;
   const saved = readDraft<{ body: StoryBody; revision: number }>(draftKey);
   const [body, setBody] = useState<StoryBody>(
@@ -544,7 +611,36 @@ function StoryEditor({
   const [notice, setNotice] = useState("");
   const [mode, setMode] = useState<"fixed" | "closed" | "floating">("fixed");
 
-  const dirty = JSON.stringify(body) !== JSON.stringify(story.body);
+  const running = useRef(false);
+  const persisted = useRef(story);
+  const dirty = JSON.stringify(body) !== JSON.stringify(persisted.current.body);
+  useEffect(() => {
+    if (story.revision <= persisted.current.revision) return;
+    if (!dirty && base === persisted.current.revision) {
+      setBody(story.body as StoryBody);
+      setBase(story.revision);
+      persisted.current = story;
+    }
+  }, [story.version_id]);
+  useEffect(() => {
+    if (
+      !dirty ||
+      busy ||
+      error ||
+      !body.text.trim() ||
+      !body.title.trim() ||
+      !body.logline.trim()
+    )
+      return;
+    const timer = setTimeout(
+      () =>
+        void run(async () => {
+          await save();
+        }),
+      700,
+    );
+    return () => clearTimeout(timer);
+  }, [body, base, dirty, busy, error]);
   useEffect(() => {
     storeDraft(draftKey, { body, revision: base });
   }, [body, base, draftKey]);
@@ -553,7 +649,10 @@ function StoryEditor({
   }, [request, draftKey]);
   useEffect(() => {
     let live = true;
+    let inFlight = false;
     const poll = async () => {
+      if (inFlight) return;
+      inFlight = true;
       try {
         const [c, v] = await Promise.all([
           api.GET("/api/v1/projects/{pid}/contents/{iid}/conversation", {
@@ -569,6 +668,8 @@ function StoryEditor({
         }
       } catch (e) {
         if (live) setError(e instanceof Error ? e.message : "读取失败");
+      } finally {
+        inFlight = false;
       }
     };
     void poll();
@@ -579,6 +680,8 @@ function StoryEditor({
     };
   }, [pid, story.id]);
   async function run(action: () => Promise<void>) {
+    if (running.current) return;
+    running.current = true;
     setBusy(true);
     setError("");
     setNotice("");
@@ -593,20 +696,45 @@ function StoryEditor({
             : "连接失败，草稿保留",
       );
     } finally {
+      running.current = false;
       setBusy(false);
     }
   }
-  async function save() {
-    const next = unwrap(
-      await api.PUT("/api/v1/projects/{pid}/stories/{iid}", {
-        params: { path: { pid, iid: story.id } },
-        body: { body, revision: base },
-      }),
-    );
+  async function save(): Promise<Content> {
+    if (!dirty) {
+      if (base !== story.revision)
+        throw new Error("故事版本已变化，请核对当前版本。");
+      return persisted.current;
+    }
+    const response = await api.PUT("/api/v1/projects/{pid}/stories/{iid}", {
+      params: { path: { pid, iid: story.id } },
+      body: { body, revision: base },
+    });
+    let next: Content;
+    if (response.response.status === 409) {
+      const history = unwrap(
+        await api.GET("/api/v1/projects/{pid}/contents/{iid}/versions", {
+          params: { path: { pid, iid: story.id } },
+        }),
+      );
+      const latest = history[0];
+      if (!latest || JSON.stringify(latest.body) !== JSON.stringify(body)) {
+        await refresh();
+        throw new Error("故事版本冲突，草稿已保留，请核对服务端正文后再继续。");
+      }
+      next = {
+        ...story,
+        body: latest.body,
+        revision: latest.revision,
+        version_id: latest.id,
+      };
+    } else next = unwrap(response);
+    persisted.current = next;
     setBase(next.revision);
     setBody(next.body as StoryBody);
+    storeDraft(draftKey, { body: next.body, revision: next.revision });
     await refresh();
-    setNotice("新版本已保存，旧版可在版本历史查看。");
+    return next;
   }
   return (
     <div className={`editor-with-director ${mode}`}>
@@ -629,7 +757,7 @@ function StoryEditor({
         )}
         {story.stale && (
           <p className="muted">
-            此候选来自旧创意，保留供比较；可明确选定此故事。
+            此候选来自旧创意，正文与历史已保留；更新来源后再生成剧本。
           </p>
         )}
         <details className="story-metadata">
@@ -660,81 +788,53 @@ function StoryEditor({
             aria-label="故事正文"
             className="story-text"
             value={body.text}
-            maxLength={50000}
+            maxLength={1048576}
             onChange={(e) => setBody({ ...body, text: e.target.value })}
           />
         </label>
-        <div className="actions">
-          <button
-            disabled={busy || !body.text.trim()}
-            onClick={() => void run(save)}
-          >
-            保存修改
-          </button>
+        <p className="muted" role="status">
+          {busy
+            ? "正在保存或提交…"
+            : dirty
+              ? "草稿已保留，停止输入后自动保存"
+              : "内容已保存"}
+        </p>
+        {error && dirty && (
           <button
             disabled={busy}
-            onClick={() => {
-              setBase(story.revision);
-              setNotice("草稿保留，已更新保存基准；请核对版本历史后合并。");
-            }}
-          >
-            读取最新基准
-          </button>
-          <button
-            className="primary"
-            disabled={
-              busy ||
-              dirty ||
-              base !== story.revision ||
-              page.selected_version_id === story.version_id
-            }
             onClick={() =>
               void run(async () => {
-                unwrap(
-                  await api.POST(
-                    "/api/v1/projects/{pid}/stories/{iid}/select",
-                    {
-                      params: { path: { pid, iid: story.id } },
-                      body: {
-                        version_id: story.version_id,
-                        selection_revision: page.selection_revision,
-                      },
-                    },
-                  ),
-                );
-                await refresh();
-                setNotice("故事版本已选定");
+                await save();
               })
             }
           >
-            {page.selected_version_id === story.version_id
-              ? "此版本已选定"
-              : "确定此故事"}
+            重试自动保存
           </button>
-        </div>
+        )}
+        {error && base !== story.revision && (
+          <details className="alert" open>
+            <summary>核对故事版本冲突</summary>
+            <p className="preserve-text">{String(story.body.text)}</p>
+            <button
+              onClick={() => {
+                setBase(story.revision);
+                persisted.current = story;
+                setError("");
+              }}
+            >
+              已核对，以我的草稿保存新版
+            </button>
+          </details>
+        )}
         <div className="method-actions">
           <MethodSelector pid={pid} stage="script" />
-          <label className="field">
-            本次剧本生成要求
-            <textarea
-              aria-label="本次剧本生成要求"
-              rows={3}
-              disabled={busy}
-              value={generationInstruction}
-              onChange={(e) => setGenerationInstruction(e.target.value)}
-            />
-          </label>
           <button
             className="primary"
-            disabled={busy || dirty || base !== story.revision}
+            disabled={busy || !body.text.trim() || base !== story.revision}
             onClick={() =>
               void run(async () => {
-                await generateStage(
-                  pid,
-                  "script",
-                  story.version_id,
-                  generationInstruction,
-                );
+                const source = await save();
+                await generateStage(pid, "script", source.version_id);
                 await refresh();
                 setStage("剧本");
               })
@@ -743,12 +843,7 @@ function StoryEditor({
             确定故事并AI生成剧本
           </button>
         </div>
-        <QualityPanel
-          pid={pid}
-          item={story}
-          disabled={busy || dirty}
-          onChanged={refresh}
-        />
+
         <details className="version-history">
           <summary>版本历史（{versions.length}）</summary>
           {versions.map((v) => (
@@ -797,6 +892,12 @@ function StoryEditor({
               </button>
             </div>
           </div>
+          <QualityPanel
+            pid={pid}
+            item={story}
+            disabled={busy || dirty}
+            onChanged={refresh}
+          />
           <div className="suggestions">
             <strong>故事建议</strong>
             {["强化角色动机", "强化情感冲突", "优化结尾"].map((s) => (
@@ -861,7 +962,7 @@ function StoryEditor({
           >
             发送修改要求
           </button>
-          {dirty && <p className="muted">先保存正文，再生成或采用建议。</p>}
+          {dirty && <p className="muted">正文自动保存后可生成或采用建议。</p>}
           {conversation.proposals.map((p) => (
             <details
               className="proposal"
@@ -900,6 +1001,7 @@ function StoryEditor({
                         { params: { path: { pid, proposal_id: p.id } } },
                       ),
                     );
+                    persisted.current = next;
                     setBody(next.body as StoryBody);
                     setBase(next.revision);
                     await refresh();

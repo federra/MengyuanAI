@@ -35,6 +35,7 @@ from shortfilm.creation.stage_service import (
     validate_board,
 )
 from shortfilm.creation.stages import content_command
+from shortfilm.creation.story_import import TxtImport, import_txt, txt_item
 from shortfilm.db import session
 from shortfilm.jobs.service import now
 from shortfilm.models import (
@@ -114,7 +115,10 @@ def save_idea(pid: UUID, body: IdeaSave, db: Session = Depends(session)):
 @router.get("/stories", response_model=StoriesOut)
 def list_stories(pid: UUID, offset: int = Query(0, ge=0), db: Session = Depends(session)):
     owned_project(db, pid)
+    active_txt = txt_item(db, pid)
     where = (ContentItem.project_id == pid, ContentItem.kind == "story")
+    if active_txt:
+        where = (*where, ContentItem.id == active_txt.id)
     items = db.scalars(
         select(ContentItem)
         .where(*where)
@@ -124,11 +128,23 @@ def list_stories(pid: UUID, offset: int = Query(0, ge=0), db: Session = Depends(
     ).all()
     s = selection(db, pid)
     return dict(
+        source_mode="txt" if active_txt else "idea",
         items=[content_out(db, i) for i in items],
         total=db.scalar(select(func.count()).select_from(ContentItem).where(*where)),
         selected_version_id=s.version_id if s else None,
         selection_revision=s.revision if s else 0,
     )
+
+
+@router.post("/stories/import-txt", response_model=StoriesOut)
+def upload_story_txt(
+    pid: UUID,
+    body: TxtImport,
+    idempotency_key: str = Header(min_length=1, max_length=128),
+    db: Session = Depends(session),
+):
+    project = owned_project(db, pid, lock=True)
+    return import_txt(db, project, body, idempotency_key)
 
 
 @router.get("/versions/{version_id}", response_model=VersionOut)

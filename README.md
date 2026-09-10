@@ -117,3 +117,7 @@ M2真实图像、逐句配音和三镜前镜尾帧链已验收，最新事实见
 独立视频供应商并发默认2，可用`SHORTFILM_MEDIA_VIDEO_CONCURRENCY`设置1～8；未知受理状态保守占位，原任务对账恢复，不盲目重发。导入成功后事务outbox启动建议质检，会使用已配置文本模型；质检失败不撤销导入。不要为UI回归自动点击生成或导入提交。
 
 当前5180运行源码位于 /Users/nathan/Codex_Projects/MengyuanAI/.local/ui-v12-v13；复用原媒体/凭据及数据库。后续启动须使用[本地升级记录](docs/engineering/v12-v13-local-upgrade.md)中的显式环境命令，避免原目录旧代码重新接管。
+
+## 项目与故事交互反馈增量
+
+创建后直达创意；创意/故事自动保存，TXT上传进入全文单卡；生成剧本时合并保存及选定，质检归右侧导演。TXT导入本身不调用模型，超过50,000字符先确定改编范围后再生成。事实和试用步骤见[交互反馈记录](docs/engineering/story-flow-feedback-verification.md)。

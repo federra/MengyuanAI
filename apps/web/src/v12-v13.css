@@ -278,3 +278,11 @@ button:disabled {
 .candidates h2 {
   font-size: 18px;
 }
+
+/* TXT entry uses the same controls and theme tokens as the creation form. */
+.txt-upload {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+}
