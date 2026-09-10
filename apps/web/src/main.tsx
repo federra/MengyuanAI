@@ -1,3 +1,6 @@
+import { mediaRequest } from "./MediaWorkbench";
+import { VoiceLibrary } from "./VoiceLibrary";
+import { EntityLibrary } from "./EntityLibrary";
 import { trapDialogFocus } from "./dialogFocus";
 import React, { useEffect, useRef, useState } from "react";
 import { createRoot } from "react-dom/client";
@@ -29,6 +32,12 @@ const states: Record<string, string> = {
   unknown: "待核实",
 };
 function App() {
+  const [deleteTarget, setDeleteTarget] = useState<Project | null>(null);
+  const deleteDialog = useRef<HTMLDialogElement>(null);
+  const [deleteError, setDeleteError] = useState("");
+  useEffect(() => { setDeleteError(""); if (deleteTarget) deleteDialog.current?.showModal(); }, [deleteTarget]);
+  const [deletedProject, setDeletedProject] = useState<Project | null>(null);
+
   const [module, setModule] = useState("项目");
   const [sidebarCollapsed, setSidebarCollapsed] = useState(() => {
     try {
@@ -378,6 +387,67 @@ function App() {
               {notice}
             </div>
           )}
+          {deleteTarget && (
+            <dialog
+              ref={deleteDialog}
+              onKeyDown={trapDialogFocus}
+              onCancel={e => { if (busy) e.preventDefault(); else setDeleteTarget(null); }}
+              className="project-delete-dialog"
+              aria-label="删除项目"
+            >
+              <h2>删除项目“{deleteTarget.name}”？</h2>
+              {deleteError && <p role="alert">{deleteError}</p>}
+              <p>
+                项目将从列表移除，素材和历史保留，可恢复。有活动或结果未明的任务时不能删除。
+              </p>
+              <div className="actions">
+                <button disabled={busy} onClick={() => setDeleteTarget(null)}>
+                  取消
+                </button>
+                <button
+                  className="danger"
+                  disabled={busy}
+                  onClick={() =>
+                    void run(async () => {
+                      const target = deleteTarget;
+                      try { await mediaRequest(
+                        `/api/v1/projects/${target.id}?revision=${target.revision}`,
+                        undefined,
+                        "DELETE",
+                      ); } catch (e) { setDeleteError(e instanceof Error ? e.message : "删除失败，请重试"); return; }
+                      setDeletedProject(target);
+                      setDeleteTarget(null);
+                      if (selected?.id === target.id) setSelected(undefined);
+                      await refreshProjects();
+                    })
+                  }
+                >
+                  确认删除
+                </button>
+              </div>
+            </dialog>
+          )}
+          {deletedProject && module === "项目" && (
+            <div role="status" className="notice">
+              已删除“{deletedProject.name}”{" "}
+              <button
+                disabled={busy}
+                onClick={() =>
+                  void run(async () => {
+                    await mediaRequest(
+                      `/api/v1/projects/${deletedProject.id}/restore`,
+                      {},
+                      "POST",
+                    );
+                    setDeletedProject(null);
+                    await refreshProjects();
+                  })
+                }
+              >
+                恢复项目
+              </button>
+            </div>
+          )}
           {module === "项目" && (
             <>
               <div className="project-stats">
@@ -612,6 +682,18 @@ function App() {
                     <div className="cards">
                       {projects.map((p) => (
                         <article key={p.id}>
+                          <details className="project-card-menu">
+                            <summary aria-label={p.name + "项目菜单"}>
+                              …
+                            </summary>
+                            <button
+                              className="danger"
+                              disabled={busy}
+                              onClick={() => setDeleteTarget(p)}
+                            >
+                              删除项目
+                            </button>
+                          </details>
                           <div className="cover">
                             <span>尚无短片封面</span>
                             <small>项目画面将在生成后留存</small>
@@ -758,7 +840,15 @@ function App() {
             ) : (
               <EmptyProject />
             ))}
-          {module === "资产" && <ResourceLibrary />}
+          {module === "资产" && (
+            <>
+              <ResourceLibrary />
+              <VoiceLibrary />
+            </>
+          )}
+          {module === "资产" && (
+            <EntityLibrary key={selected?.id || "none"} pid={selected?.id} />
+          )}
           {module === "资产" &&
             (selected ? (
               <section className="panel">

@@ -180,7 +180,10 @@ def validate_board(db, item, body, source_id, preserve=None, generated=False, re
             from shortfilm.creation.board_import_models import pending_reference
 
             pending = pending_reference(db, item.project_id, shot["id"], ref)
-            if not pending and (
+            from shortfilm.media.sources import reference_version
+            binding = reference_version(db, shot["id"], ref)
+            bound = binding and binding.project_id == item.project_id
+            if not pending and not bound and (
                 not media
                 or media.project_id != item.project_id
                 or not media.mime.startswith("image/")

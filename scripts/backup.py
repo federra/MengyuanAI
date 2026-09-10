@@ -45,6 +45,22 @@ def pg_env(database):
     }
 
 
+def stored_files(conn):
+    """Include explicitly published library copies as well as project media."""
+    rows = conn.execute("SELECT object_key, sha256 FROM media_files ORDER BY object_key").fetchall()
+    if conn.execute("SELECT to_regclass('public.library_assets')").fetchone()[0]:
+        for (images,) in conn.execute("SELECT images FROM library_assets ORDER BY id"):
+            rows.extend(
+                (image["object_key"], image["sha256"]) for image in images.values() if image
+            )
+    unique = {}
+    for key, digest in rows:
+        if key in unique and unique[key] != digest:
+            raise SystemExit("同一存储路径出现不同摘要，备份中止。")
+        unique[key] = digest
+    return sorted(unique.items())
+
+
 def backup():
     destination = ROOT / ".local/backups" / datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%S%fZ")
     destination.mkdir(parents=True)
@@ -57,9 +73,7 @@ def backup():
         unresolved = conn.execute(
             "SELECT id, state FROM generation_jobs WHERE state = 'unknown' ORDER BY id"
         ).fetchall()
-        rows = conn.execute(
-            "SELECT object_key, sha256 FROM media_files ORDER BY object_key"
-        ).fetchall()
+        rows = stored_files(conn)
     subprocess.run(
         [binary("pg_dump"), "--format=custom", "--file", str(destination / "database.dump")],
         env=pg_env(url.database),
@@ -122,9 +136,7 @@ def restore_check():
             hide_password=False
         )
         with connect(restored_url) as conn:
-            rows = conn.execute(
-                "SELECT object_key, sha256 FROM media_files ORDER BY object_key"
-            ).fetchall()
+            rows = stored_files(conn)
             assert len(rows) == len(manifest["files"])
             for key, digest in rows:
                 assert hashlib.sha256((destination / key).read_bytes()).hexdigest() == digest

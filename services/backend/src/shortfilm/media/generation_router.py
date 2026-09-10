@@ -449,6 +449,7 @@ def replace_reference(
         project_id=pid,
         shot_id=shot_id,
         ref_id=ref_id,
+        entity_id=old.entity_id if old else None,
         file_id=body.file_id,
         revision=body.revision + 1,
     )

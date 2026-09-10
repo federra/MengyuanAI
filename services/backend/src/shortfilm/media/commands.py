@@ -47,6 +47,10 @@ def image_job(db, project, key, body):
         if entity.revision != body.entity_revision:
             raise HTTPException(409, "元素版本已变化")
         version = entity_version(db, entity)
+        if version.input_file_id and str(version.input_file_id) not in {f["id"] for f in files}:
+            files.append(checked_file(db, project, version.input_file_id))
+        if len(files) > 8:
+            raise HTTPException(422, "参考图最多8张")
         kind = "image." + entity.kind
         context = {
             "name": version.name,

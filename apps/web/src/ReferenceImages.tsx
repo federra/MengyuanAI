@@ -10,11 +10,17 @@ export function ReferenceImages({
   entityId,
   entityRevision,
   disabled,
+  managedGeneration = false,
+  selectedOutput,
+  onSelectOutput,
 }: {
   pid: string;
   entityId: string;
   entityRevision: number;
   disabled: boolean;
+  managedGeneration?: boolean;
+  selectedOutput?: string | null;
+  onSelectOutput?: (fileId: string) => void;
 }) {
   const [images, setImages] = useState<Reference[]>([]);
   const [loaded, setLoaded] = useState(false);
@@ -99,44 +105,48 @@ export function ReferenceImages({
       aria-label="元素参考图"
       aria-busy={!loaded}
     >
-      <h3>参考图</h3>
-      <label className="field">
-        本次生成要求
-        <textarea
-          rows={2}
-          value={instruction}
-          onChange={(e) => setInstruction(e.target.value)}
-        />
-      </label>
-      <button
-        disabled={
-          busy ||
-          !loaded ||
-          disabled ||
-          tasks.some((t) =>
-            ["queued", "running", "waiting_provider"].includes(t.state),
-          )
-        }
-        onClick={() =>
-          void run(async () => {
-            await mediaRequest(
-              `/api/v1/projects/${pid}/media/images`,
-              {
-                entity_id: entityId,
-                entity_revision: entityRevision,
-                instruction,
-              },
-              "POST",
-              `image.${pid}.${entityId}`,
-            );
-            setNotice(
-              "图像任务已提交；生成会消耗供应商用量，完成后须人工确认。",
-            );
-          })
-        }
-      >
-        AI生成参考图
-      </button>
+      <h3>{managedGeneration ? "上传与历史生成图片" : "参考图"}</h3>
+      {!managedGeneration && (
+        <>
+          <label className="field">
+            本次生成要求
+            <textarea
+              rows={2}
+              value={instruction}
+              onChange={(e) => setInstruction(e.target.value)}
+            />
+          </label>
+          <button
+            disabled={
+              busy ||
+              !loaded ||
+              disabled ||
+              tasks.some((t) =>
+                ["queued", "running", "waiting_provider"].includes(t.state),
+              )
+            }
+            onClick={() =>
+              void run(async () => {
+                await mediaRequest(
+                  `/api/v1/projects/${pid}/media/images`,
+                  {
+                    entity_id: entityId,
+                    entity_revision: entityRevision,
+                    instruction,
+                  },
+                  "POST",
+                  `image.${pid}.${entityId}`,
+                );
+                setNotice(
+                  "图像任务已提交；生成会消耗供应商用量，完成后须人工确认。",
+                );
+              })
+            }
+          >
+            AI生成参考图
+          </button>
+        </>
+      )}
       {notice && <p role="status">{notice}</p>}
       {tasks.map((t) => (
         <details key={t.id}>
@@ -193,44 +203,46 @@ export function ReferenceImages({
         </details>
       ))}
       {error && <p role="alert">{error}</p>}
-      <label className="field">
-        上传参考图
-        <input
-          type="file"
-          accept="image/png,image/jpeg,image/webp"
-          disabled={busy || disabled}
-          onChange={(e) => {
-            const file = e.target.files?.[0];
-            e.target.value = "";
-            if (!file) return;
-            void run(async () => {
-              const form = new FormData();
-              form.append("file", file);
-              const response = await fetch(`/api/v1/projects/${pid}/files`, {
-                method: "POST",
-                body: form,
-              });
-              const result = await response.json();
-              if (!response.ok)
-                throw new Error(
-                  typeof result.detail === "string"
-                    ? result.detail
-                    : "图片上传失败",
+      {!managedGeneration && (
+        <label className="field">
+          上传参考图
+          <input
+            type="file"
+            accept="image/png,image/jpeg,image/webp"
+            disabled={busy || disabled}
+            onChange={(e) => {
+              const file = e.target.files?.[0];
+              e.target.value = "";
+              if (!file) return;
+              void run(async () => {
+                const form = new FormData();
+                form.append("file", file);
+                const response = await fetch(`/api/v1/projects/${pid}/files`, {
+                  method: "POST",
+                  body: form,
+                });
+                const result = await response.json();
+                if (!response.ok)
+                  throw new Error(
+                    typeof result.detail === "string"
+                      ? result.detail
+                      : "图片上传失败",
+                  );
+                unwrap(
+                  await api.POST("/api/v1/projects/{pid}/reference-images", {
+                    params: { path: { pid } },
+                    body: {
+                      entity_id: entityId,
+                      entity_revision: entityRevision,
+                      file_id: result.id,
+                    },
+                  }),
                 );
-              unwrap(
-                await api.POST("/api/v1/projects/{pid}/reference-images", {
-                  params: { path: { pid } },
-                  body: {
-                    entity_id: entityId,
-                    entity_revision: entityRevision,
-                    file_id: result.id,
-                  },
-                }),
-              );
-            });
-          }}
-        />
-      </label>
+              });
+            }}
+          />
+        </label>
+      )}
       {disabled && (
         <p className="muted">请先保存元素草稿，再生成、上传或确认参考图。</p>
       )}
@@ -252,6 +264,21 @@ export function ReferenceImages({
                 alt={image.name + "参考图"}
               />
             </a>
+            {onSelectOutput && (
+              <button
+                disabled={
+                  busy ||
+                  disabled ||
+                  image.stale ||
+                  selectedOutput === image.file_id
+                }
+                onClick={() => onSelectOutput(image.file_id)}
+              >
+                {selectedOutput === image.file_id
+                  ? "当前选用图片"
+                  : "选用此图片"}
+              </button>
+            )}
             <p>
               {image.stale
                 ? "来源已更新，图片待更新"

@@ -1,6 +1,7 @@
 from alembic import context
 from shortfilm.db import engine
 from shortfilm.models import Base
+from shortfilm.assets import library_models  # noqa: F401
 from shortfilm.assets import models as asset_models  # noqa: F401
 from shortfilm.media import models as media_models  # noqa: F401
 from shortfilm.finishing import models as finishing_models  # noqa: F401

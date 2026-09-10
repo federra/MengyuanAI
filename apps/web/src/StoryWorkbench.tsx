@@ -1,3 +1,4 @@
+import { ProjectHeadingInfo } from "./ProjectHeadingInfo";
 import {
   AI_TEXT,
   TEXT_JOB_EVENT,
@@ -514,6 +515,7 @@ export function StoryWorkbench({
               <h1>故事工作台</h1>
               <p>比较故事方案，打磨细节，确定你想讲述的故事。</p>
             </div>
+            <ProjectHeadingInfo pid={pid} />
           </div>
 
           {active ? (

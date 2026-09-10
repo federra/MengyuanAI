@@ -33,7 +33,7 @@ def execute_text(job_id, token, snapshot):
     thread = threading.Thread(target=pulse, daemon=True)
     thread.start()
     try:
-        schema = schema_for(snapshot["kind"])
+        schema = schema_for(snapshot["kind"], snapshot)
         json_schema = schema.model_json_schema()
         if snapshot["kind"] == "story.generate":
             count = snapshot.get("story_count", 3)

@@ -111,8 +111,28 @@ test("compact element image action keeps target and unsaved draft", async ({
   }));
   await page.route("**/entities", (r) => r.fulfill({ json: entities }));
   await page.route("**/reference-images", (r) => r.fulfill({ json: [] }));
+  await page.route("**/settings/resolve/**", (r) =>
+    r.fulfill({
+      json: {
+        model: { value: { provider: "fixture", model: "isolated-image" } },
+        style: null,
+        specification: { aspect_ratio: "16:9", resolution: "720P" },
+      },
+    }),
+  );
   const submitted: unknown[] = [];
-  await page.route("**/media/images", async (r) => {
+  await page.route("**/entities/batch", async (r) => {
+    for (const change of r.request().postDataJSON().items)
+      Object.assign(
+        entities.find((e) => e.id === change.id)!,
+        change,
+        { revision: change.revision + 1 },
+      );
+    await r.fulfill({
+      json: { entities, board_version_id: null, affected_shot_ids: [] },
+    });
+  });
+  await page.route("**/entities/image-batches", async (r) => {
     submitted.push(r.request().postDataJSON());
     await r.fulfill({ json: { id: "image-task" } });
   });
@@ -120,29 +140,39 @@ test("compact element image action keeps target and unsaved draft", async ({
   await page.getByRole("button", { name: "角色管理", exact: true }).click();
   const dialog = page.getByRole("dialog", { name: "角色管理", exact: true });
   await dialog
-    .getByRole("button", { name: "管理邮差图片", exact: true })
+    .getByRole("button", { name: "邮差图片详情", exact: true })
     .click();
   await dialog.screenshot({ path: "test-results/compact-entity.png" });
-  await dialog.getByLabel("元素描述").fill("红衣草稿");
+  await dialog
+    .locator(".entity-selected-editor")
+    .getByLabel("元素描述")
+    .fill("红衣草稿");
   await expect(
-    dialog.getByRole("button", { name: "AI生成参考图", exact: true }),
-  ).toBeDisabled();
+    dialog.getByRole("button", { name: "保存修改", exact: true }),
+  ).toBeEnabled();
   await dialog
-    .getByRole("button", { name: "管理女孩图片", exact: true })
+    .getByRole("button", { name: "女孩图片详情", exact: true })
     .click();
-  await expect(dialog.getByLabel("元素名称")).toHaveValue("女孩");
-  await dialog
-    .getByRole("button", { name: "AI生成参考图", exact: true })
-    .click();
+  await expect(
+    dialog.locator(".entity-selected-editor").getByLabel("元素名称"),
+  ).toHaveValue("女孩");
+  await dialog.getByRole("button", { name: "生成图片", exact: true }).click();
+  await expect(dialog.getByRole("button", { name: "确认生成", exact: true })).toHaveCount(0);
   await expect.poll(() => submitted.length).toBe(1);
   expect(submitted[0]).toMatchObject({
-    entity_id: "entity-1",
-    entity_revision: 1,
+    items: [
+      {
+        entity_id: "entity-1",
+        entity_revision: 1,
+      },
+    ],
   });
   await dialog
-    .getByRole("button", { name: "恢复草稿：邮差", exact: true })
+    .getByRole("button", { name: "邮差图片详情", exact: true })
     .click();
-  await expect(dialog.getByLabel("元素描述")).toHaveValue("红衣草稿");
+  await expect(
+    dialog.locator(".entity-selected-editor").getByLabel("元素描述"),
+  ).toHaveValue("红衣草稿");
 });
 
 test("compact references hide details and offer only valid confirmed images", async ({
@@ -236,7 +266,7 @@ test("compact references hide details and offer only valid confirmed images", as
   const cell = page.locator(".reference-window").first();
   await expect(cell.getByLabel("角色图片引用")).not.toBeVisible();
   await cell.screenshot({ path: "test-results/compact-references.png" });
-  await cell.getByText("管理图片", { exact: true }).click();
+  await cell.getByRole("button", { name: "角色图片", exact: true }).click();
   const select = cell.getByLabel("替换图片（保留ID）");
   await expect(select.locator('option[value="good"]')).toHaveCount(1);
   await expect(select.locator('option[value="pending"]')).toHaveCount(0);

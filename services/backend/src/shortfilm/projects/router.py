@@ -22,7 +22,7 @@ def owned_project(db: Session, pid: UUID, lock=False):
     if lock:
         query = query.with_for_update()
     p = db.scalar(query)
-    if not p:
+    if not p or p.status == "deleted":
         raise HTTPException(404, "项目不存在")
     return p
 
@@ -67,7 +67,7 @@ def list_projects(
     sort: Literal["updated_desc", "updated_asc", "name"] = "updated_desc",
     db: Session = Depends(session),
 ):
-    where = Project.owner_id == settings.local_owner_id
+    where = (Project.owner_id == settings.local_owner_id) & (Project.status != "deleted")
     if status:
         where = where & (Project.status == status)
     ordering = {
@@ -102,7 +102,7 @@ def add_type(body: TypeCreate, db: Session = Depends(session)):
 
 @router.get("/statistics")
 def statistics(db: Session = Depends(session)):
-    owned = Project.owner_id == settings.local_owner_id
+    owned = (Project.owner_id == settings.local_owner_id) & (Project.status != "deleted")
     return {
         "total": db.scalar(select(func.count()).select_from(Project).where(owned)),
         "in_progress": db.scalar(
@@ -114,7 +114,8 @@ def statistics(db: Session = Depends(session)):
         "failed_jobs": db.scalar(
             select(func.count())
             .select_from(Job)
-            .where(Job.owner_id == settings.local_owner_id, Job.state == "failed")
+            .join(Project, Project.id == Job.project_id)
+            .where(Job.owner_id == settings.local_owner_id, Job.state == "failed", Project.status != "deleted")
         ),
     }
 
@@ -158,4 +159,42 @@ def edit_project(pid: UUID, body: ProjectPatch, db: Session = Depends(session)):
     p.name, p.revision, p.updated_at = body.name, p.revision + 1, func.now()
     db.commit()
     db.refresh(p)
+    return p
+
+
+@router.delete("/{pid}", response_model=ProjectOut)
+def delete_project(pid: UUID, revision: int = Query(ge=1), db: Session = Depends(session)):
+    p = db.scalar(select(Project).where(Project.id == pid, Project.owner_id == settings.local_owner_id).with_for_update())
+    if not p:
+        raise HTTPException(404, "项目不存在")
+    if p.status == "deleted":
+        return p
+    if p.revision != revision:
+        raise HTTPException(409, "项目已更新，请刷新后重新确认删除")
+    if db.scalar(select(Job.id).where(Job.project_id == pid, Job.state.in_([
+        "queued", "running", "waiting_provider", "waiting_dependency", "unknown",
+    ])).limit(1)):
+        raise HTTPException(409, "项目仍有活动或结果未明的任务，请处理后再删除")
+    p.generation_settings = {**(p.generation_settings or {}), "deleted_previous_status": p.status}
+    p.status = "deleted"
+    p.revision += 1
+    p.updated_at = func.now()
+    db.commit()
+    db.refresh(p)
+    return p
+
+
+@router.post("/{pid}/restore", response_model=ProjectOut)
+def restore_project(pid: UUID, db: Session = Depends(session)):
+    p = db.scalar(select(Project).where(Project.id == pid, Project.owner_id == settings.local_owner_id).with_for_update())
+    if not p:
+        raise HTTPException(404, "项目不存在")
+    if p.status == "deleted":
+        values = dict(p.generation_settings or {})
+        p.status = values.pop("deleted_previous_status", "in_progress")
+        p.generation_settings = values
+        p.revision += 1
+        p.updated_at = func.now()
+        db.commit()
+        db.refresh(p)
     return p

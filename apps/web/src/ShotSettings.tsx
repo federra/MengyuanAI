@@ -18,7 +18,15 @@ type Settings = {
   };
   sources: Record<string, string>;
 };
-export function ShotSettings({ shotId }: { shotId: string }) {
+export function ShotSettings({
+  shotId,
+  duration,
+  onDuration,
+}: {
+  shotId: string;
+  duration: number;
+  onDuration: (duration: number) => void;
+}) {
   const m = useMedia(),
     dialog = useRef<HTMLDialogElement>(null),
     trigger = useRef<HTMLButtonElement>(null),
@@ -122,17 +130,29 @@ export function ShotSettings({ shotId }: { shotId: string }) {
     spec = saved?.effective.specification;
   return (
     <>
-      <div className="shot-specification">
-        {spec
-          ? `${spec.aspect_ratio} · ${spec.resolution} · ${saved?.effective.model.value?.model || "未配置模型"}`
-          : "正在读取镜头规格…"}
-        {saved && Object.keys(saved.overrides).length > 0
-          ? " · 本镜覆盖"
-          : " · 继承设置"}
+      <div className="shot-specification spec-chips">
+        <button ref={trigger} aria-label="本镜模型" onClick={() => void open()}>
+          {saved?.effective.model.value?.model || "未配置模型"}
+        </button>
+        <button aria-label="本镜画幅" onClick={() => void open()}>
+          {spec?.aspect_ratio || "读取中…"}
+        </button>
+        <button aria-label="本镜分辨率" onClick={() => void open()}>
+          {spec?.resolution || "读取中…"}
+        </button>
+        <label title="镜头时长">
+          <input
+            aria-label="镜头时长"
+            type="number"
+            min="0.1"
+            max="600"
+            step="0.1"
+            value={duration}
+            onChange={(e) => onDuration(Number(e.target.value))}
+          />
+          秒
+        </label>
       </div>
-      <button ref={trigger} onClick={() => void open()}>
-        本镜生成设置
-      </button>
       <dialog
         onKeyDown={trapDialogFocus}
         ref={dialog}

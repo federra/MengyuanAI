@@ -206,6 +206,9 @@ def resolve(db: Session, project: Project, key: str, stage: str):
 
 
 def seed_configuration(db):
+    from shortfilm.configuration.style_seeds import seed_styles
+
+    seed_styles(db)
     if not latest(db, "system", "output"):
         db.add(
             Binding(

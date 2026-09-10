@@ -12,6 +12,8 @@ class EntityCreate(DTO):
     description: str = Field(default="", max_length=10000)
     voice: str = Field(default="", max_length=200)
     three_view: bool = False
+    input_file_id: UUID | None = None
+    output_file_id: UUID | None = None
 
     @model_validator(mode="after")
     def character_options(self):
@@ -25,6 +27,8 @@ class EntityUpdate(EntityCreate):
 
 
 class EntityOut(EntityCreate):
+    library_asset_id: UUID | None = None
+    library_version: int | None = None
     id: UUID
     version_id: UUID
     revision: int
@@ -49,3 +53,48 @@ class ReferenceOut(DTO):
     name: str
     stale: bool
     confirmed: bool
+
+
+class EntityChange(EntityCreate):
+    clear_output: bool = False
+    id: UUID
+    revision: int = Field(ge=0)
+
+
+class EntityBatch(DTO):
+    base_board_version_id: UUID | None = None
+    items: list[EntityChange] = Field(min_length=1, max_length=300)
+
+
+class EntityBatchOut(DTO):
+    entities: list[EntityOut]
+    board_version_id: UUID | None
+    affected_shot_ids: list[UUID]
+
+
+class EntityBind(DTO):
+    entity_revision: int = Field(ge=1)
+    board_version_id: UUID
+    shot_id: UUID
+    mode: Literal["add", "replace"]
+
+
+class EntityBindOut(DTO):
+    board_version_id: UUID
+    ref_id: UUID
+    affected_shot_ids: list[UUID]
+
+
+class EntityImageItem(DTO):
+    entity_id: UUID
+    entity_revision: int = Field(ge=1)
+    instruction: str = Field(default="", max_length=10000)
+
+
+class EntityImages(DTO):
+    items: list[EntityImageItem] = Field(min_length=1, max_length=300)
+
+
+class EntityArchiveOut(DTO):
+    id: UUID
+    archived: bool

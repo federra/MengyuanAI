@@ -139,14 +139,24 @@ def assets(pid: UUID, db: Session = Depends(session)):
     version = current_version(db, item) if item and item.revision else None
     if not version:
         return []
-    shots = [UUID(s["id"]) for s in version.body["shots"]]
-    return list(
-        db.scalars(
-            select(BoardImportAsset)
-            .where(BoardImportAsset.project_id == pid, BoardImportAsset.shot_id.in_(shots))
-            .order_by(BoardImportAsset.created_at, BoardImportAsset.id)
-        )
-    )
+    from shortfilm.assets.service import entity_version as current_entity_version
+    from shortfilm.assets.strict import ref_entity
+    from shortfilm.creation.board_import_models import pending_reference
+    kinds = {"characters":"角色", "scenes":"场景", "props":"道具", "positions":"站位"}
+    result = []
+    for shot in version.body["shots"]:
+        for group, refs in shot["refs"].items():
+            for ref in refs:
+                eid = ref_entity(db, pid, shot["id"], ref)
+                if eid:
+                    entity = db.get(Entity, eid)
+                    current = current_entity_version(db, entity)
+                    result.append(dict(id=ref,shot_id=shot["id"],entity_version_id=current.id,kind=kinds[group],name=current.name,description=current.description))
+                else:
+                    descriptor = pending_reference(db,pid,shot["id"],ref)
+                    if descriptor:
+                        result.append(descriptor)
+    return result
 
 
 @router.post("/preview", response_model=PreviewOut)

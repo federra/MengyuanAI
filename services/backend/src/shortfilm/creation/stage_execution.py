@@ -22,7 +22,7 @@ from shortfilm.creation.stage_service import (
 from shortfilm.models import ContentItem, ContentReview, ContentVersion, Message, Proposal
 
 
-def schema_for(kind):
+def schema_for(kind, snapshot=None):
     if kind == "story.generate":
         return BatchOutput
     if kind in ("story.revise", "idea.revise"):
@@ -30,7 +30,8 @@ def schema_for(kind):
     if kind == "script.generate":
         return ScriptBody
     if kind == "board.generate":
-        return BoardBody
+        from shortfilm.creation.entity_catalog import GeneratedBoard
+        return GeneratedBoard if (snapshot or {}).get("entity_catalog_contract") == 1 else BoardBody
     if kind.endswith(".review"):
         return BoardReviewOutput if kind.startswith("board.") else ReviewOutput
     return BodyProposal
@@ -39,7 +40,7 @@ def schema_for(kind):
 def validate_output(db, snapshot, raw):
     kind = snapshot["kind"]
     result = (
-        schema_for(kind)
+        schema_for(kind, snapshot)
         .model_validate(raw, context={"story_count": snapshot.get("story_count", 3)})
         .model_dump(mode="json")
     )
@@ -47,7 +48,8 @@ def validate_output(db, snapshot, raw):
         return canonical_script(result)
     if kind == "board.generate":
         item = db.get(ContentItem, UUID(snapshot["item_id"]))
-        return validate_board(db, item, result, UUID(snapshot["source_version_id"]), generated=True)
+        catalog = {k: result.pop(k) for k in ("catalog", "shotEntities") if k in result}
+        return {**validate_board(db, item, result, UUID(snapshot["source_version_id"]), generated=True), **catalog}
     if kind.endswith((".revise", ".repair")) and kind not in ("story.revise", "idea.revise"):
         stage = kind.split(".")[0]
         if stage == "script":
@@ -115,7 +117,14 @@ def save_stage_output(db, project, job, output):
             chosen = selection(db, project.id)
             active = active and chosen is not None and chosen.version_id == source.id
         if item.kind == "board":
+            output = dict(output)
+            catalog = output.pop("catalog", None)
+            bindings = output.pop("shotEntities", [])
             output = validate_board(db, item, output, source.id, reserve=True)
+            db.flush()
+            if active and catalog is not None:
+                from shortfilm.creation.entity_catalog import publish_catalog
+                output = publish_catalog(db, project, job, output, catalog, bindings)
         v = archive_or_activate(db, project, item, output, source.id, job, active)
         enqueue_review(db, project, item, v, job.snapshot["review_configuration"])
     else:

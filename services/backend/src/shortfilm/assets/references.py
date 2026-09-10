@@ -24,8 +24,8 @@ def image_out(db, project, image):
     entity = db.get(Entity, source.entity_id)
     current = entity_version(db, entity)
     # A rename or voice change does not invalidate the visual depiction.
-    stale = any(
-        getattr(source, key) != getattr(current, key) for key in ("description", "three_view")
+    stale = entity.archived or any(
+        getattr(source, key) != getattr(current, key) for key in ("description", "three_view", "input_file_id")
     )
     media = db.get(MediaFile, image.file_id)
     readable = LocalStorage(settings.storage_root).path(media.object_key).is_file()

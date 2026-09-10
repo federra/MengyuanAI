@@ -162,3 +162,519 @@
     max-height: none;
   }
 }
+
+/* PRD element manager: paired input/output pictures, shared theme tokens. */
+.entity-toolbar,
+.entity-voice-row {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  flex-wrap: wrap;
+  margin-bottom: 12px;
+}
+.entity-voice-row .field {
+  flex: 1;
+  min-width: 160px;
+}
+.entity-images-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  min-width: 0;
+}
+.entity-images-grid section {
+  min-width: 0;
+}
+.entity-images-grid h3 {
+  margin: 0 0 8px;
+}
+.entity-preview,
+.entity-image-empty {
+  width: 100%;
+  height: 110px;
+  object-fit: contain;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--tint);
+}
+.entity-image-empty {
+  display: grid;
+  place-items: center;
+  font-size: 14px;
+}
+.entity-images-grid input[type="file"] {
+  max-width: 100%;
+  font-size: 14px;
+}
+.entity-action-panel {
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--tint);
+  display: grid;
+  gap: 8px;
+  margin: 12px 0;
+}
+.entity-action-panel h3,
+.entity-action-panel p {
+  margin: 0;
+}
+.entity-operations {
+  gap: 8px;
+  flex-wrap: wrap;
+}
+@media (max-width: 500px) {
+  .entity-images-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.entity-library-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 12px;
+}
+.entity-library-grid article {
+  min-width: 0;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+}
+.entity-library-grid p {
+  max-height: 88px;
+  overflow: auto;
+  white-space: pre-wrap;
+}
+.entity-library h3 {
+  margin-top: 12px;
+}
+/* 2026-09-10 reference ruler: fill available width, compact cards, vertical slots. */
+.workspace main {
+  max-width: none;
+  width: 100%;
+  box-sizing: border-box;
+}
+.app .board-table {
+  width: 100%;
+  table-layout: fixed;
+  min-width: 1100px;
+}
+.app .board-table th:nth-child(1) {
+  width: 48px;
+}
+.app .board-table th:nth-child(2) {
+  width: 27%;
+}
+.app .board-table th:nth-child(3) {
+  width: 96px;
+}
+.app .board-table th:nth-child(4) {
+  width: 43%;
+}
+.app .board-table th:nth-child(5) {
+  width: 170px;
+}
+.app .board-table th:nth-child(6) {
+  width: 86px;
+}
+.app .board-table .dialogue-line {
+  display: grid;
+  grid-template-columns: minmax(70px, 1fr) minmax(60px, 1fr) 32px 28px;
+  gap: 6px;
+  padding: 8px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  margin-bottom: 10px;
+  align-items: center;
+}
+.app .board-table .dialogue-line .field {
+  margin: 0;
+  min-width: 0;
+}
+.app .board-table .dialogue-line .line-text {
+  grid-column: 1/-1;
+  grid-row: 2;
+}
+.app .board-table .dialogue-line textarea {
+  height: 80px;
+  min-height: 80px;
+  border: 0;
+  resize: vertical;
+}
+.app .board-table .dialogue-line input {
+  width: 100%;
+  min-width: 0;
+}
+.app .board-table .audio-entry {
+  grid-column: 3;
+  grid-row: 1;
+  margin: 0;
+}
+.app .board-table .delete-line {
+  grid-column: 4;
+  grid-row: 1;
+  padding: 3px;
+}
+.mic-button {
+  padding: 5px;
+  display: grid;
+  place-items: center;
+  color: var(--accent);
+}
+.app .board-table .add-dialogue-bar {
+  width: 100%;
+  height: 30px;
+  min-height: 30px;
+  border-style: dashed;
+  padding: 3px;
+}
+.app .board-table .shot-reference-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  align-items: center;
+}
+.app .board-table .reference-window {
+  border: 0;
+  padding: 0;
+  background: none;
+  min-height: 0;
+  width: 64px;
+}
+.app .board-table .reference-square {
+  width: 64px;
+  height: 64px;
+  min-width: 64px;
+  min-height: 64px;
+  padding: 0;
+  position: relative;
+  border: 1px dashed var(--line);
+  border-radius: 8px;
+  overflow: hidden;
+  font-size: 24px;
+}
+.reference-square img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.reference-square small {
+  position: absolute;
+  bottom: 0;
+  right: 0;
+  background: var(--panel);
+  font-size: 11px;
+  padding: 0 4px;
+}
+.app .board-table .prompt-editor textarea {
+  height: 248px;
+  min-height: 160px;
+}
+.spec-chips {
+  display: flex;
+  gap: 5px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+.spec-chips button,
+.spec-chips label {
+  border: 1px solid var(--line);
+  border-radius: 20px;
+  padding: 4px 8px;
+  max-width: 100%;
+  font-size: 12px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.spec-chips button:first-child {
+  max-width: 45%;
+}
+.spec-chips input {
+  width: 45px;
+  padding: 0;
+  border: 0;
+  background: none;
+}
+.view-field {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 12px 0;
+}
+.settings-dialog.entity-dialog {
+  width: calc(100vw - 40px);
+  max-width: none;
+}
+.entity-dialog .entity-workspace {
+  display: block;
+}
+.entity-table-scroll {
+  overflow: auto;
+}
+.entity-catalog-table {
+  width: 100%;
+  min-width: 1060px;
+  table-layout: fixed;
+  border-collapse: collapse;
+}
+.entity-catalog-table th,
+.entity-catalog-table td {
+  padding: 10px;
+  border-bottom: 1px solid var(--line);
+  vertical-align: top;
+  text-align: left;
+}
+.entity-catalog-table th:nth-child(1) {
+  width: 48px;
+}
+.entity-catalog-table th:nth-child(2) {
+  width: 16%;
+}
+.entity-catalog-table th:nth-child(3) {
+  width: 30%;
+}
+.entity-catalog-table th:nth-child(4) {
+  width: 13%;
+}
+.entity-catalog-table th:nth-child(5),
+.entity-catalog-table th:nth-child(6) {
+  width: 150px;
+}
+.entity-catalog-table th:last-child {
+  width: 150px;
+}
+.entity-catalog-table input:not([type="checkbox"]),
+.entity-catalog-table select,
+.entity-catalog-table textarea {
+  width: 100%;
+  min-width: 0;
+}
+.entity-catalog-table textarea {
+  height: 140px;
+  min-height: 140px;
+}
+.catalog-image,
+.catalog-empty {
+  width: 128px;
+  height: 100px;
+  object-fit: contain;
+  border: 1px dashed var(--line);
+  border-radius: 8px;
+}
+.catalog-empty {
+  display: grid;
+  place-items: center;
+  color: var(--muted);
+}
+.catalog-image-button {
+  padding: 0;
+  border: 0;
+  background: none;
+}
+.catalog-check {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+.catalog-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.catalog-upload {
+  display: inline-block;
+  position: relative;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  padding: 4px 10px;
+  border-radius: 6px;
+  cursor: pointer;
+}
+.catalog-upload input {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+.entity-selected-editor {
+  border: 1px solid var(--line);
+  padding: 16px;
+  margin-top: 12px;
+}
+/* Project / board polish: same dimensions in every theme. */
+.app .page-heading:has(.heading-project-info) {
+  display: flex;
+  align-items: flex-start;
+  gap: 20px;
+  flex-wrap: nowrap;
+}
+.app .page-heading:has(.heading-project-info) > div:first-child {
+  flex: 0 0 auto;
+  max-width: 43%;
+}
+.app .heading-project-info {
+  font-size: 12px;
+  line-height: 1.45;
+  flex: 1;
+  min-width: 0;
+  max-height: 52px;
+  overflow: auto;
+  color: var(--muted);
+  padding-top: 3px;
+}
+.heading-project-info strong {
+  font-weight: 700;
+  color: var(--text);
+  margin-right: 12px;
+}
+.heading-project-info span {
+  margin-right: 12px;
+}
+.heading-idea {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  margin-top: 3px;
+}
+.app .board-editor .table-wrap {
+  max-height: max(760px, calc(100vh - 220px));
+}
+.app .board-table th,
+.app .entity-catalog-table th {
+  text-align: center;
+}
+.app .board-table .dialogue-line {
+  grid-template-columns: minmax(70px, 1fr) minmax(60px, 1fr) 32px 32px;
+}
+.app .board-table .dialogue-line input,
+.app .board-table .dialogue-line select,
+.app .board-table .mic-button,
+.app .board-table .delete-line {
+  height: 32px;
+  min-height: 32px;
+  max-height: 32px;
+  padding: 4px 6px;
+  box-sizing: border-box;
+}
+.app .board-table .mic-button,
+.app .board-table .delete-line {
+  width: 32px;
+  min-width: 32px;
+  border-radius: 6px;
+}
+.app .board-table .dialogue-line textarea {
+  height: 80px;
+  min-height: 80px;
+  max-height: 80px;
+  resize: none;
+  overflow: auto;
+}
+.app .board-table .reference-kind-label {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  z-index: 1;
+  font-size: 10px;
+  line-height: 16px;
+  text-align: center;
+  background: var(--panel);
+  color: var(--muted);
+  pointer-events: none;
+}
+.app .entity-catalog-table input:not([type="file"]):not([type="checkbox"]),
+.app .entity-catalog-table select,
+.app .entity-catalog-table button:not(.catalog-image-button),
+.app .entity-catalog-table .catalog-upload {
+  height: 32px;
+  min-height: 32px;
+  max-height: 32px;
+  padding: 4px 8px;
+  box-sizing: border-box;
+  line-height: 22px;
+  margin: 0;
+}
+.app .catalog-image-actions {
+  display: flex;
+  gap: 6px;
+  width: 128px;
+  margin-top: 6px;
+  align-items: center;
+}
+.app .catalog-image-actions > * {
+  flex: 1;
+  min-width: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+.app .catalog-image-actions .catalog-upload {
+  position: relative;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  overflow: hidden;
+  cursor: pointer;
+}
+.app .catalog-image-actions input[type="file"] {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  width: 100%;
+  height: 100%;
+  cursor: pointer;
+}
+.app .catalog-image-button {
+  display: block;
+}
+.app .cards article {
+  position: relative;
+}
+.project-card-menu {
+  position: absolute;
+  right: 10px;
+  top: 10px;
+  z-index: 2;
+  border: 1px solid var(--line);
+  background: var(--panel);
+  border-radius: 6px;
+  padding: 4px;
+}
+.project-card-menu summary {
+  cursor: pointer;
+  list-style: none;
+  text-align: center;
+  min-width: 28px;
+  font-size: 20px;
+  line-height: 24px;
+}
+.project-delete-dialog {
+  position: fixed;
+  z-index: 100;
+  top: 25vh;
+  max-width: 480px;
+  width: calc(100vw - 40px);
+  background: var(--panel);
+  color: var(--text);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 24px;
+  box-shadow: 0 12px 60px #0005;
+}
+
+.app .page-heading:has(.heading-project-info)>div:first-child p{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+
+.image-preview-dialog{width:calc(100vw - 64px);max-width:1600px;max-height:calc(100vh - 48px);padding:16px;background:var(--panel);color:var(--text);border:1px solid var(--line);border-radius:10px}.image-preview-dialog header{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px}.image-preview-dialog>img{display:block;width:100%;height:calc(100vh - 150px);object-fit:contain}.image-preview-dialog::backdrop{background:#0009}.app .board-table .reference-count{position:absolute;right:1px;bottom:1px;z-index:3;font-size:10px;line-height:15px;min-width:15px;text-align:center;background:var(--panel);color:var(--text);border-radius:3px}.app .board-table .reference-kind-label{padding-right:13px}.app .entity-catalog-table .image-preview-dialog button{width:auto}
+.app .image-preview-dialog[open]{display:block}
+.app .image-preview-dialog>header{position:static;display:flex;width:100%;height:auto;min-height:36px;gap:16px;justify-content:space-between;align-items:center;padding:0;margin:0 0 12px}
+.app .image-preview-dialog>header strong{white-space:normal}
+.app .mention-image-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:12px}
+.app .mention-image-grid button{display:flex;flex-direction:column;align-items:center;height:auto;padding:10px;white-space:normal;gap:6px}
+.app .mention-image-grid img{width:120px;height:120px;object-fit:contain}
+.app .mention-image-grid small{font-size:11px}
+.app .linked-prompt{white-space:pre-wrap;overflow-wrap:anywhere;min-height:150px;max-height:280px;overflow:auto;padding:10px;border:1px solid var(--line);border-radius:8px;line-height:1.65;cursor:text}
+.app .prompt-image-link{display:inline;padding:0;border:0;border-radius:0;background:transparent;color:var(--accent);font:inherit;line-height:inherit;min-height:0;height:auto;text-decoration:underline;text-underline-offset:3px;white-space:normal;cursor:pointer}
+.app .prompt-image-link:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.app .prompt-edit-toggle{justify-self:end;height:24px;min-height:24px;padding:0 5px;font-size:11px}
+.app .prompt-editor textarea[hidden]{display:none}

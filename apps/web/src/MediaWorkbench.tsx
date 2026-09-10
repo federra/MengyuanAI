@@ -1,6 +1,6 @@
 import { createPortal } from "react-dom";
 import { BatchMediaDialog } from "./BatchMediaDialog";
-import { ShotSettings } from "./ShotSettings";
+import { trapDialogFocus } from "./dialogFocus";
 import {
   createContext,
   useContext,
@@ -49,7 +49,12 @@ export async function mediaRequest(
       new Error(
         typeof value.detail === "string"
           ? value.detail
-          : "操作未成功，请检查输入与任务记录",
+          : typeof value.detail?.message === "string"
+            ? value.detail.message +
+              (Array.isArray(value.detail.shot_ids)
+                ? `（关联 ${value.detail.shot_ids.length} 个镜头）`
+                : "")
+            : "操作未成功，请检查输入与任务记录",
       ),
       { status: response.status },
     );
@@ -458,7 +463,6 @@ export function ShotVideo({
   )?.previous;
   return (
     <section aria-label="镜头视频">
-      <ShotSettings shotId={shot.id} />
       <button
         disabled={
           !m.enabled ||
@@ -548,8 +552,19 @@ export function ShotVideo({
     </section>
   );
 }
-export function ShotAudio({ shot, lineId }: { shot: Shot; lineId?: string }) {
+export function ShotAudio({
+  shot,
+  lineId,
+  onVoice,
+}: {
+  shot: Shot;
+  lineId?: string;
+  onVoice?: (voice: string) => void;
+}) {
+  const dialog = useRef<HTMLDialogElement>(null);
+  const trigger = useRef<HTMLButtonElement>(null);
   const m = useMedia();
+  const [audioError, setAudioError] = useState("");
   const [choices, setChoices] = useState<
     Record<string, { emotion: string; speed: number }>
   >(
@@ -567,136 +582,182 @@ export function ShotAudio({ shot, lineId }: { shot: Shot; lineId?: string }) {
     [choices, m.pid, shot.id, lineId],
   );
   return (
-    <section aria-label="逐段配音">
-      {shot.dialogues.map((line, i) => {
-        if (lineId && line.id !== lineId) return null;
-        const binding = m.bindings.find((b) => b.line_id === line.id),
-          choice = choices[line.id] || { emotion: "neutral", speed: 1 };
-        const outputs = m.results.filter(
-          (r) => r.kind === "media.audio" && r.target_id === line.id,
-        );
-        return (
-          <div className="audio-line inline-tts" key={line.id}>
-            <details className="tts-options">
-              <summary>配音设置</summary>
-              <label className="field">
-                绑定全片角色
-                <select
-                  disabled={!m.enabled || m.busy}
-                  value={binding?.entity_id || ""}
-                  onChange={(e) =>
+    <section aria-label="逐段配音" className="audio-entry">
+      <button
+        ref={trigger}
+        className="mic-button"
+        aria-label="配置配音"
+        onClick={() => dialog.current?.showModal()}
+      >
+        <svg
+          viewBox="0 0 24 24"
+          width="18"
+          height="18"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="1.7"
+          aria-hidden="true"
+        >
+          <rect x="9" y="3" width="6" height="12" rx="3" />
+          <path d="M6 10v2a6 6 0 0 0 12 0v-2M12 18v3m-4 0h8" />
+        </svg>
+      </button>
+      <dialog
+        ref={dialog}
+        onKeyDown={trapDialogFocus}
+        className="settings-dialog"
+        aria-label="配置配音"
+        onClose={() => trigger.current?.focus()}
+      >
+        <header className="settings-dialog-header">
+          <h2>配置配音</h2>
+          <button onClick={() => dialog.current?.close()}>关闭</button>
+        </header>
+        <div className="settings-dialog-body">
+          {audioError && <p role="alert">{audioError}</p>}
+          {!m.enabled && <p>请先保存并确认当前分镜，再生成配音。</p>}
+          {shot.dialogues.map((line, i) => {
+            if (lineId && line.id !== lineId) return null;
+            const binding = m.bindings.find((b) => b.line_id === line.id),
+              choice = choices[line.id] || { emotion: "neutral", speed: 1 };
+            const outputs = m.results.filter(
+              (r) => r.kind === "media.audio" && r.target_id === line.id,
+            );
+            return (
+              <div className="audio-line inline-tts" key={line.id}>
+                <div className="tts-options">
+                  {onVoice && (
+                    <label className="field">
+                      逐句音色 ID
+                      <input
+                        value={line.voice}
+                        onChange={(e) => onVoice(e.target.value)}
+                      />
+                    </label>
+                  )}
+                  <label className="field">
+                    绑定全片角色
+                    <select
+                      disabled={!m.enabled || m.busy}
+                      value={binding?.entity_id || ""}
+                      onChange={(e) =>
+                        void m
+                          .run(
+                            `/line-bindings/${line.id}`,
+                            {
+                              board_version_id: m.version,
+                              entity_id: e.target.value || null,
+                              revision: binding?.revision || 0,
+                            },
+                            "PUT",
+                          )
+                          .catch((e) => setAudioError(e.message))
+                      }
+                    >
+                      <option value="">使用逐段音色</option>
+                      {m.entities
+                        .filter((e) => e.kind === "character")
+                        .map((e) => (
+                          <option key={e.id} value={e.id}>
+                            {e.name} · {e.voice || "未设音色"}
+                          </option>
+                        ))}
+                    </select>
+                  </label>
+                  <label className="field">
+                    配音表现
+                    <select
+                      value={choice.emotion}
+                      onChange={(e) =>
+                        setChoices({
+                          ...choices,
+                          [line.id]: { ...choice, emotion: e.target.value },
+                        })
+                      }
+                    >
+                      {Object.entries({
+                        neutral: "平静",
+                        happy: "高兴",
+                        sad: "悲伤",
+                        angry: "愤怒",
+                        fearful: "恐惧",
+                        disgusted: "厌恶",
+                        surprised: "惊讶",
+                      }).map(([value, label]) => (
+                        <option key={value} value={value}>
+                          {label}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                  <label className="field">
+                    配音语速
+                    <input
+                      type="number"
+                      min="0.5"
+                      max="2"
+                      step="0.1"
+                      value={choice.speed}
+                      onChange={(e) =>
+                        setChoices({
+                          ...choices,
+                          [line.id]: {
+                            ...choice,
+                            speed: Number(e.target.value),
+                          },
+                        })
+                      }
+                    />
+                  </label>
+                </div>
+                <button
+                  disabled={
+                    !m.enabled ||
+                    m.busy ||
+                    !line.text.trim() ||
+                    !(binding?.voice || line.voice).trim() ||
+                    m.tasks.some((t) => t.target_id === line.id && active(t))
+                  }
+                  onClick={() =>
                     void m
                       .run(
-                        `/line-bindings/${line.id}`,
+                        "/audio",
                         {
                           board_version_id: m.version,
-                          entity_id: e.target.value || null,
-                          revision: binding?.revision || 0,
+                          shot_id: shot.id,
+                          line_id: line.id,
+                          ...choice,
                         },
-                        "PUT",
+                        "POST",
+                        true,
                       )
-                      .catch(ignore)
+                      .catch((e) => setAudioError(e.message))
                   }
                 >
-                  <option value="">使用逐段音色</option>
-                  {m.entities
-                    .filter((e) => e.kind === "character")
-                    .map((e) => (
-                      <option key={e.id} value={e.id}>
-                        {e.name} · {e.voice || "未设音色"}
-                      </option>
-                    ))}
-                </select>
-              </label>
-              <label className="field">
-                配音表现
-                <select
-                  value={choice.emotion}
-                  onChange={(e) =>
-                    setChoices({
-                      ...choices,
-                      [line.id]: { ...choice, emotion: e.target.value },
-                    })
-                  }
-                >
-                  {Object.entries({
-                    neutral: "平静",
-                    happy: "高兴",
-                    sad: "悲伤",
-                    angry: "愤怒",
-                    fearful: "恐惧",
-                    disgusted: "厌恶",
-                    surprised: "惊讶",
-                  }).map(([value, label]) => (
-                    <option key={value} value={value}>
-                      {label}
-                    </option>
-                  ))}
-                </select>
-              </label>
-              <label className="field">
-                配音语速
-                <input
-                  type="number"
-                  min="0.5"
-                  max="2"
-                  step="0.1"
-                  value={choice.speed}
-                  onChange={(e) =>
-                    setChoices({
-                      ...choices,
-                      [line.id]: { ...choice, speed: Number(e.target.value) },
-                    })
-                  }
-                />
-              </label>
-            </details>
-            <button
-              disabled={
-                !m.enabled ||
-                m.busy ||
-                !line.text.trim() ||
-                !(binding?.voice || line.voice).trim() ||
-                m.tasks.some((t) => t.target_id === line.id && active(t))
-              }
-              onClick={() =>
-                void m
-                  .run(
-                    "/audio",
-                    {
-                      board_version_id: m.version,
-                      shot_id: shot.id,
-                      line_id: line.id,
-                      ...choice,
-                    },
-                    "POST",
-                    true,
-                  )
-                  .catch(ignore)
-              }
-            >
-              生成第{i + 1}段配音
-            </button>
-            {outputs.map((r, index) => (
-              <details key={r.id} open={index === 0}>
-                <summary>
-                  {index === 0 ? "最近配音" : "历史配音"}
-                  {r.stale ? " · 待更新" : ""}
-                  {Number(r.metadata.duration) > shot.duration
-                    ? " · 长于镜头，请调整时长或语速"
-                    : ""}
-                </summary>
-                <audio
-                  controls
-                  preload="metadata"
-                  src={fileUrl(m.pid, r.file_id)}
-                />
-              </details>
-            ))}
-            <MediaHistory target={line.id} kind="media.audio" />
-          </div>
-        );
-      })}
+                  生成第{i + 1}段配音
+                </button>
+                {outputs.map((r, index) => (
+                  <details key={r.id} open={index === 0}>
+                    <summary>
+                      {index === 0 ? "最近配音" : "历史配音"}
+                      {r.stale ? " · 待更新" : ""}
+                      {Number(r.metadata.duration) > shot.duration
+                        ? " · 长于镜头，请调整时长或语速"
+                        : ""}
+                    </summary>
+                    <audio
+                      controls
+                      preload="metadata"
+                      src={fileUrl(m.pid, r.file_id)}
+                    />
+                  </details>
+                ))}
+                <MediaHistory target={line.id} kind="media.audio" />
+              </div>
+            );
+          })}
+        </div>
+      </dialog>
     </section>
   );
 }

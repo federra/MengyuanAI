@@ -398,6 +398,10 @@ def complete(jid, token, raw, receipt):
                 },
             )
         )
+        if not run.cancelled:
+            from shortfilm.media.auto_references import link_generated_image
+
+            link_generated_image(db, project, job, output)
         transition(db, job, "cancelled" if run.cancelled else "succeeded")
         from shortfilm.finishing.service import invalidate_completed
 

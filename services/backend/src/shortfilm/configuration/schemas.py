@@ -9,7 +9,7 @@ from shortfilm.schemas import DTO
 
 class ResourceBody(DTO):
     name: str = Field(min_length=1, max_length=100)
-    kind: Literal["skill", "prompt", "style"]
+    kind: Literal["skill", "prompt", "style", "voice"]
     stage: str = Field(min_length=1, max_length=100)
     content: str = Field(min_length=1)
     required_variables: list[str] = Field(default_factory=list)
@@ -22,6 +22,8 @@ class ResourceBody(DTO):
             raise ValueError("正文缺少必需变量")
         if self.kind == "skill" and self.stage not in ("story", "script", "storyboard"):
             raise ValueError("Skill适用环节无效")
+        if self.kind == "voice" and (self.stage != "voice" or self.required_variables or not re.fullmatch(r"[A-Za-z0-9_.:-]{1,200}", self.content)):
+            raise ValueError("音色资源必须为voice环节的有效供应商音色ID，不能含模板变量")
         return self
 
 

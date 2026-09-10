@@ -68,6 +68,7 @@ class ShotReferenceVersion(Identity, Base):
     shot_id: Mapped[UUID] = mapped_column(ForeignKey("content_identities.id"))
     # Stable reference may be a pending import descriptor; writes validate project and shot.
     ref_id: Mapped[UUID] = mapped_column()
-    file_id: Mapped[UUID] = mapped_column(ForeignKey("media_files.id"))
+    entity_id: Mapped[UUID | None] = mapped_column(ForeignKey("project_entities.id"))
+    file_id: Mapped[UUID | None] = mapped_column(ForeignKey("media_files.id"))
     revision: Mapped[int]
     __table_args__ = (UniqueConstraint("shot_id", "ref_id", "revision"),)

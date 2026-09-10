@@ -58,6 +58,8 @@ def line_context(db, project, shot, line_id):
 
 
 def checked_file(db, project, fid):
+    if fid is None:
+        raise HTTPException(409, "元素图片尚未生成或选择")
     file = db.get(MediaFile, UUID(str(fid)))
     if not file or file.project_id != project.id or not file.mime.startswith("image/"):
         raise HTTPException(422, "引用图片不存在或不属于当前项目")
@@ -127,6 +129,22 @@ def shot_context(db, project, version, shot, kind, require_refs=False):
                 "ref_id": str(fid),
                 "reference_revision": binding.revision if binding else 0,
             }
+            if binding and binding.entity_id:
+                entity = db.get(Entity, binding.entity_id)
+                if not entity or entity.project_id != project.id or entity.archived:
+                    raise HTTPException(409, "镜头关联元素已失效")
+                file["entity_id"] = str(entity.id)
+                file["entity_revision"] = entity.revision
+                if require_refs:
+                    owned_refs = db.scalars(
+                        select(ReferenceImage)
+                        .join(EntityVersion, ReferenceImage.entity_version_id == EntityVersion.id)
+                        .where(
+                            EntityVersion.entity_id == entity.id, ReferenceImage.file_id == actual
+                        )
+                    )
+                    if not any(image_out(db, project, ref)["confirmed"] for ref in owned_refs):
+                        raise HTTPException(409, "关联元素图片未确认或已过期")
             if require_refs and not reference_valid(db, project, actual):
                 raise HTTPException(409, "参考图未确认或已过期，请重新检查")
             files.append(file)
@@ -278,9 +296,9 @@ def source_stale(db, project, snapshot, previous=None, seen=None):
             source = db.get(EntityVersion, UUID(snapshot["entity_version_id"]))
             entity = db.get(Entity, source.entity_id)
             current = entity_version(db, entity)
-            return any(
+            return entity.archived or any(
                 getattr(source, key) != getattr(current, key)
-                for key in ("description", "three_view")
+                for key in ("description", "three_view", "input_file_id")
             )
         version = board(db, project)
         shot = shot_in(version, snapshot["shot_id"])

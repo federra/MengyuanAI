@@ -1,3 +1,7 @@
+import { PromptEditor } from "./PromptEditor";
+import { ProjectHeadingInfo } from "./ProjectHeadingInfo";
+import { ShotSettings } from "./ShotSettings";
+import { BoardViewSettings } from "./BoardViewSettings";
 import {
   AI_TEXT,
   GenerationOutput,
@@ -13,7 +17,6 @@ import {
   MediaToolbar,
   ShotVideo,
   ShotAudio,
-  ShotPosition,
 } from "./MediaWorkbench";
 import { EntityManager } from "./EntityManager";
 import { api, unwrap, type MediaFile } from "./api";
@@ -555,6 +558,7 @@ export function StageWorkbench({
               : "逐镜整理台词、图片引用与画面提示词，让每个镜头都有清晰依据。"}
           </p>
         </div>
+        <ProjectHeadingInfo pid={pid} />
       </div>
       {error && (
         <p role="alert" className="alert">
@@ -568,7 +572,14 @@ export function StageWorkbench({
       )}
       {stage === "board" && (
         <div className="board-toolbar" role="toolbar" aria-label="分镜工具栏">
-          <EntityManager key={pid} pid={pid} />
+          <EntityManager
+            key={pid}
+            pid={pid}
+            onChanged={async () => {
+              await refresh();
+              await refreshJobs();
+            }}
+          />
           <div className="batch-toolbar-slot" ref={setBatchTarget} />
           {!item && (
             <>
@@ -609,6 +620,7 @@ export function StageWorkbench({
               void refreshJobs();
             }}
           />
+          <BoardViewSettings key={pid} pid={pid} />
         </div>
       )}
       {!item || !body ? (
@@ -1094,74 +1106,73 @@ function BoardEditor({
                       key={d.id}
                       data-line-id={d.id}
                     >
-                      {(["speaker", "emotion", "text", "voice"] as const).map(
-                        (f) => (
-                          <label
-                            className={
-                              "field " +
-                              (f === "text"
-                                ? "line-text"
-                                : f === "voice"
-                                  ? "line-voice"
-                                  : "")
-                            }
-                            key={f}
-                          >
-                            {
-                              {
-                                speaker: "说话人",
-                                emotion: "情绪",
-                                text: "台词",
-                                voice: "音色",
-                              }[f]
-                            }
-                            {f === "text" ? (
-                              <textarea
-                                rows={3}
-                                value={d[f]}
-                                onChange={(e) =>
-                                  change(i, {
-                                    ...s,
-                                    dialogues: s.dialogues.map((line, k) =>
-                                      j === k
-                                        ? { ...line, [f]: e.target.value }
-                                        : line,
-                                    ),
-                                  })
-                                }
-                              />
-                            ) : (
-                              <input
-                                value={
-                                  f === "speaker"
-                                    ? media.bindings.find(
-                                        (b) => b.line_id === d.id,
-                                      )?.name || d[f]
-                                    : d[f]
-                                }
-                                readOnly={
-                                  f === "speaker" &&
-                                  !!media.bindings.find(
-                                    (b) => b.line_id === d.id,
-                                  )?.entity_id
-                                }
-                                onChange={(e) =>
-                                  change(i, {
-                                    ...s,
-                                    dialogues: s.dialogues.map((line, k) =>
-                                      j === k
-                                        ? { ...line, [f]: e.target.value }
-                                        : line,
-                                    ),
-                                  })
-                                }
-                              />
-                            )}
-                          </label>
-                        ),
-                      )}
-                      <ShotAudio shot={s} lineId={d.id} />
+                      {(["speaker", "emotion", "text"] as const).map((f) => (
+                        <label
+                          className={
+                            "field " + (f === "text" ? "line-text" : "")
+                          }
+                          key={f}
+                        >
+                          {f === "text" ? (
+                            <textarea
+                              aria-label="台词"
+                              rows={3}
+                              value={d[f]}
+                              onChange={(e) =>
+                                change(i, {
+                                  ...s,
+                                  dialogues: s.dialogues.map((line, k) =>
+                                    j === k
+                                      ? { ...line, [f]: e.target.value }
+                                      : line,
+                                  ),
+                                })
+                              }
+                            />
+                          ) : (
+                            <input
+                              aria-label={f === "speaker" ? "说话人" : "情绪"}
+                              value={
+                                f === "speaker"
+                                  ? media.bindings.find(
+                                      (b) => b.line_id === d.id,
+                                    )?.name || d[f]
+                                  : d[f]
+                              }
+                              readOnly={
+                                f === "speaker" &&
+                                !!media.bindings.find((b) => b.line_id === d.id)
+                                  ?.entity_id
+                              }
+                              onChange={(e) =>
+                                change(i, {
+                                  ...s,
+                                  dialogues: s.dialogues.map((line, k) =>
+                                    j === k
+                                      ? { ...line, [f]: e.target.value }
+                                      : line,
+                                  ),
+                                })
+                              }
+                            />
+                          )}
+                        </label>
+                      ))}
+                      <ShotAudio
+                        shot={s}
+                        lineId={d.id}
+                        onVoice={(voice) =>
+                          change(i, {
+                            ...s,
+                            dialogues: s.dialogues.map((line) =>
+                              line.id === d.id ? { ...line, voice } : line,
+                            ),
+                          })
+                        }
+                      />
                       <button
+                        className="delete-line"
+                        aria-label="删除台词"
                         disabled={s.dialogues.length === 1}
                         onClick={() =>
                           change(i, {
@@ -1170,11 +1181,12 @@ function BoardEditor({
                           })
                         }
                       >
-                        删除台词
+                        ×
                       </button>
                     </div>
                   ))}
                   <button
+                    className="add-dialogue-bar"
                     onClick={() =>
                       change(i, {
                         ...s,
@@ -1195,21 +1207,6 @@ function BoardEditor({
                   </button>
                 </td>
                 <td>
-                  <details className="position-tools">
-                    <summary>站位图生成与确认</summary>
-                    <ShotPosition
-                      shot={s}
-                      onBind={(id) =>
-                        change(i, {
-                          ...s,
-                          refs: {
-                            ...s.refs,
-                            positions: [...(s.refs.positions || []), id],
-                          },
-                        })
-                      }
-                    />
-                  </details>
                   <ShotReferences
                     shot={s}
                     files={files}
@@ -1217,28 +1214,12 @@ function BoardEditor({
                   />
                 </td>
                 <td>
-                  <label className="field prompt-editor">
-                    画面描述
-                    <textarea
-                      rows={7}
-                      value={s.prompt}
-                      onChange={(e) =>
-                        change(i, { ...s, prompt: e.target.value })
-                      }
-                    />
-                  </label>
-                  <label className="field shot-duration">
-                    镜头秒数
-                    <input
-                      type="number"
-                      min="0.1"
-                      step="0.1"
-                      value={s.duration}
-                      onChange={(e) =>
-                        change(i, { ...s, duration: Number(e.target.value) })
-                      }
-                    />
-                  </label>
+                  <PromptEditor shot={s} files={files} onChange={(shot) => change(i, shot)} />
+                  <ShotSettings
+                    shotId={s.id}
+                    duration={s.duration}
+                    onDuration={(duration) => change(i, { ...s, duration })}
+                  />
                 </td>
                 <td>
                   <ShotVideo shot={s} previousShotId={body.shots[i - 1]?.id} />

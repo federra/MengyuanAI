@@ -983,10 +983,18 @@ for (const stage of ["script", "board"] as const) {
       .getByRole("button", { name: stage === "script" ? "3　剧本" : "4　分镜" })
       .click();
     const editor = page.getByRole("textbox", {
-      name: stage === "script" ? "剧本正文" : "画面描述",
+      name: stage === "script" ? "剧本正文" : "提示词",
       exact: true,
     });
-    await expect(editor).toHaveValue("旧生成内容");
+    async function expectEditor(value: string) {
+      if(stage === "board") {
+        const toggle=page.getByRole('button',{name:/^(编辑提示词|返回图片链接预览)$/});
+        await toggle.waitFor();
+        if(await toggle.innerText()==='编辑提示词')await toggle.click();
+      }
+      await expect(editor).toHaveValue(value);
+    }
+    await expectEditor("旧生成内容");
     await editor.fill("尚未保存的旧来源编辑");
     // Another completed generation has a new upstream version while the cached draft survives.
     current = {
@@ -1004,14 +1012,14 @@ for (const stage of ["script", "board"] as const) {
     });
     await page.reload();
     await page.getByRole("button", { name: "继续创作 →" }).click();
-    await expect(editor).toHaveValue("尚未保存的旧来源编辑");
+    await expectEditor("尚未保存的旧来源编辑");
     await page
       .getByRole("button", {
         name:
           stage === "script" ? "核对并恢复当前版本" : "保留草稿并载入最新版本",
       })
       .click();
-    await expect(editor).toHaveValue("新来源生成的完整内容");
+    await expectEditor("新来源生成的完整内容");
     await page.getByText("保留的草稿（1）", { exact: true }).click();
     await expect(page.getByLabel("保留草稿 1")).toContainText(
       "尚未保存的旧来源编辑",
@@ -1039,6 +1047,8 @@ for (const stage of ["script", "board"] as const) {
       .getByRole("button", { name: "载入为草稿", exact: true })
       .first()
       .click();
+    if(stage === "board" && await page.getByRole('button',{name:'编辑提示词',exact:true}).isVisible())
+      await page.getByRole('button',{name:'编辑提示词',exact:true}).click();
     await expect(editor).toBeEnabled();
     // Explicitly loading an old-source history must retain its lineage, never relabel it.
     await page.getByText("v1 · generation", { exact: true }).click();
@@ -1046,7 +1056,7 @@ for (const stage of ["script", "board"] as const) {
       .getByRole("button", { name: "载入为草稿", exact: true })
       .last()
       .click();
-    await expect(editor).toHaveValue("旧生成内容");
+    await expectEditor("旧生成内容");
     if (stage === "board")
       await expect(
         page.getByRole("button", { name: "保存分镜", exact: true }),
@@ -1062,10 +1072,10 @@ for (const stage of ["script", "board"] as const) {
           stage === "script" ? "核对并恢复当前版本" : "保留草稿并载入最新版本",
       })
       .click();
-    await expect(editor).toHaveValue("基于新来源的人工修改");
+    await expectEditor("基于新来源的人工修改");
     await page.reload();
     await page.getByRole("button", { name: "继续创作 →" }).click();
-    await expect(editor).toHaveValue("基于新来源的人工修改");
+    await expectEditor("基于新来源的人工修改");
     await page.getByText(/^保留的草稿（/).click();
     await expect(page.getByLabel("保留草稿 1", { exact: true })).toContainText(
       "尚未保存的旧来源编辑",
@@ -1303,7 +1313,7 @@ test("M2 element editor keeps draft across closing and theme changes, surfaces c
     three_view: false,
   };
   await page.route("**/entities", (route) => route.fulfill({ json: [entity] }));
-  await page.route("**/entities/entity-1", (route) =>
+  await page.route("**/entities/batch", (route) =>
     route.fulfill({
       status: 409,
       json: { detail: "元素已更新，请读取最新版本并合并草稿" },
@@ -1313,13 +1323,13 @@ test("M2 element editor keeps draft across closing and theme changes, surfaces c
   await page.getByRole("button", { name: "角色管理", exact: true }).click();
   const dialog = page.getByRole("dialog", { name: "角色管理", exact: true });
   await expect(dialog).toBeVisible();
-  await dialog.getByRole("button", { name: "编辑邮差", exact: true }).click();
+
   await dialog.getByLabel("元素描述").fill("人工草稿：红制服");
   await dialog.getByRole("button", { name: "关闭元素管理" }).click();
   await page.getByLabel("UI主题").selectOption("noir");
   await page.getByRole("button", { name: "角色管理", exact: true }).click();
   await expect(dialog.getByLabel("元素描述")).toHaveValue("人工草稿：红制服");
-  await dialog.getByRole("button", { name: "保存元素", exact: true }).click();
+  await dialog.getByRole("button", { name: "保存修改", exact: true }).click();
   await expect(dialog.getByRole("alert")).toContainText("元素已更新");
   await expect(dialog.getByLabel("元素描述")).toHaveValue("人工草稿：红制服");
   await dialog.screenshot({ path: "test-results/m2-element-dialog.png" });
@@ -1372,7 +1382,9 @@ test("M2 reference preview and explicit confirmation use saved image identity", 
   await page.getByRole("button", { name: "4　分镜" }).click();
   await page.getByRole("button", { name: "角色管理", exact: true }).click();
   const dialog = page.getByRole("dialog", { name: "角色管理", exact: true });
-  await dialog.getByRole("button", { name: "编辑邮差", exact: true }).click();
+  await dialog
+    .getByRole("button", { name: "邮差图片详情", exact: true })
+    .click();
   await expect(
     dialog.getByRole("link", { name: "预览邮差参考图" }),
   ).toHaveAttribute("href", `/api/v1/projects/${project.id}/files/file-1`);
@@ -1386,19 +1398,14 @@ test("M2 recovers multiple new drafts including description-only drafts", async 
   await page.route("**/entities", (route) => route.fulfill({ json: [] }));
   await page.getByRole("button", { name: "4　分镜" }).click();
   await page.getByRole("button", { name: "角色管理", exact: true }).click();
-  const dialog = page.getByRole("dialog", { name: "角色管理", exact: true });
-  await dialog.getByLabel("元素描述").fill("未命名草稿");
-  await dialog.getByRole("button", { name: "新增角色", exact: true }).click();
-  await dialog.getByLabel("元素名称").fill("第二草稿");
-  await dialog.getByRole("button", { name: "新增角色", exact: true }).click();
-  await dialog
-    .getByRole("button", { name: "恢复草稿：未命名草稿", exact: true })
-    .click();
-  await expect(dialog.getByLabel("元素描述")).toHaveValue("未命名草稿");
-  await dialog
-    .getByRole("button", { name: "恢复草稿：第二草稿", exact: true })
-    .click();
-  await expect(dialog.getByLabel("元素名称")).toHaveValue("第二草稿");
+  const d = page.getByRole("dialog", { name: "角色管理", exact: true });
+  await d.getByRole("button", { name: "新增角色", exact: true }).click();
+  await d.getByLabel("元素描述").first().fill("未命名草稿");
+  await d.getByRole("button", { name: "新增角色", exact: true }).click();
+  await d.getByLabel("元素名称").nth(1).fill("第二草稿");
+  await d.getByRole("button", { name: "新增角色", exact: true }).click();
+  await expect(d.getByLabel("元素描述").first()).toHaveValue("未命名草稿");
+  await expect(d.getByLabel("元素名称").nth(1)).toHaveValue("第二草稿");
 });
 
 test("M2 conflict draft can be compared and saved against refreshed revision", async ({
@@ -1418,40 +1425,45 @@ test("M2 conflict draft can be compared and saved against refreshed revision", a
   await page.route("**/reference-images", (route) =>
     route.fulfill({ json: [] }),
   );
-  await page.route("**/entities/entity-1", (route) => {
-    const body = route.request().postDataJSON();
+  await page.route("**/entities/batch", (route) => {
+    const body = route.request().postDataJSON().items[0];
     if (body.revision !== entity.revision)
       return route.fulfill({ status: 409, json: { detail: "元素已更新" } });
     Object.assign(entity, body, { revision: entity.revision + 1 });
-    return route.fulfill({ json: entity });
+    return route.fulfill({
+      json: {
+        entities: [entity],
+        board_version_id: null,
+        affected_shot_ids: [],
+      },
+    });
   });
   await page.getByRole("button", { name: "4　分镜" }).click();
   await page.getByRole("button", { name: "角色管理", exact: true }).click();
   const dialog = page.getByRole("dialog", { name: "角色管理", exact: true });
-  await dialog.getByRole("button", { name: "编辑邮差", exact: true }).click();
-  await dialog.getByLabel("元素描述").fill("红制服草稿");
+  await dialog
+    .getByRole("button", { name: "邮差图片详情", exact: true })
+    .click();
+  await dialog.getByLabel("元素描述").first().fill("红制服草稿");
   entity.revision = 2;
   entity.description = "其他窗口的绿制服";
-  await dialog.getByRole("button", { name: "保存元素", exact: true }).click();
+  await dialog.getByRole("button", { name: "保存修改", exact: true }).click();
   await expect(dialog.getByRole("alert")).toContainText("元素已更新");
   await dialog.getByRole("button", { name: "关闭元素管理" }).click();
   await page.getByRole("button", { name: "角色管理", exact: true }).click();
-  await expect(dialog.getByText("v2", { exact: true })).toBeVisible();
-  await dialog.getByRole("button", { name: "编辑邮差", exact: true }).click();
-  await dialog
-    .getByRole("button", { name: "恢复草稿：邮差", exact: true })
-    .click();
-  await expect(dialog.getByLabel("元素描述")).toHaveValue("红制服草稿");
-  await dialog
-    .locator("details")
-    .filter({ hasText: "当前已保存描述" })
-    .locator("summary")
-    .click();
+  await dialog.getByRole("button", { name: "版本冲突：比较版本" }).click();
+  await expect(
+    dialog.getByRole("heading", { name: "已保存版本 v2" }),
+  ).toBeVisible();
+  await expect(dialog.getByLabel("元素描述").first()).toHaveValue("红制服草稿");
   await expect(
     dialog.getByText("当前已保存描述：其他窗口的绿制服", { exact: true }),
   ).toBeVisible();
-  await dialog.getByRole("button", { name: "保存元素", exact: true }).click();
-  await expect(dialog.getByRole("status")).toContainText("元素已保存");
+  await dialog
+    .getByRole("button", { name: "将此草稿合并到最新版本", exact: true })
+    .click();
+  await dialog.getByRole("button", { name: "保存修改", exact: true }).click();
+  await expect(dialog.getByRole("status")).toContainText("已统一保存");
   expect(entity.revision).toBe(3);
   expect(entity.description).toBe("红制服草稿");
 });
@@ -1512,7 +1524,7 @@ test("M2 media submission preserves command after lost response and keeps explic
     return route.fulfill({ status: 202, json: { id: "audio-job" } });
   });
   await setupMediaBoard(page);
-  await page.getByText("配音设置", { exact: true }).click();
+  await page.getByRole("button", { name: "配置配音", exact: true }).click();
   await page
     .getByRole("combobox", { name: "配音表现", exact: true })
     .selectOption("happy");
@@ -1520,12 +1532,15 @@ test("M2 media submission preserves command after lost response and keeps explic
     .getByRole("button", { name: "生成第1段配音", exact: true })
     .click();
   await expect(
-    page.getByRole("alert").filter({ hasText: /fetch|Failed|操作/i }),
+    page
+      .getByRole("dialog", { name: "配置配音", exact: true })
+      .getByRole("alert")
+      .filter({ hasText: /fetch|Failed|操作/i }),
   ).toBeVisible();
   await page.reload();
   await page.getByRole("button", { name: "继续创作 →" }).click();
   await page.getByRole("button", { name: "4　分镜" }).click();
-  await page.getByText("配音设置", { exact: true }).click();
+  await page.getByRole("button", { name: "配置配音", exact: true }).click();
   await expect(
     page.getByRole("combobox", { name: "配音表现", exact: true }),
   ).toHaveValue("happy");
@@ -1534,12 +1549,17 @@ test("M2 media submission preserves command after lost response and keeps explic
     .click();
   await expect.poll(() => keys.length).toBe(2);
   expect(keys[1]).toBe(keys[0]);
+  await page
+    .getByRole("dialog", { name: "配置配音", exact: true })
+    .getByRole("button", { name: "关闭", exact: true })
+    .click();
   await expect(
     page.getByRole("textbox", { name: "台词", exact: true }),
   ).toHaveValue("原始台词");
   await page
     .getByRole("textbox", { name: "台词", exact: true })
     .fill("未保存草稿");
+  await page.getByRole("button", { name: "配置配音", exact: true }).click();
   await expect(
     page.getByRole("button", { name: "生成第1段配音", exact: true }),
   ).toBeDisabled();
@@ -1588,7 +1608,12 @@ test("M2 media reload renders exact stored audio video and stale state", async (
   await expect(
     page.getByText("最近结果 · 待更新", { exact: true }),
   ).toBeVisible();
+  await page.getByRole("button", { name: "配置配音", exact: true }).click();
   await expect(page.getByText(/长于镜头，请调整时长或语速/)).toBeVisible();
+  await page
+    .getByRole("dialog", { name: "配置配音", exact: true })
+    .getByRole("button", { name: "关闭", exact: true })
+    .click();
   await page.getByRole("button", { name: "收起导演助手" }).click();
   await page
     .locator(".board-editor")
@@ -1836,7 +1861,7 @@ test("V13 six columns place TTS under its dialogue in all themes", async ({
     ]);
     const line = page.locator('[data-line-id="line-media"]');
     await expect(
-      line.getByRole("button", { name: "生成第1段配音", exact: true }),
+      line.getByRole("button", { name: "配置配音", exact: true }),
     ).toBeVisible();
     await expect(
       page.getByRole("columnheader", { name: "独立音频 TTS" }),
@@ -1893,7 +1918,7 @@ test("V13 shot configuration saves only its overrides and restores focus", async
     await route.fulfill({ json: settings });
   });
   await setupMediaBoard(page);
-  await page.getByRole("button", { name: "本镜生成设置", exact: true }).click();
+  await page.getByRole("button", { name: "本镜模型", exact: true }).click();
   const dialog = page.getByRole("dialog", { name: "本镜生成设置" });
   await dialog.getByLabel("本镜画幅").selectOption("1:1");
   await dialog
@@ -1902,7 +1927,7 @@ test("V13 shot configuration saves only its overrides and restores focus", async
   await expect(dialog.getByRole("status")).toContainText("已保存");
   await dialog.getByRole("button", { name: "关闭单镜设置" }).click();
   await expect(
-    page.getByRole("button", { name: "本镜生成设置", exact: true }),
+    page.getByRole("button", { name: "本镜模型", exact: true }),
   ).toBeFocused();
   await expect(page.locator(".shot-specification")).toContainText("1:1");
 });
@@ -2007,12 +2032,16 @@ test("V13 JSON import replaces the whole table and keeps it after reload", async
   await dialog
     .getByRole("button", { name: "确认整表替换", exact: true })
     .click();
-  await expect(page.getByLabel("画面描述")).toHaveValue("导入后整表新镜头");
+  await expect(
+    page.getByLabel("提示词预览"),
+  ).toHaveText("导入后整表新镜头");
   await expect(page.locator('[data-shot-id="shot-media"]')).toHaveCount(0);
   await page.reload();
   await page.getByRole("button", { name: "继续创作 →" }).click();
   await page.getByRole("button", { name: "4　分镜" }).click();
-  await expect(page.getByLabel("画面描述")).toHaveValue("导入后整表新镜头");
+  await expect(
+    page.getByLabel("提示词预览"),
+  ).toHaveText("导入后整表新镜头");
 });
 
 test("U01–U07 four themes nine pages measured evidence", async ({
@@ -2224,10 +2253,12 @@ test("U01–U07 four themes nine pages measured evidence", async ({
       }
       if (name === "storyboard") {
         await page
-          .getByRole("button", { name: "本镜生成设置", exact: true })
+          .getByRole("button", { name: "本镜模型", exact: true })
           .first()
           .click();
-        await expect(page.getByLabel("本镜画幅")).toBeVisible();
+        await expect(
+          page.getByRole("combobox", { name: "本镜画幅", exact: true }),
+        ).toBeVisible();
         await capture("shot-settings", theme);
         for (let k = 0; k < 9; k++) {
           await page.keyboard.press("Tab");
@@ -2698,13 +2729,10 @@ for (const stage of ["script", "board"] as const) {
       const target = page.getByLabel(label, { exact: true });
       await expect(target).toHaveValue("AI生成中...");
       await expect(target).toHaveAttribute("readonly", "");
-      if (operation !== "generate")
-        await expect(
-          page.getByRole("textbox", {
-            name: stage === "script" ? "剧本正文" : "画面描述",
-            exact: true,
-          }),
-        ).toHaveValue(stage === "script" ? "原始剧本" : "原始画面");
+      if (operation !== "generate") {
+        if(stage === "board") await expect(page.getByLabel('提示词预览')).toHaveText('原始画面');
+        else await expect(page.getByRole('textbox',{name:'剧本正文',exact:true})).toHaveValue('原始剧本');
+      }
       if (stage === "script" && operation === "generate") {
         await page.setViewportSize({ width: 1440, height: 900 });
         for (const theme of ["light", "dark", "sky", "noir"]) {
@@ -2724,7 +2752,7 @@ for (const stage of ["script", "board"] as const) {
   }
 }
 
-test("compact storyboard toolbar follows the seven action order", async ({
+test("compact storyboard toolbar follows the eight action order", async ({
   page,
 }) => {
   await setupMediaBoard(page);
@@ -2737,6 +2765,7 @@ test("compact storyboard toolbar follows the seven action order", async ({
     "批量站位图",
     "生成设置",
     "导入分镜 JSON",
+    "界面设置",
   ]);
   for (const button of await toolbar.getByRole("button").all()) {
     const bounds = await button.boundingBox();

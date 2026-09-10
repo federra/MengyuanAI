@@ -225,7 +225,7 @@
     "key": "storyboard",
     "inputs": "已确认剧本、风格、画幅、资产清单、分镜Skill/提示词、分辨率",
     "output": "shots[]，稳定shotId、dialogues[id,speaker,emotion,text,voice]、prompt、引用、时长",
-    "acceptance": "镜头覆盖原剧本；角色/场景/道具/站位引用一致",
+    "acceptance": "镜头覆盖原剧本；角色/场景/道具/站位引用一致；实体名后紧跟@图片名，显式catalog键映射稳定ID；实际风格正文指导每镜光影材质色彩运动；角色名后使用（@图片名），链接点击对应稳定ID的完整图片；不得把角色标记统一堆在段尾",
     "demoStatus": "已演示",
     "methodBinding": "boardMethod",
     "methodResourceContract": [
@@ -261,7 +261,26 @@
       "status": "engineering-fixture-verified",
       "validation": "49项后端、19项浏览器及实际HTTP文本替身内容链通过；真实DeepSeek密钥未注入，输出质量/耗时/费用待验收"
     },
-    "scriptSourceConstraint": "新 board.generate 任务追加应用约束：source.text 完整剧本正文是唯一叙事依据，完整保留场景、人物动作与台词；scenes 仅为派生结构，estimatedSeconds 仅供参考，不得当作固定时长或删减依据。提交前保存返回版本与任务source版本一致；旧模板、历史任务及快照不重写。"
+    "scriptSourceConstraint": "新 board.generate 任务追加应用约束：source.text 完整剧本正文是唯一叙事依据，完整保留场景、人物动作与台词；scenes 仅为派生结构，estimatedSeconds 仅供参考，不得当作固定时长或删减依据。提交前保存返回版本与任务source版本一致；旧模板、历史任务及快照不重写。",
+    "entityCatalogContract": {
+      "sameResponse": true,
+      "catalog": [
+        "key",
+        "kind",
+        "name",
+        "description"
+      ],
+      "shotEntities": [
+        "shotIndex",
+        "characters",
+        "scenes",
+        "props",
+        "lineCharacters"
+      ],
+      "atomicPublication": true,
+      "legacySnapshots": "preserve",
+      "realSupplierAcceptance": "pending"
+    }
   },
   {
     "id": "P07",

@@ -113,7 +113,8 @@ class ReferenceReplace(DTO):
 class ShotReferenceOut(DTO):
     shot_id: UUID
     ref_id: UUID
-    file_id: UUID
+    entity_id: UUID | None = None
+    file_id: UUID | None
     revision: int
 
 

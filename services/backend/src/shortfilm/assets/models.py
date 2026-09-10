@@ -3,6 +3,7 @@
 from uuid import UUID
 
 from sqlalchemy import CheckConstraint, ForeignKey, String, Text, UniqueConstraint
+from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column
 
 from shortfilm.models import Base, Identity
@@ -13,6 +14,7 @@ class Entity(Identity, Base):
     project_id: Mapped[UUID] = mapped_column(ForeignKey("projects.id"), index=True)
     kind: Mapped[str] = mapped_column(String(20))
     revision: Mapped[int] = mapped_column(default=1)
+    archived: Mapped[bool] = mapped_column(default=False)
     __table_args__ = (
         CheckConstraint("kind in ('character','scene','prop')"),
         CheckConstraint("revision > 0"),
@@ -27,6 +29,10 @@ class EntityVersion(Identity, Base):
     description: Mapped[str] = mapped_column(Text)
     voice: Mapped[str] = mapped_column(String(200))
     three_view: Mapped[bool] = mapped_column(default=False)
+    input_file_id: Mapped[UUID | None] = mapped_column(ForeignKey("media_files.id"))
+    output_file_id: Mapped[UUID | None] = mapped_column(ForeignKey("media_files.id"))
+    library_asset_id: Mapped[UUID | None]
+    library_version: Mapped[int | None]
     __table_args__ = (UniqueConstraint("entity_id", "revision"),)
 
 
@@ -43,3 +49,12 @@ class ReferenceConfirmation(Identity, Base):
     image_id: Mapped[UUID] = mapped_column(ForeignKey("reference_images.id"))
     specification_revision: Mapped[int]
     __table_args__ = (UniqueConstraint("image_id", "specification_revision"),)
+
+
+class EntityCommand(Identity, Base):
+    __tablename__ = "entity_commands"
+    project_id: Mapped[UUID] = mapped_column(ForeignKey("projects.id"), index=True)
+    key: Mapped[str] = mapped_column(String(128))
+    fingerprint: Mapped[str] = mapped_column(String(64))
+    response: Mapped[dict] = mapped_column(JSONB)
+    __table_args__ = (UniqueConstraint("project_id", "key"),)

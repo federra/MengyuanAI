@@ -64,6 +64,7 @@ def chain_model(client, model, monkeypatch):
             return {
                 "schemaVersion": 2,
                 "scriptId": context["source_version_id"],
+                **({"catalog": [], "shotEntities": [{"shotIndex": 0, "characters": [], "scenes": [], "props": [], "lineCharacters": [None, None]}]} if "catalog" in fields else {}),
                 "shots": [
                     {
                         "id": "shot-temp",
@@ -822,6 +823,7 @@ def test_board_correction_receives_specific_validation_reason(client, chain_mode
     def corrected(config, messages, schema):
         calls.append(deepcopy(messages))
         body = deepcopy(board["body"])
+        body.update(catalog=[], shotEntities=[{"shotIndex": 0, "characters": [], "scenes": [], "props": [], "lineCharacters": [None, None]}])
         if len(calls) == 1:
             body["shots"][0]["dialogue"] = "private-invalid-output-marker"
         else:

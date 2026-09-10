@@ -88,6 +88,8 @@ def render_configuration(frozen, context):
             "人物行动与台词；scenes仅为派生结构。estimatedSeconds仅供参考，"
             "不能作为固定时长或删减正文的依据。不得因旧模板中的估算遗漏正文内容。"
         )
+    if context.get("entity_catalog_contract") == 1:
+        constraints += "\n同一次响应输出catalog完整剧本角色/场景/道具目录（包含未出镜实体）；key全局唯一，描述为完整生图提示词。shotEntities按0起始镜头索引给出显式实体键，lineCharacters逐句为角色key或null旁白。不得遗漏正文实体或另发请求；禁止把音色或图片凭空当作已生成。无图refs仍为空，应用将生成稳定引用。prompt中角色名后紧跟括号包围的@图片名（如邮差（@邮差）），不要将角色引用集中放在段尾，图片名严格取catalog.name，禁止编造ID。将成片风格正文转为每镜具体材质、光影、色彩和运动描述，不能只写风格名称。"
     return {
         **frozen,
         "prompt": {

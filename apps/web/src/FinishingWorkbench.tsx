@@ -1,3 +1,4 @@
+import { ProjectHeadingInfo } from "./ProjectHeadingInfo";
 import { useEffect, useRef, useState } from "react";
 import { api, unwrap, type Project } from "./api";
 import { durableCommand, readDraft, storeDraft, removeDraft } from "./commands";
@@ -177,6 +178,7 @@ export function FinishingWorkbench({ pid }: { pid: string }) {
           <h1>作品导出</h1>
           <p>检查镜头、声音与字幕，生成可下载 MP4。</p>
         </div>
+        <ProjectHeadingInfo pid={pid} />
         <button onClick={() => setSettingsOpen(!settingsOpen)}>生成设置</button>
       </div>
       {settingsOpen && project && (

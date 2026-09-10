@@ -118,6 +118,8 @@ def generate_stage(
     if len(source.body.get("text", "")) > 50000:
         raise HTTPException(422, "全文已保留；超过当前上下文预算，请先确定改编范围并保存故事新版本")
     context = {**command, "input": source.body, "source": source.body, "market": p.market}
+    if stage == "board":
+        context["entity_catalog_contract"] = 1
     frozen = configuration(db, p, command["kind"], context)
     # This decision and downstream enqueue are a single transaction.
     confirm(db, p, source_item, source.id)

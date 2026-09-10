@@ -144,7 +144,7 @@ try {
   assert.equal(report.zoom.scale, 1);
   assert(report.zoom.scrollWidth <= 720);
   await page.getByRole("button", { name: "收起导演助手", exact: true }).click();
-  for (const name of ["生成设置", "导入分镜 JSON"]) {
+  for (const name of ["角色管理", "场景管理", "道具管理", "生成设置", "导入分镜 JSON"]) {
     const b = page
       .getByRole("toolbar", { name: "分镜工具栏" })
       .getByRole("button", { name, exact: true });
