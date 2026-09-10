@@ -264,12 +264,15 @@ export function StageWorkbench({
   stage,
   onNext,
   refreshJobs,
+  onGenerationSettings,
 }: {
   pid: string;
   stage: Stage;
   onNext: () => void;
   refreshJobs: () => Promise<void>;
+  onGenerationSettings: (trigger?: HTMLElement) => void;
 }) {
+  const [batchTarget, setBatchTarget] = useState<HTMLDivElement | null>(null);
   const key = `sf.${pid}.stage.${stage}`;
   const responseEpoch = useRef(0),
     observedRevision = useRef(0);
@@ -564,8 +567,18 @@ export function StageWorkbench({
         </p>
       )}
       {stage === "board" && (
-        <>
+        <div className="board-toolbar" role="toolbar" aria-label="分镜工具栏">
           <EntityManager key={pid} pid={pid} />
+          <div className="batch-toolbar-slot" ref={setBatchTarget} />
+          {!item && (
+            <>
+              <button disabled>批量配音</button>
+              <button disabled>批量站位图</button>
+            </>
+          )}
+          <button onClick={(e) => onGenerationSettings(e.currentTarget)}>
+            生成设置
+          </button>
           <BoardImport
             pid={pid}
             baseVersion={item?.version_id || null}
@@ -596,7 +609,7 @@ export function StageWorkbench({
               void refreshJobs();
             }}
           />
-        </>
+        </div>
       )}
       {!item || !body ? (
         <section className="empty">
@@ -685,6 +698,7 @@ export function StageWorkbench({
                   onFiles={setFiles}
                 >
                   <BoardEditor
+                    batchTarget={batchTarget}
                     pid={pid}
                     body={body as components["schemas"]["BoardBody"]}
                     setBody={setBody}
@@ -1010,6 +1024,7 @@ function ContentPreview({ body }: { body: Record<string, unknown> }) {
   );
 }
 function BoardEditor({
+  batchTarget,
   pid,
   body,
   setBody,
@@ -1019,6 +1034,7 @@ function BoardEditor({
   body: components["schemas"]["BoardBody"];
   setBody: (b: Body) => void;
   files: MediaFile[];
+  batchTarget: HTMLElement | null;
 }) {
   type Shot = components["schemas"]["Shot"];
   const media = useMedia();
@@ -1048,15 +1064,15 @@ function BoardEditor({
   }
   return (
     <div className="board-editor">
-      <MediaToolbar body={body} />
+      <MediaToolbar body={body} batchTarget={batchTarget} />
       <div className="table-wrap">
         <table className="board-table">
           <thead>
             <tr>
               <th>序号</th>
-              <th>多段台词</th>
-              <th>图片引用</th>
-              <th>提示词 / 时长</th>
+              <th>台词</th>
+              <th>角色/场景/道具</th>
+              <th>提示词</th>
               <th>视频</th>
               <th>操作</th>
             </tr>
@@ -1082,7 +1098,12 @@ function BoardEditor({
                         (f) => (
                           <label
                             className={
-                              "field " + (f === "text" ? "line-text" : "")
+                              "field " +
+                              (f === "text"
+                                ? "line-text"
+                                : f === "voice"
+                                  ? "line-voice"
+                                  : "")
                             }
                             key={f}
                           >
@@ -1174,8 +1195,8 @@ function BoardEditor({
                   </button>
                 </td>
                 <td>
-                  <details open>
-                    <summary>图片引用（角色 / 场景 / 道具 / 站位）</summary>
+                  <details className="position-tools">
+                    <summary>站位图生成与确认</summary>
                     <ShotPosition
                       shot={s}
                       onBind={(id) =>
@@ -1188,15 +1209,15 @@ function BoardEditor({
                         })
                       }
                     />
-                    <ShotReferences
-                      shot={s}
-                      files={files}
-                      onChange={(refs) => change(i, { ...s, refs })}
-                    />
                   </details>
+                  <ShotReferences
+                    shot={s}
+                    files={files}
+                    onChange={(refs) => change(i, { ...s, refs })}
+                  />
                 </td>
                 <td>
-                  <label className="field">
+                  <label className="field prompt-editor">
                     画面描述
                     <textarea
                       rows={7}
@@ -1206,7 +1227,7 @@ function BoardEditor({
                       }
                     />
                   </label>
-                  <label className="field">
+                  <label className="field shot-duration">
                     镜头秒数
                     <input
                       type="number"

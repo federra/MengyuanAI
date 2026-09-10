@@ -1,0 +1,220 @@
+/* Same geometry as the reviewed compact PRD; theme colours remain shared. */
+.app {
+  --navigation-width: 188px;
+}
+.app[data-sidebar-collapsed="true"] {
+  --navigation-width: 68px;
+}
+.app .app-sidebar {
+  position: fixed;
+  top: 68px;
+  width: var(--navigation-width);
+  min-height: 0;
+  overflow-y: auto;
+  z-index: 19;
+}
+.app .workspace {
+  margin-left: var(--navigation-width);
+}
+.sidebar-toggle {
+  margin: 10px 12px 0 auto;
+  min-width: 44px;
+  height: 44px;
+  padding: 0;
+  font-size: 24px;
+}
+.app .primary-navigation {
+  padding: 12px 10px;
+}
+.app .primary-navigation button {
+  gap: 12px;
+  padding: 10px 14px;
+  min-height: 48px;
+}
+.navigation-icon {
+  flex: 0 0 22px;
+  width: 22px;
+  height: 22px;
+  color: var(--muted);
+}
+.primary-navigation .active .navigation-icon {
+  color: var(--accent);
+}
+.app .primary-navigation .navigation-label {
+  width: auto;
+  font-size: 16px;
+  color: inherit;
+  white-space: nowrap;
+}
+[data-sidebar-collapsed="true"] .navigation-label,
+[data-sidebar-collapsed="true"] .local {
+  display: none;
+}
+.app[data-sidebar-collapsed="true"] .primary-navigation button {
+  justify-content: center;
+  padding: 10px 0;
+}
+.board-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  overflow-x: auto;
+  padding: 2px 0 10px;
+  margin-bottom: 16px;
+}
+.board-toolbar > .actions,
+.board-toolbar > .board-import-entry,
+.board-toolbar > .batch-toolbar-slot {
+  display: contents;
+}
+.board-toolbar button {
+  flex: 0 0 auto;
+  white-space: nowrap;
+  min-height: 44px;
+  font-size: 14px;
+}
+.board-toolbar .board-import-entry > .notice {
+  display: none;
+}
+.board-toolbar dialog {
+  display: none;
+}
+.board-toolbar dialog[open] {
+  display: flex;
+}
+.board-toolbar .settings-dialog-body {
+  display: block;
+}
+.board-toolbar .settings-dialog-header {
+  display: flex;
+}
+.board-table {
+  min-width: 1180px;
+  width: 100%;
+}
+.board-table th:nth-child(1) {
+  width: 56px;
+}
+.board-table th:nth-child(2) {
+  width: 240px;
+}
+.board-table th:nth-child(3) {
+  width: 232px;
+}
+.board-table th:nth-child(4) {
+  width: 360px;
+}
+.board-table th:nth-child(5) {
+  width: 220px;
+}
+.board-table th:nth-child(6) {
+  width: 72px;
+}
+.board-table td {
+  padding: 8px;
+}
+.board-table .dialogue-line {
+  gap: 6px;
+  padding: 6px;
+  margin-bottom: 8px;
+}
+.board-table .field {
+  font-size: 13px;
+}
+.board-table .line-text textarea {
+  height: 64px;
+  min-height: 64px;
+  line-height: 1.6;
+}
+.board-table .dialogue-line .line-text {
+  grid-row: 2;
+}
+.board-table .dialogue-line .line-voice {
+  grid-column: 1/-1;
+}
+.board-table .dialogue-line .line-voice input {
+  height: 32px;
+}
+.board-table .dialogue-line input {
+  height: 36px;
+  padding: 5px 7px;
+  margin-top: 4px;
+}
+.board-table .prompt-editor textarea {
+  height: 160px;
+  min-height: 120px;
+  max-height: 320px;
+  line-height: 1.6;
+}
+.board-table .shot-duration {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 8px;
+}
+.board-table .shot-duration input {
+  width: 86px;
+  height: 36px;
+  margin: 0;
+}
+.board-table .shot-actions {
+  margin-top: 0;
+  gap: 6px;
+}
+.board-table .shot-actions button {
+  min-height: 36px;
+  font-size: 14px;
+  line-height: 1.35;
+  padding: 6px;
+}
+.board-table [aria-label="镜头视频"] > button {
+  font-size: 14px;
+  width: 100%;
+  margin: 4px 0;
+}
+.board-table video {
+  width: 100%;
+  max-height: 160px;
+}
+.board-table .shot-specification {
+  line-height: 1.5;
+}
+.board-table .shot-settings-dialog,
+.board-toolbar dialog {
+  font-size: 15px;
+}
+.batch-dialog {
+  width: min(760px, 94vw);
+}
+.batch-dialog .batch-items {
+  display: grid;
+  gap: 8px;
+}
+.batch-dialog .batch-item {
+  border-bottom: 1px solid var(--line);
+  padding: 8px 0;
+}
+.batch-dialog .batch-item label {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+}
+.batch-dialog input[type="checkbox"] {
+  width: auto;
+}
+.project-generation-dialog {
+  width: min(720px, 94vw);
+}
+.project-generation-dialog .panel {
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+.project-generation-dialog .panel > h2 {
+  display: none;
+}
+@media (max-width: 850px) {
+  .app:not([data-sidebar-collapsed="true"]) {
+    --navigation-width: 150px;
+  }
+}

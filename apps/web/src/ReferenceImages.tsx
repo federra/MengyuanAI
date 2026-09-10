@@ -17,6 +17,7 @@ export function ReferenceImages({
   disabled: boolean;
 }) {
   const [images, setImages] = useState<Reference[]>([]);
+  const [loaded, setLoaded] = useState(false);
   const [spec, setSpec] = useState<number | null>(null);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
@@ -48,10 +49,19 @@ export function ReferenceImages({
           ),
         );
         await load();
+        if (live) setLoaded(true);
       }
     }
-    const timer = setInterval(() => void poll().catch(() => {}), 2500);
-    void poll().catch(() => {});
+    const timer = setInterval(
+      () =>
+        void poll().catch((e) => {
+          if (live) setError(e.message);
+        }),
+      2500,
+    );
+    void poll().catch((e) => {
+      if (live) setError(e.message);
+    });
     return () => {
       live = false;
       clearInterval(timer);
@@ -84,7 +94,11 @@ export function ReferenceImages({
     }
   }
   return (
-    <section aria-label="元素参考图">
+    <section
+      className="entity-reference-panel"
+      aria-label="元素参考图"
+      aria-busy={!loaded}
+    >
       <h3>参考图</h3>
       <label className="field">
         本次生成要求
@@ -97,6 +111,7 @@ export function ReferenceImages({
       <button
         disabled={
           busy ||
+          !loaded ||
           disabled ||
           tasks.some((t) =>
             ["queued", "running", "waiting_provider"].includes(t.state),
@@ -217,9 +232,12 @@ export function ReferenceImages({
         />
       </label>
       {disabled && (
-        <p className="muted">请先保存元素草稿，再上传或确认参考图。</p>
+        <p className="muted">请先保存元素草稿，再生成、上传或确认参考图。</p>
       )}
-      {!images.length && <p className="muted">暂无已保存的参考图。</p>}
+      {!loaded && <p role="status">读取参考图与任务状态…</p>}
+      {loaded && !images.length && (
+        <p className="muted">暂无已保存的参考图。</p>
+      )}
       <div className="entity-reference-list">
         {images.map((image) => (
           <article key={image.id}>

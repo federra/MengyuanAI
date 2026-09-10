@@ -332,3 +332,104 @@ for (const invalid of ["encoding", "size"] as const) {
     expect(imported).toBe(false);
   });
 }
+
+test("compact navigation persists preference without losing idea draft", async ({
+  page,
+}) => {
+  const shell = page.locator(".app");
+  await expect(
+    page.getByRole("button", { name: "收起页面栏", exact: true }),
+  ).toBeVisible();
+  await page.getByRole("button", { name: "继续创作 →" }).first().click();
+  await page.getByLabel("一句话创意").fill("侧栏切换保留未保存创意");
+  await page.getByLabel("故事数量").fill("2");
+  await page.getByRole("button", { name: "收起页面栏", exact: true }).click();
+  await expect(shell).toHaveAttribute("data-sidebar-collapsed", "true");
+  const navigation = page.getByRole("navigation", { name: "主导航" });
+  for (const name of ["项目", "创作", "资产", "任务记录", "系统设置"])
+    await expect(
+      navigation.getByRole("button", { name, exact: true }),
+    ).toBeVisible();
+  await page.getByLabel("UI主题").selectOption("noir");
+  await navigation.getByRole("button", { name: "项目", exact: true }).click();
+  await navigation.getByRole("button", { name: "创作", exact: true }).click();
+  await expect(page.getByLabel("一句话创意")).toHaveValue(
+    "侧栏切换保留未保存创意",
+  );
+  await expect(page.getByLabel("故事数量")).toHaveValue("2");
+  await expect(shell).toHaveAttribute("data-sidebar-collapsed", "true");
+  await page.reload();
+  await expect(shell).toHaveAttribute("data-sidebar-collapsed", "true");
+  await page.getByRole("button", { name: "展开页面栏", exact: true }).click();
+  await expect(shell).toHaveAttribute("data-sidebar-collapsed", "false");
+  await page.reload();
+  await expect(shell).toHaveAttribute("data-sidebar-collapsed", "false");
+});
+
+test("compact generation settings ignores a late save from another project", async ({
+  page,
+}) => {
+  let release: () => void = () => {};
+  const gate = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  let submitted = false;
+  await page.route(`**/projects/${pid}/specification`, async (route) => {
+    submitted = true;
+    await gate;
+    await route.fulfill({
+      json: {
+        id: pid,
+        name: "独立验收项目1",
+        market: "zh",
+        revision: 2,
+        stage: "idea",
+        status: "in_progress",
+        type_id: null,
+        updated_at: "2026-09-10T00:00:00Z",
+        generation_settings: {
+          revision: 1,
+          aspect_ratio: "1:1",
+          resolution: "720P",
+        },
+      },
+    });
+  });
+  await page.getByRole("button", { name: "继续创作 →" }).first().click();
+  await page.getByRole("button", { name: "4　分镜" }).click();
+  await page
+    .getByRole("toolbar", { name: "分镜工具栏" })
+    .getByRole("button", { name: "生成设置", exact: true })
+    .click();
+  const dialog = page.getByRole("dialog", { name: "生成设置", exact: true });
+  await dialog.getByRole("button", { name: "保存输出规格" }).click();
+  await expect.poll(() => submitted).toBe(true);
+  await dialog.getByRole("button", { name: "关闭生成设置" }).click();
+  await page
+    .getByRole("navigation", { name: "主导航" })
+    .getByRole("button", { name: "项目", exact: true })
+    .click();
+  await page
+    .locator(".cards article")
+    .filter({ hasText: "独立验收项目2" })
+    .getByRole("button", { name: "继续创作 →" })
+    .click();
+  await page.getByLabel("一句话创意").fill("项目二不能被项目一回执切走");
+  const saved = page.waitForResponse((response) =>
+    response.url().endsWith(`/projects/${pid}/specification`),
+  );
+  release();
+  await saved;
+  await page.evaluate(
+    () =>
+      new Promise<void>((resolve) =>
+        requestAnimationFrame(() => requestAnimationFrame(() => resolve())),
+      ),
+  );
+  await expect(page.getByLabel("一句话创意")).toHaveValue(
+    "项目二不能被项目一回执切走",
+  );
+  await expect(
+    page.locator("main strong").filter({ hasText: "独立验收项目2" }),
+  ).toBeVisible();
+});

@@ -1436,14 +1436,17 @@ test("M2 conflict draft can be compared and saved against refreshed revision", a
   await expect(dialog.getByRole("alert")).toContainText("元素已更新");
   await dialog.getByRole("button", { name: "关闭元素管理" }).click();
   await page.getByRole("button", { name: "角色管理", exact: true }).click();
-  await expect(
-    dialog.getByRole("cell", { name: "v2", exact: true }),
-  ).toBeVisible();
+  await expect(dialog.getByText("v2", { exact: true })).toBeVisible();
   await dialog.getByRole("button", { name: "编辑邮差", exact: true }).click();
   await dialog
     .getByRole("button", { name: "恢复草稿：邮差", exact: true })
     .click();
   await expect(dialog.getByLabel("元素描述")).toHaveValue("红制服草稿");
+  await dialog
+    .locator("details")
+    .filter({ hasText: "当前已保存描述" })
+    .locator("summary")
+    .click();
   await expect(
     dialog.getByText("当前已保存描述：其他窗口的绿制服", { exact: true }),
   ).toBeVisible();
@@ -1453,7 +1456,10 @@ test("M2 conflict draft can be compared and saved against refreshed revision", a
   expect(entity.description).toBe("红制服草稿");
 });
 
-async function setupMediaBoard(page: import("@playwright/test").Page) {
+async function setupMediaBoard(
+  page: import("@playwright/test").Page,
+  emotion = "坚定",
+) {
   const shot = {
     id: "shot-media",
     prompt: "邮差打开信封",
@@ -1463,7 +1469,7 @@ async function setupMediaBoard(page: import("@playwright/test").Page) {
       {
         id: "line-media",
         speaker: "邮差",
-        emotion: "坚定",
+        emotion,
         text: "原始台词",
         voice: "male-qn-qingse",
       },
@@ -1820,7 +1826,14 @@ test("V13 six columns place TTS under its dialogue in all themes", async ({
   await setupMediaBoard(page);
   for (const theme of ["light", "dark", "sky", "noir"]) {
     await page.getByLabel("UI主题").selectOption(theme);
-    await expect(page.locator(".board-table thead th")).toHaveCount(6);
+    await expect(page.locator(".board-table thead th")).toHaveText([
+      "序号",
+      "台词",
+      "角色/场景/道具",
+      "提示词",
+      "视频",
+      "操作",
+    ]);
     const line = page.locator('[data-line-id="line-media"]');
     await expect(
       line.getByRole("button", { name: "生成第1段配音", exact: true }),
@@ -2100,6 +2113,29 @@ test("U01–U07 four themes nine pages measured evidence", async ({
         ),
     );
     await page.screenshot({ path: `${out}${name}-${theme}.png` });
+    if (
+      [
+        "projects",
+        "creation",
+        "story",
+        "script",
+        "storyboard",
+        "finishing",
+        "assets",
+        "tasks",
+        "settings",
+      ].includes(name)
+    ) {
+      await expect(page.locator(".app-sidebar")).toHaveCSS("width", "188px");
+      await page
+        .getByRole("button", { name: "收起页面栏", exact: true })
+        .click();
+      await expect(page.locator(".app-sidebar")).toHaveCSS("width", "68px");
+      await page.screenshot({ path: `${out}${name}-${theme}-collapsed.png` });
+      await page
+        .getByRole("button", { name: "展开页面栏", exact: true })
+        .click();
+    }
     const value = await page.evaluate(() => {
       const selectors = [
         "h1",
@@ -2687,3 +2723,173 @@ for (const stage of ["script", "board"] as const) {
     });
   }
 }
+
+test("compact storyboard toolbar follows the seven action order", async ({
+  page,
+}) => {
+  await setupMediaBoard(page);
+  const toolbar = page.getByRole("toolbar", { name: "分镜工具栏" });
+  await expect(toolbar.getByRole("button")).toHaveText([
+    "角色管理",
+    "场景管理",
+    "道具管理",
+    "批量配音",
+    "批量站位图",
+    "生成设置",
+    "导入分镜 JSON",
+  ]);
+  for (const button of await toolbar.getByRole("button").all()) {
+    const bounds = await button.boundingBox();
+    expect(bounds, await button.innerText()).not.toBeNull();
+    expect(bounds!.height, await button.innerText()).toBeGreaterThanOrEqual(44);
+  }
+  const heading = await page
+    .getByRole("heading", { name: "分镜工作台" })
+    .boundingBox();
+  const controls = await toolbar.boundingBox();
+  expect(controls!.y).toBeGreaterThanOrEqual(heading!.y + heading!.height);
+});
+
+for (const kind of ["audio", "images"] as const) {
+  test(`compact batch ${kind} previews before submitting and retains failed selection`, async ({
+    page,
+  }) => {
+    const requests: unknown[] = [];
+    let release: () => void = () => {};
+    const gate = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    await page.route(`**/media/${kind}`, async (route) => {
+      requests.push(route.request().postDataJSON());
+      await gate;
+      await route.fulfill({
+        status: 409,
+        json: { detail: "批量测试冲突，请保留配置后重试" },
+      });
+    });
+    await setupMediaBoard(page, "happy");
+    const name = kind === "audio" ? "批量配音" : "批量站位图";
+    const trigger = page
+      .getByRole("toolbar", { name: "分镜工具栏" })
+      .getByRole("button", { name, exact: true });
+    await trigger.click();
+    const dialog = page.getByRole("dialog", { name, exact: true });
+    await expect(dialog).toBeVisible();
+    expect(requests).toHaveLength(0);
+    const selection = dialog.getByRole("checkbox").first();
+    await expect(selection).toBeChecked();
+    const submit = dialog.getByRole("button", {
+      name: /^(提交所选任务|提交中…)$/,
+    });
+    await submit.click();
+    await expect.poll(() => requests.length).toBe(1);
+    await expect(submit).toBeDisabled();
+    await submit.evaluate((button: HTMLButtonElement) => button.click());
+    expect(requests).toHaveLength(1);
+    release();
+    await expect(
+      dialog.getByRole("alert").filter({ hasText: "批量测试冲突" }),
+    ).toBeVisible();
+    await expect(dialog).toBeVisible();
+    await expect(selection).toBeChecked();
+    await expect(submit).toBeEnabled();
+    expect(requests[0]).toMatchObject({
+      board_version_id: "board-media-v1",
+      shot_id: "shot-media",
+      ...(kind === "audio" ? { line_id: "line-media", emotion: "happy" } : {}),
+    });
+  });
+}
+
+test("compact batch accepted job survives a results refresh failure without resubmission", async ({
+  page,
+}) => {
+  let accepted = 0;
+  await page.route("**/media/audio", async (route) => {
+    accepted++;
+    await route.fulfill({ status: 202, json: { id: "accepted-audio-job" } });
+  });
+  await page.route("**/media/results", async (route) => {
+    if (accepted)
+      return route.fulfill({
+        status: 503,
+        json: { detail: "结果刷新暂不可用" },
+      });
+    await route.fulfill({ json: [] });
+  });
+  await setupMediaBoard(page, "happy");
+  await page
+    .getByRole("toolbar", { name: "分镜工具栏" })
+    .getByRole("button", { name: "批量配音", exact: true })
+    .click();
+  const dialog = page.getByRole("dialog", { name: "批量配音", exact: true });
+  await dialog
+    .getByRole("button", { name: "提交所选任务", exact: true })
+    .click();
+  await expect(dialog.getByRole("status")).toContainText("已提交 1 项");
+  await expect(dialog.getByRole("checkbox").first()).not.toBeChecked();
+  await expect(
+    dialog.getByRole("button", { name: "提交所选任务", exact: true }),
+  ).toBeDisabled();
+  await dialog.getByRole("button", { name: "关闭批量配音" }).click();
+  await page
+    .getByRole("toolbar", { name: "分镜工具栏" })
+    .getByRole("button", { name: "批量配音", exact: true })
+    .click();
+  await expect(dialog.getByRole("checkbox").first()).toBeDisabled();
+  await expect(
+    dialog.getByRole("button", { name: "提交所选任务", exact: true }),
+  ).toBeDisabled();
+  expect(accepted).toBe(1);
+});
+
+test("compact batch unknown response freezes and reuses the original paid command", async ({
+  page,
+}) => {
+  const requests: { key: string; body: unknown }[] = [];
+  await page.route("**/media/audio", async (route) => {
+    requests.push({
+      key: route.request().headers()["idempotency-key"],
+      body: route.request().postDataJSON(),
+    });
+    if (requests.length === 1) return route.abort("failed");
+    await route.fulfill({ status: 202, json: { id: "recovered-audio-job" } });
+  });
+  await setupMediaBoard(page, "happy");
+  const trigger = page
+    .getByRole("toolbar", { name: "分镜工具栏" })
+    .getByRole("button", { name: "批量配音", exact: true });
+  await trigger.click();
+  const dialog = page.getByRole("dialog", { name: "批量配音", exact: true });
+  const performance = dialog.getByRole("combobox", {
+    name: "镜头1台词1配音表现",
+  });
+  await performance.selectOption("sad");
+  await dialog
+    .getByRole("button", { name: "提交所选任务", exact: true })
+    .click();
+  await expect(dialog.getByRole("alert")).toBeVisible();
+  await dialog.getByRole("button", { name: "关闭批量配音" }).click();
+  await trigger.click();
+  await expect(performance).toBeDisabled();
+  await expect(performance).toHaveValue("sad");
+  await dialog
+    .getByRole("button", { name: "提交所选任务", exact: true })
+    .click();
+  await expect(dialog.getByRole("status")).toContainText("已提交 1 项");
+  expect(requests).toHaveLength(2);
+  expect(requests[0].key).toBeTruthy();
+  expect(requests[1]).toEqual(requests[0]);
+  expect(requests[1].body).toMatchObject({
+    emotion: "sad",
+    line_id: "line-media",
+    board_version_id: "board-media-v1",
+  });
+  await dialog.getByRole("button", { name: "关闭批量配音" }).click();
+  await trigger.click();
+  await expect(dialog.getByRole("checkbox").first()).toBeDisabled();
+  await expect(
+    dialog.getByRole("button", { name: "提交所选任务", exact: true }),
+  ).toBeDisabled();
+  expect(requests).toHaveLength(2);
+});

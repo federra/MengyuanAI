@@ -1,3 +1,4 @@
+import "./entity-compact.css";
 import { trapDialogFocus } from "./dialogFocus";
 import { useEffect, useRef, useState } from "react";
 import { ReferenceImages } from "./ReferenceImages";
@@ -78,6 +79,13 @@ export function EntityManager({ pid }: { pid: string }) {
   }
   function edit(value: Draft) {
     setDrafts((old) => ({ ...old, [kind]: value }));
+  }
+  function selectEntity(entity: Entity) {
+    if (draft.id === entity.id && draft.revision === entity.revision) return;
+    preserve();
+    const { id, revision, kind, name, description, voice, three_view } = entity;
+    edit({ id, revision, kind, name, description, voice, three_view });
+    setError("");
   }
   async function load() {
     const rows = unwrap(
@@ -164,186 +172,185 @@ export function EntityManager({ pid }: { pid: string }) {
             </p>
           )}
           {notice && <p role="status">{notice}</p>}
-          {!loaded ? (
-            <p>读取项目元素…</p>
-          ) : (
-            <div className="table-wrap">
-              <table>
-                <thead>
-                  <tr>
-                    <th>名称</th>
-                    <th>描述</th>
-                    <th>版本</th>
-                    <th>操作</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {entities
-                    .filter((e) => e.kind === kind)
-                    .map((e) => (
-                      <tr key={e.id}>
-                        <td>{e.name}</td>
-                        <td>{e.description || "尚未填写"}</td>
-                        <td>v{e.revision}</td>
-                        <td>
-                          <button
-                            disabled={busy}
-                            aria-label={"编辑" + e.name}
-                            onClick={() => {
-                              preserve();
-                              edit({
-                                id: e.id,
-                                revision: e.revision,
-                                kind: e.kind,
-                                name: e.name,
-                                description: e.description,
-                                voice: e.voice,
-                                three_view: e.three_view,
-                              });
-                              setError("");
-                            }}
-                          >
-                            编辑
-                          </button>
-                        </td>
-                      </tr>
-                    ))}
-                </tbody>
-              </table>
-              {!entities.some((e) => e.kind === kind) && (
-                <p>暂无{names[kind]}，可在下方新增。</p>
+          <div className="entity-workspace">
+            <aside className="entity-picker" aria-label={names[kind] + "列表"}>
+              {!loaded && <p>读取项目元素…</p>}
+              {entities
+                .filter((entity) => entity.kind === kind)
+                .map((entity) => (
+                  <article
+                    key={entity.id}
+                    className={draft.id === entity.id ? "selected" : ""}
+                  >
+                    <button
+                      disabled={busy}
+                      aria-label={"编辑" + entity.name}
+                      aria-pressed={draft.id === entity.id}
+                      onClick={() => selectEntity(entity)}
+                    >
+                      <strong>{entity.name}</strong>
+                      <small>v{entity.revision}</small>
+                    </button>
+                    <button
+                      disabled={busy}
+                      aria-label={"管理" + entity.name + "图片"}
+                      onClick={() => {
+                        selectEntity(entity);
+                        requestAnimationFrame(() =>
+                          dialog.current
+                            ?.querySelector(".entity-reference-panel")
+                            ?.scrollIntoView({ block: "nearest" }),
+                        );
+                      }}
+                    >
+                      管理图片
+                    </button>
+                  </article>
+                ))}
+              {loaded && !entities.some((entity) => entity.kind === kind) && (
+                <p>暂无{names[kind]}，可在右侧新增。</p>
               )}
-            </div>
-          )}
-          <fieldset className="editor-fields" disabled={busy}>
-            <div className="row">
-              <h3>{draft.id ? "编辑元素" : "新增元素"}</h3>
-              <button
-                onClick={() => {
-                  preserve();
-                  edit(blank(kind));
-                }}
-              >
-                新增{names[kind]}
-              </button>
-            </div>
-            <label className="field">
-              元素名称
-              <input
-                value={draft.name}
-                maxLength={100}
-                onChange={(e) => edit({ ...draft, name: e.target.value })}
-              />
-            </label>
-            <label className="field">
-              元素描述
-              <textarea
-                rows={4}
-                value={draft.description}
-                maxLength={10000}
-                onChange={(e) =>
-                  edit({ ...draft, description: e.target.value })
-                }
-              />
-            </label>
-            {kind === "character" && (
-              <>
+            </aside>
+            <div className="entity-selected-editor">
+              <fieldset className="editor-fields" disabled={busy}>
+                <div className="row">
+                  <h3>{draft.id ? "编辑元素" : "新增元素"}</h3>
+                  <button
+                    onClick={() => {
+                      preserve();
+                      edit(blank(kind));
+                    }}
+                  >
+                    新增{names[kind]}
+                  </button>
+                </div>
                 <label className="field">
-                  音色 ID
+                  元素名称
                   <input
-                    value={draft.voice}
-                    maxLength={200}
-                    onChange={(e) => edit({ ...draft, voice: e.target.value })}
+                    value={draft.name}
+                    maxLength={100}
+                    onChange={(e) => edit({ ...draft, name: e.target.value })}
                   />
                 </label>
-                <label>
-                  <input
-                    type="checkbox"
-                    checked={draft.three_view}
+                <label className="field">
+                  元素描述
+                  <textarea
+                    rows={4}
+                    value={draft.description}
+                    maxLength={10000}
                     onChange={(e) =>
-                      edit({ ...draft, three_view: e.target.checked })
+                      edit({ ...draft, description: e.target.value })
                     }
                   />
-                  角色三视图
                 </label>
-              </>
-            )}
-          </fieldset>
-          {draft.id && (
-            <ReferenceImages
-              key={draft.id}
-              pid={pid}
-              entityId={draft.id}
-              entityRevision={draft.revision!}
-              disabled={
-                busy ||
-                (() => {
-                  const saved = entities.find((e) => e.id === draft.id);
-                  return (
-                    !saved ||
-                    ["name", "description", "voice", "three_view"].some(
-                      (k) =>
-                        (saved as unknown as Record<string, unknown>)[k] !==
-                        (draft as unknown as Record<string, unknown>)[k],
-                    )
-                  );
-                })()
-              }
-            />
-          )}
-          {draft.id && (
-            <details open>
-              <summary>
-                当前已保存版本 v
-                {entities.find((e) => e.id === draft.id)?.revision}
-                ，请核对后保存草稿
-              </summary>
-              <p>
-                当前已保存名称：{entities.find((e) => e.id === draft.id)?.name}
-              </p>
-              <p>
-                当前已保存描述：
-                {entities.find((e) => e.id === draft.id)?.description}
-              </p>
-              {kind === "character" && (
-                <p>
-                  当前音色：
-                  {entities.find((e) => e.id === draft.id)?.voice || "未设置"}
-                  ；三视图：
-                  {entities.find((e) => e.id === draft.id)?.three_view
-                    ? "是"
-                    : "否"}
-                </p>
+                {kind === "character" && (
+                  <>
+                    <label className="field">
+                      音色 ID
+                      <input
+                        value={draft.voice}
+                        maxLength={200}
+                        onChange={(e) =>
+                          edit({ ...draft, voice: e.target.value })
+                        }
+                      />
+                    </label>
+                    <label>
+                      <input
+                        type="checkbox"
+                        checked={draft.three_view}
+                        onChange={(e) =>
+                          edit({ ...draft, three_view: e.target.checked })
+                        }
+                      />
+                      角色三视图
+                    </label>
+                  </>
+                )}
+              </fieldset>
+              {draft.id && (
+                <ReferenceImages
+                  key={draft.id}
+                  pid={pid}
+                  entityId={draft.id}
+                  entityRevision={draft.revision!}
+                  disabled={
+                    busy ||
+                    (() => {
+                      const saved = entities.find((e) => e.id === draft.id);
+                      return (
+                        !saved ||
+                        ["name", "description", "voice", "three_view"].some(
+                          (k) =>
+                            (saved as unknown as Record<string, unknown>)[k] !==
+                            (draft as unknown as Record<string, unknown>)[k],
+                        )
+                      );
+                    })()
+                  }
+                />
               )}
-            </details>
-          )}
-          {preserved
-            .filter((item) => item.kind === kind)
-            .map((item) => (
-              <button
-                key={item.backupId}
-                disabled={busy}
-                onClick={() => {
-                  preserve();
-                  const { backupId, ...recovered } = item;
-                  const latest = entities.find((e) => e.id === recovered.id);
-                  edit({
-                    ...recovered,
-                    revision: latest?.revision ?? recovered.revision,
-                  });
-                  setPreserved((old) =>
-                    old.filter((value) => value.backupId !== backupId),
-                  );
-                  setError("");
-                  setNotice(
-                    "已载入草稿；请与当前已保存内容核对、合并后再保存。",
-                  );
-                }}
-              >
-                恢复草稿：
-                {item.name || item.description?.slice(0, 30) || "未命名元素"}
-              </button>
-            ))}
+              {draft.id && (
+                <details>
+                  <summary>
+                    当前已保存版本 v
+                    {entities.find((e) => e.id === draft.id)?.revision}
+                    ，请核对后保存草稿
+                  </summary>
+                  <p>
+                    当前已保存名称：
+                    {entities.find((e) => e.id === draft.id)?.name}
+                  </p>
+                  <p>
+                    当前已保存描述：
+                    {entities.find((e) => e.id === draft.id)?.description}
+                  </p>
+                  {kind === "character" && (
+                    <p>
+                      当前音色：
+                      {entities.find((e) => e.id === draft.id)?.voice ||
+                        "未设置"}
+                      ；三视图：
+                      {entities.find((e) => e.id === draft.id)?.three_view
+                        ? "是"
+                        : "否"}
+                    </p>
+                  )}
+                </details>
+              )}
+              {preserved
+                .filter((item) => item.kind === kind)
+                .map((item) => (
+                  <button
+                    key={item.backupId}
+                    disabled={busy}
+                    onClick={() => {
+                      preserve();
+                      const { backupId, ...recovered } = item;
+                      const latest = entities.find(
+                        (e) => e.id === recovered.id,
+                      );
+                      edit({
+                        ...recovered,
+                        revision: latest?.revision ?? recovered.revision,
+                      });
+                      setPreserved((old) =>
+                        old.filter((value) => value.backupId !== backupId),
+                      );
+                      setError("");
+                      setNotice(
+                        "已载入草稿；请与当前已保存内容核对、合并后再保存。",
+                      );
+                    }}
+                  >
+                    恢复草稿：
+                    {item.name ||
+                      item.description?.slice(0, 30) ||
+                      "未命名元素"}
+                  </button>
+                ))}
+            </div>
+          </div>
         </div>
         <footer className="settings-dialog-header">
           <small>关闭窗口保留草稿；保存后供当前项目使用。</small>

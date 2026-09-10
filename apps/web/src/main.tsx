@@ -11,6 +11,8 @@ import {
 } from "./api";
 import "./style.css";
 import "./v12-v13.css";
+import "./compact-workspace.css";
+import { NavigationIcon } from "./NavigationIcon";
 import {
   Configuration,
   ResourceLibrary,
@@ -28,6 +30,34 @@ const states: Record<string, string> = {
 };
 function App() {
   const [module, setModule] = useState("项目");
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(() => {
+    try {
+      return localStorage.getItem("shortfilm.sidebar-collapsed") === "true";
+    } catch {
+      return false;
+    }
+  });
+  useEffect(() => {
+    try {
+      localStorage.setItem(
+        "shortfilm.sidebar-collapsed",
+        String(sidebarCollapsed),
+      );
+    } catch {}
+  }, [sidebarCollapsed]);
+  const projectOutputDialog = useRef<HTMLDialogElement>(null);
+  const projectOutputTrigger = useRef<HTMLElement | null>(null);
+  const [projectOutputMounted, setProjectOutputMounted] = useState(false);
+  const [projectOutputOpen, setProjectOutputOpen] = useState(false);
+  function openProjectOutput(trigger?: HTMLElement) {
+    projectOutputTrigger.current =
+      trigger || (document.activeElement as HTMLElement);
+    setProjectOutputMounted(true);
+    setProjectOutputOpen(true);
+  }
+  useEffect(() => {
+    if (projectOutputOpen) projectOutputDialog.current?.showModal();
+  }, [projectOutputOpen]);
   const [projects, setProjects] = useState<Project[]>([]);
   const [projectsLoaded, setProjectsLoaded] = useState(false);
   const [sort, setSort] = useState<"updated_desc" | "updated_asc" | "name">(
@@ -237,7 +267,7 @@ function App() {
     });
   }
   return (
-    <div className="app">
+    <div className="app" data-sidebar-collapsed={sidebarCollapsed}>
       <header className="app-topbar">
         <div className="brand">
           <svg className="workshop-mark" viewBox="0 0 32 32" aria-hidden="true">
@@ -273,19 +303,31 @@ function App() {
           </label>
         </div>
       </header>
-      <aside className="app-sidebar">
+      <aside className="app-sidebar" id="app-sidebar">
+        <button
+          className="sidebar-toggle"
+          aria-controls="app-sidebar"
+          aria-expanded={!sidebarCollapsed}
+          aria-label={sidebarCollapsed ? "展开页面栏" : "收起页面栏"}
+          title={sidebarCollapsed ? "展开页面栏" : "收起页面栏"}
+          onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
+        >
+          {sidebarCollapsed ? "›" : "‹"}
+        </button>
         <nav className="primary-navigation" aria-label="主导航">
           {modules.map((m, i) => (
             <button
               key={m}
+              aria-label={m}
+              title={m}
               className={module === m ? "active" : ""}
               onClick={() => {
                 setModule(m);
                 setError("");
               }}
             >
-              <span aria-hidden>{["▦", "◇", "▧", "≡", "⚙"][i]}</span>
-              {m}
+              <NavigationIcon index={i} />
+              <span className="navigation-label">{m}</span>
             </button>
           ))}
         </nav>
@@ -651,6 +693,7 @@ function App() {
                   projectName={selected.name}
                   projectMarket={selected.market}
                   onSwitchProject={() => setModule("项目")}
+                  onGenerationSettings={openProjectOutput}
                 />
                 <div className="project-auxiliary">
                   <details>
@@ -709,10 +752,6 @@ function App() {
                         </button>
                       </form>
                     </section>
-                  </details>
-                  <details>
-                    <summary>统一生成规格</summary>
-                    <OutputSettings project={selected} onSaved={setSelected} />
                   </details>
                 </div>
               </>
@@ -897,6 +936,37 @@ function App() {
           )}
         </main>
       </div>
+      <dialog
+        ref={projectOutputDialog}
+        className="settings-dialog project-generation-dialog"
+        aria-label="生成设置"
+        onKeyDown={trapDialogFocus}
+        onClose={() => {
+          setProjectOutputOpen(false);
+          projectOutputTrigger.current?.focus();
+        }}
+      >
+        <header className="settings-dialog-header">
+          <h2>生成设置</h2>
+          <button
+            aria-label="关闭生成设置"
+            onClick={() => projectOutputDialog.current?.close()}
+          >
+            关闭
+          </button>
+        </header>
+        <div className="settings-dialog-body">
+          {projectOutputMounted && selected && (
+            <OutputSettings
+              key={selected.id}
+              project={selected}
+              onSaved={(p) =>
+                setSelected((current) => (current?.id === p.id ? p : current))
+              }
+            />
+          )}
+        </div>
+      </dialog>
       <dialog
         onKeyDown={trapDialogFocus}
         ref={settingsDialog}

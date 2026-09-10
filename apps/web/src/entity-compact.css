@@ -1,0 +1,164 @@
+.entity-dialog.settings-dialog {
+  width: min(1040px, calc(100vw - 32px));
+  max-width: 1040px;
+}
+.entity-workspace {
+  display: grid;
+  grid-template-columns: 190px minmax(0, 1fr);
+  gap: 16px;
+  align-items: start;
+}
+.entity-picker {
+  display: grid;
+  gap: 8px;
+  align-content: start;
+  min-width: 0;
+}
+.entity-picker article {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 8px;
+  display: grid;
+  gap: 4px;
+}
+.entity-picker article.selected {
+  border-color: var(--accent);
+  background: var(--tint);
+}
+.entity-picker button {
+  min-width: 0;
+  width: 100%;
+  text-align: left;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+.entity-picker button:first-child {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+}
+.entity-picker small {
+  flex-shrink: 0;
+}
+.entity-selected-editor {
+  min-width: 0;
+  display: grid;
+  gap: 12px;
+}
+.entity-selected-editor .editor-fields {
+  margin: 0;
+  gap: 10px;
+}
+.entity-selected-editor textarea {
+  min-height: 88px;
+  height: 88px;
+}
+.entity-reference-panel {
+  min-width: 0;
+  display: grid;
+  gap: 10px;
+}
+.entity-reference-panel h3 {
+  margin: 0;
+}
+.entity-reference-panel .entity-reference-list {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.entity-reference-panel .entity-reference-list article {
+  width: 148px;
+  min-width: 0;
+}
+.entity-reference-panel .entity-reference-list img {
+  width: 100%;
+  height: 110px;
+  object-fit: contain;
+}
+.entity-reference-panel .entity-reference-list p {
+  margin: 6px 0;
+}
+.shot-reference-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  min-width: 0;
+}
+.shot-reference-grid .reference-window {
+  min-width: 0;
+  padding: 8px;
+  margin: 0;
+}
+.reference-thumbnails {
+  display: flex;
+  gap: 4px;
+  flex-wrap: wrap;
+  margin: 6px 0;
+}
+.reference-thumbnails img {
+  width: 48px;
+  height: 48px;
+  object-fit: cover;
+  border-radius: 5px;
+}
+.reference-thumbnails .reference-missing {
+  width: 48px;
+  height: 48px;
+  display: grid;
+  place-items: center;
+  font-size: 12px;
+  border: 1px dashed var(--line);
+  border-radius: 5px;
+}
+.shot-reference-grid details > summary {
+  cursor: pointer;
+}
+.shot-reference-grid .reference-preview {
+  min-width: 0;
+}
+.shot-reference-grid select {
+  max-width: 100%;
+  width: 100%;
+}
+@media (max-width: 700px) {
+  .entity-workspace {
+    grid-template-columns: 1fr;
+  }
+  .entity-picker {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .entity-dialog.settings-dialog {
+    width: calc(100vw - 16px);
+  }
+}
+
+.entity-picker {
+  position: sticky;
+  top: 0;
+  max-height: 100%;
+  overflow: auto;
+}
+.entity-selected-editor .editor-fields {
+  display: grid;
+  gap: 8px;
+}
+.entity-selected-editor .field {
+  margin: 0;
+}
+.entity-selected-editor .row h3 {
+  margin: 0;
+}
+.entity-reference-panel textarea {
+  height: 56px;
+  min-height: 56px;
+}
+.entity-reference-panel > button {
+  justify-self: start;
+}
+@media (max-width: 700px) {
+  .entity-picker {
+    position: static;
+    max-height: none;
+  }
+}

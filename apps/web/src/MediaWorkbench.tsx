@@ -1,3 +1,5 @@
+import { createPortal } from "react-dom";
+import { BatchMediaDialog } from "./BatchMediaDialog";
 import { ShotSettings } from "./ShotSettings";
 import {
   createContext,
@@ -43,10 +45,13 @@ export async function mediaRequest(
   const value = await response.json();
   if (!response.ok) {
     if (response.status >= 400 && response.status < 500) command?.done();
-    throw new Error(
-      typeof value.detail === "string"
-        ? value.detail
-        : "操作未成功，请检查输入与任务记录",
+    throw Object.assign(
+      new Error(
+        typeof value.detail === "string"
+          ? value.detail
+          : "操作未成功，请检查输入与任务记录",
+      ),
+      { status: response.status },
     );
   }
   command?.done();
@@ -62,6 +67,7 @@ type State = {
   entities: Entity[];
   bindings: Binding[];
   references: components["schemas"]["ShotReferenceOut"][];
+  referenceImages: components["schemas"]["ReferenceOut"][];
   run: (
     path: string,
     body?: unknown,
@@ -100,6 +106,9 @@ export function BoardMedia({
   const [references, setReferences] = useState<
     components["schemas"]["ShotReferenceOut"][]
   >([]);
+  const [referenceImages, setReferenceImages] = useState<
+    components["schemas"]["ReferenceOut"][]
+  >([]);
   const lock = useRef(false),
     live = useRef(true);
   const root = `/api/v1/projects/${pid}`;
@@ -112,6 +121,7 @@ export function BoardMedia({
         "/media/line-bindings",
         "/files",
         "/media/reference-bindings",
+        "/reference-images",
       ].map((path) => mediaRequest(root + path, undefined, "GET")),
     );
     if (!live.current) return;
@@ -121,6 +131,7 @@ export function BoardMedia({
     setBindings(responses[3]);
     onFiles(responses[4]);
     setReferences(responses[5]);
+    setReferenceImages(responses[6]);
   }
   useEffect(() => {
     live.current = true;
@@ -152,7 +163,12 @@ export function BoardMedia({
         method,
         paid ? `media.${pid}.${path}` : undefined,
       );
-      await reload();
+      try {
+        await reload();
+      } catch {
+        setNotice("操作已受理；状态暂未刷新，将继续读取任务。请勿重复提交。");
+        return result;
+      }
       setNotice(
         paid
           ? "已提交，离开页面后任务继续；结果保存后可预览。"
@@ -179,6 +195,7 @@ export function BoardMedia({
         entities,
         bindings,
         references,
+        referenceImages,
         run,
         reload,
         notice: setNotice,
@@ -200,91 +217,24 @@ const active = (task: Task) =>
   ["queued", "running", "waiting_provider", "waiting_dependency"].includes(
     task.state,
   );
-export function MediaToolbar({ body }: { body: Board }) {
+export function MediaToolbar({
+  body,
+  batchTarget,
+}: {
+  body: Board;
+  batchTarget: HTMLElement | null;
+}) {
   const m = useMedia();
-  async function batch(kind: "audio" | "position") {
-    let submitted = 0,
-      skipped = 0;
-    for (const shot of body.shots) {
-      if (kind === "position") {
-        if (
-          m.tasks.some(
-            (t) =>
-              t.kind === "image.position" && t.shot_id === shot.id && active(t),
-          )
-        ) {
-          skipped++;
-          continue;
-        }
-        await m.run(
-          "/images",
-          { board_version_id: m.version, shot_id: shot.id },
-          "POST",
-          true,
-        );
-        submitted++;
-      } else
-        for (const line of shot.dialogues) {
-          const bound = m.bindings.find((b) => b.line_id === line.id);
-          if (
-            !line.text.trim() ||
-            !(bound?.voice || line.voice).trim() ||
-            m.results.some(
-              (r) =>
-                r.kind === "media.audio" && r.target_id === line.id && !r.stale,
-            ) ||
-            m.tasks.some((t) => t.target_id === line.id && active(t))
-          ) {
-            skipped++;
-            continue;
-          }
-          const emotion = [
-            "happy",
-            "sad",
-            "angry",
-            "fearful",
-            "disgusted",
-            "surprised",
-            "neutral",
-          ].includes(line.emotion)
-            ? line.emotion
-            : undefined;
-          if (!emotion) {
-            skipped++;
-            continue;
-          }
-          await m.run(
-            "/audio",
-            {
-              board_version_id: m.version,
-              shot_id: shot.id,
-              line_id: line.id,
-              emotion,
-            },
-            "POST",
-            true,
-          );
-          submitted++;
-        }
-    }
-    m.notice(
-      `批量提交 ${submitted} 项，跳过 ${skipped} 项（缺少音色/情绪、已有结果或任务）。`,
-    );
-  }
   return (
     <div className="actions media-toolbar">
-      <button
-        disabled={!m.enabled || m.busy}
-        onClick={() => void batch("audio").catch(ignore)}
-      >
-        批量配音
-      </button>
-      <button
-        disabled={!m.enabled || m.busy}
-        onClick={() => void batch("position").catch(ignore)}
-      >
-        批量站位图
-      </button>
+      {batchTarget &&
+        createPortal(
+          <>
+            <BatchMediaDialog body={body} kind="audio" />
+            <BatchMediaDialog body={body} kind="position" />
+          </>,
+          batchTarget,
+        )}
       <button
         disabled={
           !m.enabled ||

@@ -32,11 +32,13 @@ export function StoryWorkbench({
   projectName,
   projectMarket,
   onSwitchProject,
+  onGenerationSettings,
 }: {
   pid: string;
   projectName: string;
   projectMarket: string;
   onSwitchProject: () => void;
+  onGenerationSettings: (trigger?: HTMLElement) => void;
 }) {
   const [stage, updateStage] = useState(
     () => readDraft<string>(`sf.${pid}.stage`) || "创意",
@@ -609,6 +611,7 @@ export function StoryWorkbench({
           stage={stage === "剧本" ? "script" : "board"}
           onNext={() => setStage("分镜")}
           refreshJobs={refresh}
+          onGenerationSettings={onGenerationSettings}
         />
       )}
       {stage === "导出" && <FinishingWorkbench key={pid} pid={pid} />}
