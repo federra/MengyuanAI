@@ -8,7 +8,7 @@ from shortfilm.assets.models import Entity, ReferenceConfirmation, ReferenceImag
 from shortfilm.assets.service import entity_version, owned_entity
 from shortfilm.creation.service import enqueue, existing_job
 from shortfilm.db import session
-from shortfilm.media import commands
+from shortfilm.media import commands, shot_settings
 from shortfilm.media.models import (
     JobDependency,
     LineBinding,
@@ -20,6 +20,8 @@ from shortfilm.media.models import (
 from shortfilm.media.schemas import (
     AudioGenerate,
     ImageGenerate,
+    IndependentBatch,
+    IndependentBatchOut,
     LineBind,
     LineBindingOut,
     MediaRetry,
@@ -29,6 +31,8 @@ from shortfilm.media.schemas import (
     ReferenceReplace,
     SequenceControl,
     ShotReferenceOut,
+    ShotSettingsOut,
+    ShotSettingsSave,
     VideoGenerate,
 )
 from shortfilm.media.sources import (
@@ -56,6 +60,7 @@ def generate_image(
     project = owned_project(db, pid, lock=True)
     job = commands.image_job(db, project, idempotency_key, body)
     from shortfilm.finishing.service import invalidate_completed
+
     invalidate_completed(db, pid)
     db.commit()
     return job
@@ -71,6 +76,7 @@ def generate_audio(
     project = owned_project(db, pid, lock=True)
     job = commands.audio_job(db, project, idempotency_key, body)
     from shortfilm.finishing.service import invalidate_completed
+
     invalidate_completed(db, pid)
     db.commit()
     return job
@@ -86,6 +92,7 @@ def generate_video(
     project = owned_project(db, pid, lock=True)
     jobs = commands.videos(db, project, idempotency_key, body)
     from shortfilm.finishing.service import invalidate_completed
+
     invalidate_completed(db, pid)
     db.commit()
     return jobs
@@ -133,6 +140,7 @@ def bind_line(pid: UUID, line_id: UUID, body: LineBind, db: Session = Depends(se
     db.flush()
     result = binding_out(db, binding)
     from shortfilm.finishing.service import invalidate_completed
+
     invalidate_completed(db, pid)
     db.commit()
     return result
@@ -200,6 +208,7 @@ def confirm_result(pid: UUID, rid: UUID, db: Session = Depends(session)):
     db.flush()
     result = outcome_out(db, project, output)
     from shortfilm.finishing.service import invalidate_completed
+
     invalidate_completed(db, pid)
     db.commit()
     return result
@@ -300,6 +309,7 @@ def retry(
         if waiting.state == "waiting_dependency":
             dependency.parent_id = job.id
     from shortfilm.finishing.service import invalidate_completed
+
     invalidate_completed(db, pid)
     db.commit()
     return job
@@ -325,6 +335,7 @@ def cancel(pid: UUID, jid: UUID, db: Session = Depends(session)):
         )
     )
     from shortfilm.finishing.service import invalidate_completed
+
     invalidate_completed(db, pid)
     db.commit()
     return job
@@ -340,6 +351,7 @@ def control_sequence(pid: UUID, sid: UUID, body: SequenceControl, db: Session = 
         raise HTTPException(404, "顺序任务不存在")
     sequence.paused = body.paused
     from shortfilm.finishing.service import invalidate_completed
+
     invalidate_completed(db, pid)
     db.commit()
     return {"id": str(sid), "paused": sequence.paused}
@@ -391,6 +403,7 @@ def bind_previous(pid: UUID, shot_id: UUID, body: PreviousBind, db: Session = De
     new_version = append_version(db, project, item, value, "manual", upstream(db, version).id)
     db.add(PreviousFrame(project_id=pid, shot_id=shot_id, outcome_id=output.id))
     from shortfilm.finishing.service import invalidate_completed
+
     invalidate_completed(db, pid)
     db.commit()
     return {**previous_context(output), "board_version_id": str(new_version.id)}
@@ -441,6 +454,53 @@ def replace_reference(
     )
     db.add(row)
     from shortfilm.finishing.service import invalidate_completed
+
     invalidate_completed(db, pid)
     db.commit()
     return row
+
+
+@router.get("/shots/{shot_id}/settings", response_model=ShotSettingsOut)
+def get_shot_settings(
+    pid: UUID, shot_id: UUID, board_version_id: UUID, db: Session = Depends(session)
+):
+    project = owned_project(db, pid)
+    version = board(db, project, board_version_id)
+    shot_in(version, shot_id)
+    return shot_settings.settings_out(db, project, version.id, shot_id)
+
+
+@router.put("/shots/{shot_id}/settings", response_model=ShotSettingsOut)
+def put_shot_settings(
+    pid: UUID, shot_id: UUID, body: ShotSettingsSave, db: Session = Depends(session)
+):
+    project = owned_project(db, pid, lock=True)
+    version = board(db, project, body.board_version_id)
+    shot_in(version, shot_id)
+    shot_settings.persist(
+        db, project, version.id, shot_id, body.revision, body.overrides.model_dump(mode="json")
+    )
+    from shortfilm.finishing.service import invalidate_completed
+
+    invalidate_completed(db, pid)
+    result = shot_settings.settings_out(db, project, version.id, shot_id)
+    db.commit()
+    return result
+
+
+@router.post("/videos/independent", response_model=IndependentBatchOut, status_code=202)
+def independent_videos(
+    pid: UUID,
+    body: IndependentBatch,
+    idempotency_key: str = Header(min_length=1, max_length=128),
+    db: Session = Depends(session),
+):
+    from shortfilm.media.batches import independent
+
+    project = owned_project(db, pid, lock=True)
+    result = independent(db, project, idempotency_key, body)
+    from shortfilm.finishing.service import invalidate_completed
+
+    invalidate_completed(db, pid)
+    db.commit()
+    return result

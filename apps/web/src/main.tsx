@@ -1,3 +1,4 @@
+import { trapDialogFocus } from "./dialogFocus";
 import React, { useEffect, useRef, useState } from "react";
 import { createRoot } from "react-dom/client";
 import {
@@ -9,6 +10,7 @@ import {
   type Settings,
 } from "./api";
 import "./style.css";
+import "./v12-v13.css";
 import {
   Configuration,
   ResourceLibrary,
@@ -338,7 +340,10 @@ function App() {
             <>
               <div className="project-stats">
                 {[
-                  ["项目总数", statistics.total ?? total],
+                  [
+                    "项目总数",
+                    projectsLoaded ? (statistics.total ?? total) : "—",
+                  ],
                   ["创作中", statistics.in_progress ?? "—"],
                   ["已完成", statistics.completed ?? "—"],
                   ["失败任务", statistics.failed_jobs ?? "—"],
@@ -350,6 +355,169 @@ function App() {
                 ))}
               </div>
               <div className="project-layout">
+                <section className="panel project-create">
+                  <div className="row">
+                    <h2>创建项目</h2>
+                    <button
+                      className="text-button"
+                      disabled={busy}
+                      onClick={() => void beginProject()}
+                    >
+                      载入默认
+                    </button>
+                  </div>
+                  <p className="muted">先确定作品方向，内容随后展开。</p>
+                  <form
+                    onSubmit={(e) => {
+                      e.preventDefault();
+                      void run(async () => {
+                        await api
+                          .POST("/api/v1/projects", {
+                            body: {
+                              name,
+                              market,
+                              type_id: typeId || null,
+                              aspect_ratio: ratio,
+                              resolution,
+                              style_resource_id: projectStyle || null,
+                            },
+                          })
+                          .then(unwrap);
+                        await refreshProjects(0);
+                        setOffset(0);
+                        setName("");
+                      });
+                    }}
+                  >
+                    <label>
+                      项目名称
+                      <input
+                        ref={projectNameInput}
+                        required
+                        maxLength={50}
+                        value={name}
+                        onChange={(e) => setName(e.target.value)}
+                        placeholder="给这部短片起个名字"
+                      />
+                    </label>
+                    <div className="project-type-field">
+                      <label>
+                        类型
+                        <select
+                          value={typeId}
+                          onChange={(e) => setTypeId(e.target.value)}
+                        >
+                          <option value="">未分类</option>
+                          {settings?.project_types.map((t) => (
+                            <option value={t.id} key={t.id}>
+                              {t.name}
+                            </option>
+                          ))}
+                        </select>
+                      </label>
+                      <details>
+                        <summary>添加项目类型</summary>
+                        <label>
+                          新增项目类型
+                          <input
+                            value={newType}
+                            onChange={(e) => setNewType(e.target.value)}
+                          />
+                        </label>
+                        <button
+                          type="button"
+                          disabled={busy || !newType.trim()}
+                          onClick={() =>
+                            void run(async () => {
+                              const t = unwrap(
+                                await api.POST("/api/v1/projects/types", {
+                                  body: { name: newType },
+                                }),
+                              );
+                              setSettings(
+                                unwrap(await api.GET("/api/v1/settings")),
+                              );
+                              setTypeId(t.id);
+                              setNewType("");
+                            })
+                          }
+                        >
+                          添加类型
+                        </button>
+                      </details>
+                    </div>
+                    <label>
+                      市场
+                      <select
+                        value={market}
+                        onChange={(e) =>
+                          setMarket(e.target.value as "zh" | "en")
+                        }
+                      >
+                        <option value="zh">中文</option>
+                        <option value="en">英文</option>
+                      </select>
+                    </label>
+                    <label>
+                      风格模板
+                      <select
+                        value={projectStyle}
+                        onChange={(e) => setProjectStyle(e.target.value)}
+                      >
+                        <option value="">系统默认 / 不指定</option>
+                        {styleOptions.map((s) => (
+                          <option key={s.id} value={s.id}>
+                            {s.name}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                    <div className="project-spec-fields">
+                      <label>
+                        画幅比例
+                        <select
+                          value={ratio}
+                          onChange={(e) =>
+                            setRatio(e.target.value as typeof ratio)
+                          }
+                        >
+                          {["9:16", "16:9", "1:1"].map((v) => (
+                            <option key={v}>{v}</option>
+                          ))}
+                        </select>
+                      </label>
+                      <label>
+                        分辨率
+                        <select
+                          value={resolution}
+                          onChange={(e) =>
+                            setResolution(e.target.value as typeof resolution)
+                          }
+                        >
+                          {["720P", "1080P", "4K"].map((v) => (
+                            <option key={v}>{v}</option>
+                          ))}
+                        </select>
+                      </label>
+                    </div>
+                    {error && (
+                      <p role="alert" className="alert">
+                        {error}
+                      </p>
+                    )}
+                    <div className="actions">
+                      <button
+                        className="primary"
+                        disabled={busy || !name.trim()}
+                      >
+                        创建项目
+                      </button>
+                    </div>
+                  </form>
+                  <p className="muted">
+                    立项规格将用于视频生成与导出，可在生成设置中统一修改。
+                  </p>
+                </section>
                 <section className="panel project-library">
                   <div className="row">
                     <h2>项目记录</h2>
@@ -465,167 +633,6 @@ function App() {
                       </button>
                     </div>
                   )}
-                </section>
-                <section className="panel project-create">
-                  <div className="row">
-                    <h2>创建项目</h2>
-                    <button
-                      className="text-button"
-                      disabled={busy}
-                      onClick={() => void beginProject()}
-                    >
-                      载入默认
-                    </button>
-                  </div>
-                  <p className="muted">先确定作品方向，内容随后展开。</p>
-                  <form
-                    onSubmit={(e) => {
-                      e.preventDefault();
-                      void run(async () => {
-                        await api
-                          .POST("/api/v1/projects", {
-                            body: {
-                              name,
-                              market,
-                              type_id: typeId || null,
-                              aspect_ratio: ratio,
-                              resolution,
-                              style_resource_id: projectStyle || null,
-                            },
-                          })
-                          .then(unwrap);
-                        await refreshProjects(0);
-                        setOffset(0);
-                        setName("");
-                      });
-                    }}
-                  >
-                    <label>
-                      项目名称
-                      <input
-                        ref={projectNameInput}
-                        required
-                        maxLength={50}
-                        value={name}
-                        onChange={(e) => setName(e.target.value)}
-                        placeholder="给这部短片起个名字"
-                      />
-                    </label>
-                    <label>
-                      类型
-                      <select
-                        value={typeId}
-                        onChange={(e) => setTypeId(e.target.value)}
-                      >
-                        <option value="">未分类</option>
-                        {settings?.project_types.map((t) => (
-                          <option value={t.id} key={t.id}>
-                            {t.name}
-                          </option>
-                        ))}
-                      </select>
-                    </label>
-                    <details>
-                      <summary>添加项目类型</summary>
-                      <label>
-                        新增项目类型
-                        <input
-                          value={newType}
-                          onChange={(e) => setNewType(e.target.value)}
-                        />
-                      </label>
-                      <button
-                        type="button"
-                        disabled={busy || !newType.trim()}
-                        onClick={() =>
-                          void run(async () => {
-                            const t = unwrap(
-                              await api.POST("/api/v1/projects/types", {
-                                body: { name: newType },
-                              }),
-                            );
-                            setSettings(
-                              unwrap(await api.GET("/api/v1/settings")),
-                            );
-                            setTypeId(t.id);
-                            setNewType("");
-                          })
-                        }
-                      >
-                        添加类型
-                      </button>
-                    </details>
-                    <label>
-                      市场
-                      <select
-                        value={market}
-                        onChange={(e) =>
-                          setMarket(e.target.value as "zh" | "en")
-                        }
-                      >
-                        <option value="zh">中文</option>
-                        <option value="en">英文</option>
-                      </select>
-                    </label>
-                    <label>
-                      风格模板
-                      <select
-                        value={projectStyle}
-                        onChange={(e) => setProjectStyle(e.target.value)}
-                      >
-                        <option value="">系统默认 / 不指定</option>
-                        {styleOptions.map((s) => (
-                          <option key={s.id} value={s.id}>
-                            {s.name}
-                          </option>
-                        ))}
-                      </select>
-                    </label>
-                    <div className="project-spec-fields">
-                      <label>
-                        画幅比例
-                        <select
-                          value={ratio}
-                          onChange={(e) =>
-                            setRatio(e.target.value as typeof ratio)
-                          }
-                        >
-                          {["9:16", "16:9", "1:1"].map((v) => (
-                            <option key={v}>{v}</option>
-                          ))}
-                        </select>
-                      </label>
-                      <label>
-                        分辨率
-                        <select
-                          value={resolution}
-                          onChange={(e) =>
-                            setResolution(e.target.value as typeof resolution)
-                          }
-                        >
-                          {["720P", "1080P", "4K"].map((v) => (
-                            <option key={v}>{v}</option>
-                          ))}
-                        </select>
-                      </label>
-                    </div>
-                    {error && (
-                      <p role="alert" className="alert">
-                        {error}
-                      </p>
-                    )}
-                    <div className="actions">
-                      <button
-                        className="primary"
-                        disabled={busy || !name.trim()}
-                      >
-                        创建项目
-                      </button>
-                    </div>
-                  </form>
-                  <p className="muted">
-                    立项规格将用于视频生成与导出，可在生成设置中统一修改。
-                  </p>
                 </section>
               </div>
             </>
@@ -886,6 +893,7 @@ function App() {
         </main>
       </div>
       <dialog
+        onKeyDown={trapDialogFocus}
         ref={settingsDialog}
         className="settings-dialog"
         aria-labelledby="settings-dialog-title"

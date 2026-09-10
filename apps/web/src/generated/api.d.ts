@@ -4,6 +4,108 @@
  */
 
 export interface paths {
+    "/api/v1/projects/{pid}/storyboard/import/template": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Template */
+        get: operations["template_api_v1_projects__pid__storyboard_import_template_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/projects/{pid}/storyboard/import/schema": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Schema */
+        get: operations["schema_api_v1_projects__pid__storyboard_import_schema_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/projects/{pid}/storyboard/import/assets": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Assets */
+        get: operations["assets_api_v1_projects__pid__storyboard_import_assets_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/projects/{pid}/storyboard/import/preview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Preview */
+        post: operations["preview_api_v1_projects__pid__storyboard_import_preview_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/projects/{pid}/storyboard/import/commits/{idempotency_key}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Commit */
+        get: operations["get_commit_api_v1_projects__pid__storyboard_import_commits__idempotency_key__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/projects/{pid}/storyboard/import/commit": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Commit */
+        post: operations["commit_api_v1_projects__pid__storyboard_import_commit_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/projects/{pid}/finishing": {
         parameters: {
             query?: never;
@@ -1089,6 +1191,41 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/projects/{pid}/media/shots/{shot_id}/settings": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Shot Settings */
+        get: operations["get_shot_settings_api_v1_projects__pid__media_shots__shot_id__settings_get"];
+        /** Put Shot Settings */
+        put: operations["put_shot_settings_api_v1_projects__pid__media_shots__shot_id__settings_put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/projects/{pid}/media/videos/independent": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Independent Videos */
+        post: operations["independent_videos_api_v1_projects__pid__media_videos_independent_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/health/live": {
         parameters: {
             query?: never;
@@ -1193,6 +1330,27 @@ export interface components {
              */
             connection_state: "not_tested";
         };
+        /** AssetOut */
+        AssetOut: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /**
+             * Shot Id
+             * Format: uuid
+             */
+            shot_id: string;
+            /** Entity Version Id */
+            entity_version_id: string | null;
+            /** Kind */
+            kind: string;
+            /** Name */
+            name: string;
+            /** Description */
+            description: string;
+        };
         /** AudioGenerate */
         AudioGenerate: {
             /**
@@ -1221,6 +1379,11 @@ export interface components {
         /** BatchCreate */
         BatchCreate: {
             /**
+             * Story Count
+             * @default 3
+             */
+            story_count: number;
+            /**
              * Idea Version Id
              * Format: uuid
              */
@@ -1241,6 +1404,18 @@ export interface components {
              * @enum {string}
              */
             writing_mode: "prompt" | "skill";
+        };
+        /** BatchItem */
+        BatchItem: {
+            /**
+             * Shot Id
+             * Format: uuid
+             */
+            shot_id: string;
+            /** Job Id */
+            job_id: string | null;
+            /** Reason */
+            reason: string | null;
         };
         /** BindingOut */
         BindingOut: {
@@ -1312,6 +1487,46 @@ export interface components {
             duration: number;
             /** Lines */
             lines?: components["schemas"]["LineTiming"][];
+        };
+        /** CommitOut */
+        CommitOut: {
+            /**
+             * Boardversionid
+             * Format: uuid
+             */
+            boardVersionId: string;
+            /**
+             * Sourcescriptversionid
+             * Format: uuid
+             */
+            sourceScriptVersionId: string;
+            item: components["schemas"]["ContentOut"];
+            /** Shots */
+            shots: components["schemas"]["Shot"][];
+            /** Idmapping */
+            idMapping: {
+                [key: string]: string;
+            };
+            /** Assets */
+            assets: components["schemas"]["AssetOut"][];
+            stats: components["schemas"]["ImportStatistics"];
+        };
+        /** CommitRequest */
+        CommitRequest: {
+            /**
+             * Previewid
+             * Format: uuid
+             */
+            previewId: string;
+            /** Contenthash */
+            contentHash: string;
+            /**
+             * Sourcescriptversionid
+             * Format: uuid
+             */
+            sourceScriptVersionId: string;
+            /** Baseboardversionid */
+            baseBoardVersionId: string | null;
         };
         /** ConfirmCreate */
         ConfirmCreate: {
@@ -1673,6 +1888,11 @@ export interface components {
         };
         /** IdeaSave */
         IdeaSave: {
+            /**
+             * Story Count
+             * @default 3
+             */
+            story_count: number;
             /** Revision */
             revision: number;
             /** Text */
@@ -1695,6 +1915,37 @@ export interface components {
              * @default
              */
             instruction: string;
+        };
+        /** ImportStatistics */
+        ImportStatistics: {
+            /** Shots */
+            shots: number;
+            /** Dialogues */
+            dialogues: number;
+            /** Assets */
+            assets: number;
+            /** Totalseconds */
+            totalSeconds: number;
+        };
+        /** IndependentBatch */
+        IndependentBatch: {
+            /**
+             * Board Version Id
+             * Format: uuid
+             */
+            board_version_id: string;
+            /** Shot Ids */
+            shot_ids: string[];
+        };
+        /** IndependentBatchOut */
+        IndependentBatchOut: {
+            /**
+             * Batch Id
+             * Format: uuid
+             */
+            batch_id: string;
+            /** Items */
+            items: components["schemas"]["BatchItem"][];
         };
         /** JobCreate */
         JobCreate: {
@@ -1928,10 +2179,17 @@ export interface components {
             /** Required Variables */
             required_variables?: string[];
         };
-        /** PreviewOut */
-        PreviewOut: {
-            /** Content */
-            content: string;
+        /** PreviewRequest */
+        PreviewRequest: {
+            /**
+             * Sourcescriptversionid
+             * Format: uuid
+             */
+            sourceScriptVersionId: string;
+            /** Baseboardversionid */
+            baseBoardVersionId: string | null;
+            /** Packagejson */
+            packageJson: string;
         };
         /** PreviousBind */
         PreviousBind: {
@@ -2394,6 +2652,14 @@ export interface components {
             /** Duration */
             duration: number;
         };
+        /** ShotOverrides */
+        ShotOverrides: {
+            model?: components["schemas"]["ModelRoute"] | null;
+            /** Aspect Ratio */
+            aspect_ratio?: ("9:16" | "16:9" | "1:1") | null;
+            /** Resolution */
+            resolution?: ("720P" | "1080P" | "4K") | null;
+        };
         /** ShotReferenceOut */
         ShotReferenceOut: {
             /**
@@ -2413,6 +2679,44 @@ export interface components {
             file_id: string;
             /** Revision */
             revision: number;
+        };
+        /** ShotSettingsOut */
+        ShotSettingsOut: {
+            /**
+             * Shot Id
+             * Format: uuid
+             */
+            shot_id: string;
+            /**
+             * Board Version Id
+             * Format: uuid
+             */
+            board_version_id: string;
+            /** Revision */
+            revision: number;
+            /** Overrides */
+            overrides: {
+                [key: string]: unknown;
+            };
+            /** Effective */
+            effective: {
+                [key: string]: unknown;
+            };
+            /** Sources */
+            sources: {
+                [key: string]: unknown;
+            };
+        };
+        /** ShotSettingsSave */
+        ShotSettingsSave: {
+            /**
+             * Board Version Id
+             * Format: uuid
+             */
+            board_version_id: string;
+            /** Revision */
+            revision: number;
+            overrides: components["schemas"]["ShotOverrides"];
         };
         /** SpecificationUpdate */
         SpecificationUpdate: {
@@ -2562,6 +2866,31 @@ export interface components {
              */
             sequential: boolean;
         };
+        /** PreviewOut */
+        shortfilm__configuration__schemas__PreviewOut: {
+            /** Content */
+            content: string;
+        };
+        /** PreviewOut */
+        shortfilm__creation__board_import__PreviewOut: {
+            /**
+             * Previewid
+             * Format: uuid
+             */
+            previewId: string;
+            /** Contenthash */
+            contentHash: string;
+            /**
+             * Sourcescriptversionid
+             * Format: uuid
+             */
+            sourceScriptVersionId: string;
+            /** Baseboardversionid */
+            baseBoardVersionId: string | null;
+            stats: components["schemas"]["ImportStatistics"];
+            /** Warnings */
+            warnings: string[];
+        };
     };
     responses: never;
     parameters: never;
@@ -2571,6 +2900,203 @@ export interface components {
 }
 export type $defs = Record<string, never>;
 export interface operations {
+    template_api_v1_projects__pid__storyboard_import_template_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                pid: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    schema_api_v1_projects__pid__storyboard_import_schema_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                pid: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    assets_api_v1_projects__pid__storyboard_import_assets_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                pid: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AssetOut"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    preview_api_v1_projects__pid__storyboard_import_preview_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                pid: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PreviewRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["shortfilm__creation__board_import__PreviewOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_commit_api_v1_projects__pid__storyboard_import_commits__idempotency_key__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                pid: string;
+                idempotency_key: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CommitOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    commit_api_v1_projects__pid__storyboard_import_commit_post: {
+        parameters: {
+            query?: never;
+            header: {
+                "idempotency-key": string;
+            };
+            path: {
+                pid: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CommitRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CommitOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     get_state_api_v1_projects__pid__finishing_get: {
         parameters: {
             query?: never;
@@ -3650,7 +4176,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["PreviewOut"];
+                    "application/json": components["schemas"]["shortfilm__configuration__schemas__PreviewOut"];
                 };
             };
             /** @description Validation Error */
@@ -5131,6 +5657,113 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ShotReferenceOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_shot_settings_api_v1_projects__pid__media_shots__shot_id__settings_get: {
+        parameters: {
+            query: {
+                board_version_id: string;
+            };
+            header?: never;
+            path: {
+                pid: string;
+                shot_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ShotSettingsOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    put_shot_settings_api_v1_projects__pid__media_shots__shot_id__settings_put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                pid: string;
+                shot_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ShotSettingsSave"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ShotSettingsOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    independent_videos_api_v1_projects__pid__media_videos_independent_post: {
+        parameters: {
+            query?: never;
+            header: {
+                "idempotency-key": string;
+            };
+            path: {
+                pid: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["IndependentBatch"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["IndependentBatchOut"];
                 };
             };
             /** @description Validation Error */

@@ -4,6 +4,7 @@ from shortfilm.models import Base
 from shortfilm.assets import models as asset_models  # noqa: F401
 from shortfilm.media import models as media_models  # noqa: F401
 from shortfilm.finishing import models as finishing_models  # noqa: F401
+from shortfilm.creation import board_import_models  # noqa: F401
 from shortfilm import config_models  # noqa: F401
 
 if context.is_offline_mode():

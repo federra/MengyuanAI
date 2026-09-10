@@ -344,6 +344,32 @@ def test_empty_dialogue_placeholder_does_not_require_tts(client, chain_model, me
         ).status_code
         == 200
     )
+    outcomes = {
+        row["target_id"]: row
+        for row in client.get(base + "/media/results").json()
+        if row["kind"] == "media.video"
+    }
+    assert not outcomes[body["shots"][0]["id"]]["stale"]
+    assert all(outcomes[shot["id"]]["stale"] for shot in body["shots"][1:])
+    audio_calls = len(media_provider["audio"])
+    # V13 binds dialogue to video inputs. Rebuild the tail chain through the public
+    # sequential API (which starts at shot one); empty placeholders require no new TTS.
+    regenerated = post(
+        client,
+        base + "/media/videos",
+        {
+            "board_version_id": current["version_id"],
+            "shot_ids": [shot["id"] for shot in body["shots"]],
+            "sequential": True,
+        },
+    )
+    assert regenerated.status_code == 202, regenerated.text
+    for job in regenerated.json():
+        execute(job["id"])
+        poll_ready()
+        execute(job["id"])
+        poll_ready()
+    assert len(media_provider["audio"]) == audio_calls
     state = client.get(base + "/finishing").json()
     assert state["blockers"] == [], state["blockers"]
     assert all(not c["lines"] for c in state["draft"]["clips"][1:])

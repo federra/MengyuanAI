@@ -1,0 +1,280 @@
+/* V12/V13: shared geometry for all four themes; colours stay in R1 tokens. */
+.project-layout {
+  grid-template-columns: minmax(0, 1fr);
+}
+.project-library .cards {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+.project-create form {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 16px 20px;
+  align-items: start;
+}
+.project-create form > label {
+  margin: 0;
+  min-width: 0;
+}
+.project-type-field details {
+  margin-top: 8px;
+  font-size: 13px;
+}
+.project-create .project-spec-fields {
+  display: contents;
+}
+.project-create form > .actions,
+.project-create form > .alert {
+  grid-column: 1 / -1;
+}
+.project-create form > .actions {
+  margin: 4px 0 0;
+}
+.project-create .primary {
+  width: auto;
+  min-width: 180px;
+}
+.app-topbar {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  min-height: 68px;
+}
+.stages {
+  position: sticky;
+  top: 68px;
+  z-index: 15;
+  background: var(--bg);
+  padding: 10px 0;
+  margin-bottom: 28px;
+}
+.idea-workspace {
+  min-width: 0;
+}
+.idea-title {
+  display: flex;
+  align-items: baseline;
+  gap: 14px;
+  flex-wrap: wrap;
+}
+.idea-title h2 {
+  margin: 0;
+}
+.idea-title .muted {
+  font-size: 13px;
+}
+.idea-editor textarea[aria-label="一句话创意"] {
+  height: 115px;
+  min-height: 115px;
+  resize: vertical;
+}
+.idea-instructions {
+  margin: 16px 0;
+}
+.idea-generation-row {
+  display: flex;
+  align-items: flex-start;
+  flex-wrap: wrap;
+  gap: 24px;
+  margin-top: 22px;
+}
+.idea-generation-row .method-actions {
+  flex: 0 1 300px;
+  width: 300px;
+  min-width: 240px;
+  margin: 0;
+}
+.idea-generate-actions {
+  display: flex;
+  align-items: flex-end;
+  gap: 12px;
+}
+.story-count {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.5;
+}
+.story-count input {
+  width: 86px;
+  height: 44px;
+}
+.idea-generate-actions > button {
+  min-height: 44px;
+}
+@media (max-width: 1000px) {
+  .project-create form {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .project-create form > details {
+    grid-column: auto;
+    grid-row: auto;
+  }
+}
+@media (max-width: 700px) {
+  .project-library .cards,
+  .project-create form {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .idea-generation-row .method-actions {
+    flex: 1 1 100%;
+  }
+  .idea-generate-actions {
+    flex-wrap: wrap;
+  }
+}
+.board-table th:nth-child(6) {
+  width: 130px;
+}
+.board-table .inline-tts {
+  min-width: 0;
+  margin: 8px 0;
+  gap: 6px;
+}
+.board-table .inline-tts > button,
+.board-table .inline-tts summary {
+  min-height: 28px;
+  font-size: 12px;
+  line-height: 18px;
+  padding: 4px 8px;
+}
+.board-table .inline-tts .field {
+  font-size: 13px;
+}
+.board-table .inline-tts audio {
+  width: 100%;
+  height: 32px;
+}
+.shot-specification {
+  font-size: 12px;
+  color: var(--muted);
+  overflow-wrap: anywhere;
+  margin-bottom: 8px;
+}
+.shot-settings-dialog {
+  max-width: min(660px, 94vw);
+}
+.board-table .shot-settings-dialog .field,
+.board-table .shot-settings-dialog input,
+.board-table .shot-settings-dialog select {
+  font-size: 15px;
+}
+.board-table .shot-settings-dialog button {
+  min-height: 44px;
+  font-size: 14px;
+}
+h1 {
+  letter-spacing: normal;
+}
+.idea-generation-row .method-actions .field {
+  font-size: 14px;
+  line-height: 1.5;
+  gap: 7px;
+}
+.idea-generation-row .method-actions select {
+  height: 44px;
+}
+.reference-preview {
+  margin-top: 12px;
+}
+.reference-preview img {
+  display: block;
+  max-width: 100%;
+  height: 110px;
+  object-fit: contain;
+}
+.reference-preview code {
+  overflow-wrap: anywhere;
+  font-size: 12px;
+}
+.reference-preview p {
+  font-size: 13px;
+}
+.board-import-entry {
+  margin: 12px 0;
+}
+.import-preview {
+  margin-top: 20px;
+}
+h3 {
+  line-height: 1.5;
+}
+button {
+  min-height: 44px;
+  font-weight: 500;
+}
+button.primary {
+  font-weight: 600;
+}
+select {
+  min-height: 44px;
+}
+button:disabled {
+  opacity: 1;
+  background: var(--input);
+  color: var(--muted);
+  border-color: var(--line);
+  filter: none;
+}
+.director .row button,
+.suggestions button,
+.project-create .text-button,
+.project-context button,
+.board-table button {
+  font-size: 14px;
+}
+.badge,
+.card-body small,
+.board-table td:first-child summary,
+.cover small {
+  font-size: 13px;
+}
+.board-table th {
+  font-size: 14px;
+}
+.director > .row h2 {
+  font-size: 18px;
+}
+.card-body h2 {
+  font-size: 16px;
+}
+.stages button {
+  font-size: 16px;
+}
+.model-tree button {
+  min-height: 30px;
+}
+.board-table .inline-tts > button {
+  min-height: 28px;
+  font-size: 12px;
+}
+.director {
+  top: 150px;
+  max-height: calc(100vh - 170px);
+}
+.editor-with-director.floating > .director {
+  top: 150px;
+  z-index: 18;
+  max-height: calc(100vh - 170px);
+}
+
+.project-create form label {
+  margin: 0;
+}
+.project-create form input {
+  height: 44px;
+}
+.project-create form > .actions {
+  justify-content: flex-start;
+}
+.dialogue-line > section[aria-label="逐段配音"] {
+  grid-column: 1 / -1;
+}
+[data-theme] button.primary:disabled {
+  background: var(--input);
+  color: var(--muted);
+}
+.candidates h2 {
+  font-size: 18px;
+}

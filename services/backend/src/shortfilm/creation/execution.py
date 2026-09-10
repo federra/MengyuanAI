@@ -12,7 +12,7 @@ from shortfilm.creation.schemas import BatchOutput
 from shortfilm.creation.stage_execution import save_stage_output, schema_for, validate_output
 from shortfilm.creation.stage_service import enqueue_review
 from shortfilm.db import Session
-from shortfilm.jobs.service import finish_job, heartbeat
+from shortfilm.jobs.service import finish_job, heartbeat, now
 from shortfilm.models import ContentItem, ContentVersion, JobAttempt, Project
 
 
@@ -34,10 +34,17 @@ def execute_text(job_id, token, snapshot):
     thread.start()
     try:
         schema = schema_for(snapshot["kind"])
+        json_schema = schema.model_json_schema()
+        if snapshot["kind"] == "story.generate":
+            count = snapshot.get("story_count", 3)
+            json_schema["properties"]["stories"].update(minItems=count, maxItems=count)
         context = {
             k: snapshot[k]
             for k in (
                 "input",
+                "story_count",
+                "applicationConstraints",
+                "sourceIdea",
                 "market",
                 "instruction",
                 "style",
@@ -57,7 +64,7 @@ def execute_text(job_id, token, snapshot):
                 "role": "system",
                 "content": snapshot["prompt"]["template"]
                 + "\nJSON Schema: "
-                + json.dumps(schema.model_json_schema(), ensure_ascii=False),
+                + json.dumps(json_schema, ensure_ascii=False),
             },
             {"role": "user", "content": json.dumps(context, ensure_ascii=False)},
         ]
@@ -65,9 +72,7 @@ def execute_text(job_id, token, snapshot):
             if lost.is_set() or not heartbeat(job_id, token):
                 return
             started = time.monotonic()
-            raw, metadata = provider.request_json(
-                snapshot["model"], messages, schema.model_json_schema()
-            )
+            raw, metadata = provider.request_json(snapshot["model"], messages, json_schema)
             with Session.begin() as db:
                 attempt = db.scalar(select(JobAttempt).where(JobAttempt.token == token))
                 attempt.provider_calls = [
@@ -122,10 +127,21 @@ def save_output(db, job, output):
     # Called inside finish_job transaction: content and succeeded commit together.
     project = db.scalar(select(Project).where(Project.id == job.project_id).with_for_update())
     if job.kind == "story.generate":
-        validated = BatchOutput.model_validate(output)
-        for story in validated.stories:
+        validated = BatchOutput.model_validate(
+            output, context={"story_count": job.snapshot.get("story_count", 3)}
+        )
+        created_at = now()
+        # Existing pagination orders equal-time batch items by UUID; assign that order
+        # once to retain the model sequence without changing stored history or schema.
+        identifiers = sorted(uuid4() for _ in validated.stories)
+        for identifier, story in zip(identifiers, validated.stories, strict=True):
             item = ContentItem(
-                id=uuid4(), project_id=job.project_id, kind="story", batch_id=job.id, revision=1
+                id=identifier,
+                project_id=job.project_id,
+                kind="story",
+                batch_id=job.id,
+                revision=1,
+                created_at=created_at,
             )
             db.add(item)
             db.flush()

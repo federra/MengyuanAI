@@ -4,6 +4,7 @@ from uuid import UUID
 
 from pydantic import Field, model_validator
 
+from shortfilm.configuration.schemas import ModelRoute
 from shortfilm.schemas import DTO
 
 
@@ -114,3 +115,52 @@ class ShotReferenceOut(DTO):
     ref_id: UUID
     file_id: UUID
     revision: int
+
+
+class ShotOverrides(DTO):
+    model: ModelRoute | None = None
+    aspect_ratio: Literal["9:16", "16:9", "1:1"] | None = None
+    resolution: Literal["720P", "1080P", "4K"] | None = None
+
+    @model_validator(mode="after")
+    def video_model(self):
+        if self.model and self.model.capability != "video":
+            raise ValueError("单镜模型必须具备视频能力")
+        return self
+
+
+class ShotSettingsSave(DTO):
+    board_version_id: UUID
+    revision: int = Field(ge=0)
+    overrides: ShotOverrides
+
+
+class ShotSettingsOut(DTO):
+    shot_id: UUID
+    board_version_id: UUID
+    revision: int
+    overrides: dict
+    effective: dict
+    sources: dict
+
+
+class IndependentBatch(DTO):
+    board_version_id: UUID
+    shot_ids: list[UUID] = Field(min_length=1, max_length=1000)
+
+    @model_validator(mode="after")
+    def unique(self):
+        if len(set(self.shot_ids)) != len(self.shot_ids):
+            raise ValueError("镜头重复")
+        return self
+
+
+class BatchItem(DTO):
+    shot_id: UUID
+    job_id: UUID | None
+    reason: str | None
+
+
+class IndependentBatchOut(DTO):
+    batch_id: UUID
+    items: list[BatchItem]

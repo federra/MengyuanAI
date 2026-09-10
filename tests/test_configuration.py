@@ -247,11 +247,15 @@ def test_binding_rejects_invalid_resource_revision_and_unknown_key(client):
         ).status_code
         == 422
     )
+    model_path = "/api/v1/settings/bindings/system/model:category:text"
+    baseline = client.get(model_path).json()
+    # Earlier fixtures restore the value by appending a binding revision. Validate
+    # this invalid route against the current revision, not the original seed.
     assert (
         client.put(
-            "/api/v1/settings/bindings/system/model:category:text",
+            model_path,
             json={
-                "base_version": 1,
+                "base_version": baseline["revision"],
                 "value": {
                     "provider": "x",
                     "model": "x",
@@ -263,6 +267,7 @@ def test_binding_rejects_invalid_resource_revision_and_unknown_key(client):
         ).status_code
         == 422
     )
+    assert client.get(model_path).json() == baseline
 
 
 def test_style_specification_binding_and_default_stay_consistent(client):

@@ -1,6 +1,7 @@
 from pathlib import Path
 from uuid import UUID
 
+from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -12,6 +13,7 @@ class Settings(BaseSettings):
     storage_root: Path = Path(".local/media")
     local_owner_id: UUID = UUID("00000000-0000-4000-8000-000000000001")
     max_upload_bytes: int = 20 * 1024 * 1024
+    media_video_concurrency: int = Field(default=2, ge=1, le=8)
     lease_seconds: int = 30
     redispatch_seconds: int = 30
     text_endpoint: str = "https://api.deepseek.com"

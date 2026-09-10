@@ -177,12 +177,15 @@ def validate_board(db, item, body, source_id, preserve=None, generated=False, re
             raise ValueError("图片引用重复")
         for ref in refs:
             media = db.get(MediaFile, UUID(ref))
-            if (
+            from shortfilm.creation.board_import_models import pending_reference
+
+            pending = pending_reference(db, item.project_id, shot["id"], ref)
+            if not pending and (
                 not media
                 or media.project_id != item.project_id
                 or not media.mime.startswith("image/")
             ):
-                raise ValueError("图片引用不存在或不属于本项目")
+                raise ValueError("图片引用不存在或不属于本项目及当前镜头")
         if not set(re.findall(r"@\[([^\]]+)\]", shot["prompt"])).issubset(set(refs)):
             raise ValueError("提示词包含未绑定的图片引用")
         if generated:

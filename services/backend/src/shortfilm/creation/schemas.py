@@ -2,7 +2,7 @@ from datetime import datetime
 from typing import Literal
 from uuid import UUID
 
-from pydantic import Field, model_validator
+from pydantic import Field, ValidationInfo, model_validator
 
 from shortfilm.schemas import DTO
 
@@ -15,13 +15,16 @@ class StoryBody(DTO):
 
 
 class BatchOutput(DTO):
-    stories: list[StoryBody] = Field(min_length=3, max_length=3)
+    stories: list[StoryBody] = Field(min_length=1, max_length=3)
 
     @model_validator(mode="after")
-    def distinct(self):
+    def distinct(self, info: ValidationInfo):
+        expected = (info.context or {}).get("story_count", 3)
+        if len(self.stories) != expected:
+            raise ValueError(f"故事数量必须恰好为{expected}份")
         for field in ("title", "direction", "text"):
-            if len({getattr(s, field).casefold() for s in self.stories}) != 3:
-                raise ValueError("三份故事的标题、方向和正文必须不同")
+            if len({getattr(s, field).casefold() for s in self.stories}) != len(self.stories):
+                raise ValueError("故事的标题、方向和正文必须不同")
         return self
 
 
@@ -31,6 +34,7 @@ class RevisionOutput(DTO):
 
 
 class IdeaSave(DTO):
+    story_count: int = Field(default=3, strict=True, ge=1, le=3)
     revision: int = Field(ge=0)
     text: str = Field(min_length=1, max_length=10000)
 
@@ -41,6 +45,7 @@ class StorySave(DTO):
 
 
 class BatchCreate(DTO):
+    story_count: int = Field(default=3, strict=True, ge=1, le=3)
     idea_version_id: UUID
     instruction: str = Field(default="", max_length=10000)
     style: str = Field(default="", max_length=2000)

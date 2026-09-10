@@ -1,5 +1,5 @@
 # Dependencies and generated exports
-node_modules/
+node_modules
 exports/
 
 # Local credentials and machine files
@@ -12,7 +12,7 @@ exports/
 
 # Engineering runtime and media
 .local/
-.venv/
+.venv
 __pycache__/
 .pytest_cache/
 .ruff_cache/
@@ -22,3 +22,6 @@ dist/
 coverage/
 test-results/
 playwright-report/
+
+# Local visual and migration evidence
+/evidence/

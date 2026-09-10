@@ -1,3 +1,4 @@
+import re
 from typing import Literal
 from uuid import UUID
 
@@ -6,7 +7,7 @@ from pydantic import Field, model_validator
 from shortfilm.schemas import DTO
 
 
-class ResourceCreate(DTO):
+class ResourceBody(DTO):
     name: str = Field(min_length=1, max_length=100)
     kind: Literal["skill", "prompt", "style"]
     stage: str = Field(min_length=1, max_length=100)
@@ -21,6 +22,18 @@ class ResourceCreate(DTO):
             raise ValueError("正文缺少必需变量")
         if self.kind == "skill" and self.stage not in ("story", "script", "storyboard"):
             raise ValueError("Skill适用环节无效")
+        return self
+
+
+class ResourceCreate(ResourceBody):
+    @model_validator(mode="after")
+    def quantity_variable(self):
+        if (
+            self.kind == "prompt"
+            and self.stage in ("novel", "story.generate")
+            and not re.search(r"\{\{\s*storyCount\s*\}\}", self.content)
+        ):
+            raise ValueError("故事生成模板必须包含{{storyCount}}数量变量")
         return self
 
 
@@ -76,7 +89,7 @@ class OutputSpecification(DTO):
         return self
 
 
-class ResourceOut(ResourceCreate):
+class ResourceOut(ResourceBody):
     id: UUID
     revision: int
 

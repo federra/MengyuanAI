@@ -1,4 +1,6 @@
-import { useEffect, useState } from "react";
+import { ShotReferences } from "./ShotReferences";
+import { BoardImport } from "./BoardImport";
+import { useEffect, useRef, useState } from "react";
 import {
   useMedia,
   BoardMedia,
@@ -247,6 +249,8 @@ export function StageWorkbench({
   refreshJobs: () => Promise<void>;
 }) {
   const key = `sf.${pid}.stage.${stage}`;
+  const responseEpoch = useRef(0),
+    observedRevision = useRef(0);
   const cached = readDraft<StageDraft>(key);
   const [preserved, setPreserved] = useState<StageDraft[]>(
     () => readDraft<StageDraft[]>(key + ".preserved") || [],
@@ -278,11 +282,18 @@ export function StageWorkbench({
     [request, setRequest] = useState(readDraft<string>(key + ".message") || ""),
     [mode, setMode] = useState<"fixed" | "closed" | "floating">("fixed");
   async function refresh() {
+    const epoch = responseEpoch.current;
     const s = unwrap(
       await api.GET("/api/v1/projects/{pid}/stages/{stage}", {
         params: { path: { pid, stage } },
       }),
     );
+    if (
+      epoch !== responseEpoch.current ||
+      (s.item?.revision || 0) < observedRevision.current
+    )
+      return s.item;
+    observedRevision.current = s.item?.revision || 0;
     setItem(s.item);
     setConfirmed(!!s.item && s.confirmation?.version_id === s.item.version_id);
     return s.item;
@@ -345,7 +356,7 @@ export function StageWorkbench({
       live = false;
       clearInterval(t);
     };
-  }, [item?.id, pid]);
+  }, [item?.id, item?.version_id, pid]);
   // First asynchronous generation may arrive after an empty stage was opened.
   useEffect(() => {
     if (item && !body) {
@@ -399,6 +410,8 @@ export function StageWorkbench({
     }
   }
   function accept(next: Content) {
+    responseEpoch.current++;
+    observedRevision.current = next.revision;
     setItem(next);
     setBody(next.body as Body);
     setBase(next.revision);
@@ -426,7 +439,41 @@ export function StageWorkbench({
           {notice}
         </p>
       )}
-      {stage === "board" && <EntityManager key={pid} pid={pid} />}
+      {stage === "board" && (
+        <>
+          <EntityManager key={pid} pid={pid} />
+          <BoardImport
+            pid={pid}
+            baseVersion={item?.version_id || null}
+            disabled={!loaded || busy}
+            preserve={preserveDraft}
+            onImported={(next) => {
+              storeDraft(key, {
+                body: next.body,
+                revision: next.revision,
+                source: next.source_version_id || "",
+              });
+              accept(next);
+              setConfirmed(false);
+              setConversation({ messages: [], proposals: [] });
+              setVersions([]);
+              setNotice(
+                "分镜整表已替换并保存。请检查图片描述与台词后重新确认；旧版与草稿可恢复。",
+              );
+              requestAnimationFrame(() => {
+                const table = document.querySelector(
+                  ".board-editor .table-wrap",
+                );
+                if (table) {
+                  table.scrollTop = 0;
+                  table.scrollLeft = 0;
+                }
+              });
+              void refreshJobs();
+            }}
+          />
+        </>
+      )}
       {!item || !body ? (
         <section className="empty">
           <p>
@@ -511,7 +558,7 @@ export function StageWorkbench({
                 </>
               ) : (
                 <BoardMedia
-                  key={pid}
+                  key={`${pid}:${item.version_id}`}
                   pid={pid}
                   version={item.version_id}
                   enabled={
@@ -833,9 +880,6 @@ function BoardEditor({
 }) {
   type Shot = components["schemas"]["Shot"];
   const media = useMedia();
-  const refFile = (shot: string, ref: string) =>
-    media.references.find((r) => r.shot_id === shot && r.ref_id === ref)
-      ?.file_id || ref;
   function change(index: number, shot: Shot) {
     setBody({
       ...body,
@@ -853,6 +897,9 @@ function BoardEditor({
     });
   }
   function move(i: number, step: number) {
+    media.notice(
+      "镜头顺序已调整：可能影响叙事连续性与前镜尾帧引用，请检查后保存并重新确认。",
+    );
     const shots = [...body.shots];
     [shots[i], shots[i + step]] = [shots[i + step], shots[i]];
     setBody({ ...body, shots });
@@ -869,7 +916,6 @@ function BoardEditor({
               <th>图片引用</th>
               <th>提示词 / 时长</th>
               <th>视频</th>
-              <th>独立音频 TTS</th>
               <th>操作</th>
             </tr>
           </thead>
@@ -951,6 +997,7 @@ function BoardEditor({
                           </label>
                         ),
                       )}
+                      <ShotAudio shot={s} lineId={d.id} />
                       <button
                         disabled={s.dialogues.length === 1}
                         onClick={() =>
@@ -999,111 +1046,11 @@ function BoardEditor({
                         })
                       }
                     />
-                    {!files.length ? (
-                      <div>
-                        {["角色", "场景", "道具", "站位"].map((name) => (
-                          <div className="reference-window" key={name}>
-                            <strong>{name} · 0</strong>
-                            <p>暂无图片</p>
-                          </div>
-                        ))}
-                        <small>请在资产页上传，空引用可保存。</small>
-                      </div>
-                    ) : (
-                      (
-                        ["characters", "scenes", "props", "positions"] as const
-                      ).map((kind) => (
-                        <label className="field" key={kind}>
-                          {
-                            {
-                              characters: "角色",
-                              scenes: "场景",
-                              props: "道具",
-                              positions: "站位",
-                            }[kind]
-                          }
-                          <select
-                            multiple
-                            value={s.refs[kind] || []}
-                            onChange={(e) =>
-                              change(i, {
-                                ...s,
-                                refs: {
-                                  ...s.refs,
-                                  [kind]: Array.from(
-                                    e.target.selectedOptions,
-                                    (o) => o.value,
-                                  ),
-                                },
-                              })
-                            }
-                          >
-                            {files
-                              .filter((f) => f.mime.startsWith("image/"))
-                              .map((f) => (
-                                <option key={f.id} value={f.id}>
-                                  {f.filename}
-                                </option>
-                              ))}
-                          </select>
-                          <div className="reference-previews">
-                            {(s.refs[kind] || []).map((id) => (
-                              <div key={id}>
-                                <a
-                                  href={`/api/v1/projects/${pid}/files/${refFile(s.id, id)}`}
-                                  target="_blank"
-                                  rel="noreferrer"
-                                >
-                                  <img
-                                    src={`/api/v1/projects/${pid}/files/${refFile(s.id, id)}`}
-                                    alt={
-                                      files.find((f) => f.id === id)
-                                        ?.filename || id
-                                    }
-                                  />
-                                  <small>{id}</small>
-                                </a>
-                                <label className="field">
-                                  替换图片（保留引用ID）
-                                  <select
-                                    disabled={!media.enabled || media.busy}
-                                    value={refFile(s.id, id)}
-                                    onChange={(e) =>
-                                      void media
-                                        .run(
-                                          `/shots/${s.id}/references/${id}`,
-                                          {
-                                            board_version_id: media.version,
-                                            revision:
-                                              media.references.find(
-                                                (r) =>
-                                                  r.shot_id === s.id &&
-                                                  r.ref_id === id,
-                                              )?.revision || 0,
-                                            file_id: e.target.value,
-                                          },
-                                          "PUT",
-                                        )
-                                        .catch(() => {})
-                                    }
-                                  >
-                                    {files
-                                      .filter((f) =>
-                                        f.mime.startsWith("image/"),
-                                      )
-                                      .map((f) => (
-                                        <option key={f.id} value={f.id}>
-                                          {f.filename}
-                                        </option>
-                                      ))}
-                                  </select>
-                                </label>
-                              </div>
-                            ))}
-                          </div>
-                        </label>
-                      ))
-                    )}
+                    <ShotReferences
+                      shot={s}
+                      files={files}
+                      onChange={(refs) => change(i, { ...s, refs })}
+                    />
                   </details>
                 </td>
                 <td>
@@ -1132,9 +1079,6 @@ function BoardEditor({
                 </td>
                 <td>
                   <ShotVideo shot={s} previousShotId={body.shots[i - 1]?.id} />
-                </td>
-                <td>
-                  <ShotAudio shot={s} />
                 </td>
                 <td>
                   {" "}

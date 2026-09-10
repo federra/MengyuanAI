@@ -48,9 +48,13 @@ Stage = Literal["script", "board"]
 def get_stage(pid: UUID, stage: Stage, db: Session = Depends(session)):
     owned_project(db, pid)
     item = stage_item(db, pid, stage)
+    current = content_out(db, item) if item and item.revision else None
+    record = confirmation(db, item.id) if item else None
     return dict(
-        item=content_out(db, item) if item and item.revision else None,
-        confirmation=confirmation(db, item.id) if item else None,
+        item=current,
+        confirmation=record
+        if record and current and record.version_id == current["version_id"]
+        else None,
         reports=reports(db, item) if item else [],
     )
 

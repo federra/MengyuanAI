@@ -150,7 +150,7 @@ export function FinishingWorkbench({ pid }: { pid: string }) {
   if (!state || !draft)
     return (
       <section className="panel">
-        <h2>导出工作台</h2>
+        <h1>作品导出</h1>
         <p>{error || "正在读取剪辑与素材…"}</p>
       </section>
     );
@@ -174,7 +174,7 @@ export function FinishingWorkbench({ pid }: { pid: string }) {
     <section className="finishing-workbench">
       <div className="page-heading">
         <div>
-          <h2>作品导出</h2>
+          <h1>作品导出</h1>
           <p>检查镜头、声音与字幕，生成可下载 MP4。</p>
         </div>
         <button onClick={() => setSettingsOpen(!settingsOpen)}>生成设置</button>

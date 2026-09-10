@@ -38,7 +38,11 @@ def schema_for(kind):
 
 def validate_output(db, snapshot, raw):
     kind = snapshot["kind"]
-    result = schema_for(kind).model_validate(raw).model_dump(mode="json")
+    result = (
+        schema_for(kind)
+        .model_validate(raw, context={"story_count": snapshot.get("story_count", 3)})
+        .model_dump(mode="json")
+    )
     if kind == "script.generate":
         return canonical_script(result)
     if kind == "board.generate":

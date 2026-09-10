@@ -1,13 +1,8 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { FinishingWorkbench } from "./FinishingWorkbench";
 import { api, unwrap, type Job } from "./api";
 import { readDraft, storeDraft, removeDraft, durableCommand } from "./commands";
-import {
-  StageWorkbench,
-  QualityPanel,
-  generateStage,
-  IdeaDirector,
-} from "./StageWorkbench";
+import { StageWorkbench, QualityPanel, generateStage } from "./StageWorkbench";
 import { MethodSelector, awaitMethodSaves } from "./Configuration";
 import type { components } from "./generated/api";
 
@@ -41,11 +36,12 @@ export function StoryWorkbench({
     storeDraft(`sf.${pid}.stage`, next);
     updateStage(next);
   }
-  const [ideaMode, setIdeaMode] = useState<"fixed" | "closed" | "floating">(
-    "fixed",
-  );
   const [idea, setIdea] = useState<Content | null>(null);
   const [text, setText] = useState("");
+  const [storyCount, setStoryCount] = useState("3");
+  const [draftDirty, setDraftDirty] = useState(false);
+  const validCount = /^[1-3]$/.test(storyCount);
+  const running = useRef(false);
   const [revision, setRevision] = useState(0);
   const [loaded, setLoaded] = useState(false);
   const [instruction, setInstruction] = useState(
@@ -68,6 +64,8 @@ export function StoryWorkbench({
     return durableCommand(pid + ":" + action, body);
   }
   async function run(action: () => Promise<void>) {
+    if (running.current) return;
+    running.current = true;
     setBusy(true);
     setError("");
     setNotice("");
@@ -82,6 +80,7 @@ export function StoryWorkbench({
             : "连接失败，草稿已保留",
       );
     } finally {
+      running.current = false;
       setBusy(false);
     }
   }
@@ -105,11 +104,22 @@ export function StoryWorkbench({
       .then((saved) => {
         if (!live) return;
         setIdea(saved);
-        const draft = readDraft<{ text: string; revision: number }>(
-          `sf.${pid}.idea`,
-        );
+        const draft = readDraft<{
+          text: string;
+          revision: number;
+          storyCount?: string;
+        }>(`sf.${pid}.idea`);
         setText(draft?.text ?? String(saved?.body.text || ""));
+        setStoryCount(
+          draft?.storyCount ?? String(saved?.body.story_count ?? 3),
+        );
         setRevision(draft?.revision ?? saved?.revision ?? 0);
+        setDraftDirty(
+          !!draft &&
+            (draft.text !== String(saved?.body.text || "") ||
+              (draft.storyCount !== undefined &&
+                draft.storyCount !== String(saved?.body.story_count ?? 3))),
+        );
         setLoaded(true);
         if (saved && !readDraft<string>(`sf.${pid}.stage`)) setStage("故事");
       })
@@ -150,18 +160,23 @@ export function StoryWorkbench({
     };
   }, [pid, offset]);
   useEffect(() => {
-    if (loaded) storeDraft(`sf.${pid}.idea`, { text, revision });
-  }, [text, revision, loaded, pid]);
+    if (!loaded) return;
+    if (draftDirty)
+      storeDraft(`sf.${pid}.idea`, { text, revision, storyCount });
+    else removeDraft(`sf.${pid}.idea`);
+  }, [text, revision, storyCount, loaded, pid, draftDirty]);
   const active = page.items.find((i) => i.id === activeId) || page.items[0];
   async function saveIdea() {
+    if (!validCount) throw new Error("故事数量须为1～3的整数");
     const saved = unwrap(
       await api.PUT("/api/v1/projects/{pid}/idea", {
         params: { path: { pid } },
-        body: { text, revision },
+        body: { text, revision, story_count: Number(storyCount) },
       }),
     );
     setIdea(saved);
     setRevision(saved.revision);
+    setDraftDirty(false);
     removeDraft(`sf.${pid}.idea`);
     return saved;
   }
@@ -170,6 +185,7 @@ export function StoryWorkbench({
     const saved = await saveIdea();
     const body = {
       idea_version_id: saved.version_id,
+      story_count: Number(storyCount),
       instruction,
       style: "",
       writing_mode: "prompt" as const,
@@ -221,7 +237,7 @@ export function StoryWorkbench({
         </div>
       )}
       {stage === "创意" && (
-        <div className={`editor-with-director ${ideaMode}`}>
+        <div className="idea-workspace">
           <div>
             <section className="panel project-context">
               <strong>{projectName}</strong>
@@ -229,20 +245,26 @@ export function StoryWorkbench({
               <button onClick={onSwitchProject}>切换项目</button>
             </section>
             <section className="panel idea-editor">
-              <h2>一句话创意</h2>
+              <div className="idea-title">
+                <h2>一句话创意</h2>
+                <span className="muted">可输入对故事篇幅字数的要求</span>
+              </div>
               <label className="field">
                 <textarea
                   disabled={busy || !loaded}
                   aria-label="一句话创意"
                   rows={5}
                   value={text}
-                  onChange={(e) => setText(e.target.value)}
+                  onChange={(e) => {
+                    setText(e.target.value);
+                    setDraftDirty(true);
+                  }}
                   maxLength={10000}
                 />
               </label>
               <div className="actions">
                 <button
-                  disabled={busy || !loaded || !text.trim()}
+                  disabled={busy || !loaded || !text.trim() || !validCount}
                   onClick={() =>
                     void run(async () => {
                       await saveIdea();
@@ -272,34 +294,60 @@ export function StoryWorkbench({
                   读取最新基准
                 </button>
               </div>
-              <GenerationControls
-                {...{
-                  instruction,
-                  setInstruction,
-                  pid,
-                }}
-              />
-              <button
-                className="primary"
-                disabled={busy || !loaded || !text.trim()}
-                onClick={() => void run(generate)}
-              >
-                AI生成3个故事方案
-              </button>
+              <details className="idea-instructions">
+                <summary>本次补充要求</summary>
+                <label className="field">
+                  补充写作要求
+                  <textarea
+                    rows={3}
+                    value={instruction}
+                    maxLength={10000}
+                    onChange={(e) => {
+                      setInstruction(e.target.value);
+                      storeDraft(`sf.${pid}.instruction`, e.target.value);
+                    }}
+                  />
+                </label>
+              </details>
+              <div className="idea-generation-row">
+                <MethodSelector pid={pid} stage="story" />
+                <div className="idea-generate-actions">
+                  <label className="story-count">
+                    故事数量
+                    <input
+                      aria-label="故事数量"
+                      type="number"
+                      min="1"
+                      max="3"
+                      step="1"
+                      value={storyCount}
+                      disabled={busy || !loaded}
+                      onChange={(e) => {
+                        setStoryCount(e.target.value);
+                        setDraftDirty(true);
+                      }}
+                      aria-invalid={!validCount}
+                      aria-describedby={
+                        !validCount ? "story-count-error" : undefined
+                      }
+                    />
+                  </label>
+                  <button
+                    className="primary"
+                    disabled={busy || !loaded || !text.trim() || !validCount}
+                    onClick={() => void run(generate)}
+                  >
+                    AI生成故事方案
+                  </button>
+                </div>
+              </div>
+              {!validCount && (
+                <p id="story-count-error" role="alert" className="alert">
+                  故事数量须为1～3的整数
+                </p>
+              )}
             </section>
           </div>
-          <IdeaDirector
-            mode={ideaMode}
-            setMode={setIdeaMode}
-            pid={pid}
-            item={idea}
-            disabled={busy || !idea || text !== String(idea.body.text)}
-            onAdopt={(i) => {
-              setIdea(i);
-              setText(String(i.body.text));
-              setRevision(i.revision);
-            }}
-          />
         </div>
       )}
       {stage === "故事" && (
@@ -310,10 +358,10 @@ export function StoryWorkbench({
               <p>比较故事方案，打磨细节，确定你想讲述的故事。</p>
             </div>
             <button
-              disabled={busy || !loaded || !text.trim()}
+              disabled={busy || !loaded || !text.trim() || !validCount}
               onClick={() => void run(generate)}
             >
-              再生成3个方案
+              再生成{validCount ? storyCount : ""}个方案
             </button>
           </div>
 
@@ -368,7 +416,9 @@ export function StoryWorkbench({
           ) : (
             <section className="empty">
               <h2>等待你的第一个故事</h2>
-              <p>在创意工作台输入一句话；任务完成后这里会出现三个方向。</p>
+              <p>
+                在创意工作台输入一句话；任务完成后这里会出现所选数量的故事方案。
+              </p>
               <button onClick={() => setStage("创意")}>回到创意</button>
             </section>
           )}
@@ -871,7 +921,7 @@ export function jobTitle(kind: string) {
   return (
     (
       {
-        "story.generate": "生成三个故事",
+        "story.generate": "生成故事方案",
         "story.revise": "故事导演建议",
         "idea.revise": "创意导演建议",
         "script.generate": "生成剧本",

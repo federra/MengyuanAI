@@ -4,6 +4,8 @@ from fastapi import APIRouter, Depends, Header, HTTPException, Query
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
+from shortfilm.config_models import Binding
+from shortfilm.configuration.service import latest
 from shortfilm.creation.schemas import (
     BatchCreate,
     ContentOut,
@@ -38,6 +40,7 @@ from shortfilm.jobs.service import now
 from shortfilm.models import (
     ContentItem,
     ContentVersion,
+    Job,
     Message,
     Proposal,
     StorySelection,
@@ -48,13 +51,40 @@ from shortfilm.schemas import JobOut
 router = APIRouter(prefix="/projects/{pid}", tags=["creation"])
 
 
+def saved_story_count(db, pid):
+    binding = latest(db, "project:" + str(pid), "creation:story")
+    return binding.value["story_count"] if binding and binding.value else 3
+
+
+def persist_story_count(db, pid, count):
+    # All callers hold the project lock, including first creation of this JSON binding.
+    scope = "project:" + str(pid)
+    binding = latest(db, scope, "creation:story")
+    if saved_story_count(db, pid) != count:
+        db.add(
+            Binding(
+                scope=scope,
+                key="creation:story",
+                revision=binding.revision + 1 if binding else 1,
+                value={"story_count": count},
+            )
+        )
+        db.flush()
+
+
+def idea_out(db, item):
+    output = content_out(db, item)
+    output["body"] = {**output["body"], "story_count": saved_story_count(db, item.project_id)}
+    return output
+
+
 @router.get("/idea", response_model=ContentOut | None)
 def get_idea(pid: UUID, db: Session = Depends(session)):
     owned_project(db, pid)
     item = db.scalar(
         select(ContentItem).where(ContentItem.project_id == pid, ContentItem.kind == "idea")
     )
-    return content_out(db, item) if item else None
+    return idea_out(db, item) if item else None
 
 
 @router.put("/idea", response_model=ContentOut)
@@ -69,13 +99,16 @@ def save_idea(pid: UUID, body: IdeaSave, db: Session = Depends(session)):
         item = ContentItem(id=uuid4(), project_id=pid, kind="idea", revision=0)
         db.add(item)
         db.flush()
+    if "story_count" in body.model_fields_set:
+        persist_story_count(db, pid, body.story_count)
     old = current_version(db, item)
     if not old or old.body["text"] != body.text:
         append_version(db, p, item, {"text": body.text}, "manual", old.id if old else None)
     from shortfilm.finishing.service import invalidate_completed
+
     invalidate_completed(db, pid)
     db.commit()
-    return content_out(db, item)
+    return idea_out(db, item)
 
 
 @router.get("/stories", response_model=StoriesOut)
@@ -134,6 +167,7 @@ def save_story(pid: UUID, iid: UUID, body: StorySave, db: Session = Depends(sess
     if old.body != body.body.model_dump():
         append_version(db, p, item, body.body.model_dump(), "manual", old.id)
     from shortfilm.finishing.service import invalidate_completed
+
     invalidate_completed(db, pid)
     db.commit()
     return content_out(db, item)
@@ -159,6 +193,7 @@ def select_story(pid: UUID, iid: UUID, body: SelectStory, db: Session = Depends(
     confirm(db, p, item, body.version_id)
     p.stage, p.updated_at, p.revision = "story", now(), p.revision + 1
     from shortfilm.finishing.service import invalidate_completed
+
     invalidate_completed(db, pid)
     db.commit()
     return list_stories(pid, 0, db)
@@ -172,7 +207,18 @@ def generate(
     db: Session = Depends(session),
 ):
     p = owned_project(db, pid, lock=True)
-    command = {"kind": "story.generate", **body.model_dump(mode="json")}
+    previous = db.scalar(
+        select(Job).where(Job.project_id == pid, Job.idempotency_key == idempotency_key)
+    )
+    count = (
+        body.story_count
+        if "story_count" in body.model_fields_set
+        else (previous.snapshot.get("story_count", 3) if previous else saved_story_count(db, pid))
+    )
+    command = {"kind": "story.generate", **body.model_dump(mode="json"), "story_count": count}
+    # Historical command hashes did not contain a quantity; preserve their replay contract.
+    if previous and "story_count" not in previous.snapshot and count == 3:
+        command.pop("story_count")
     existing = existing_job(db, pid, idempotency_key, command)
     if existing:
         return existing
@@ -185,11 +231,16 @@ def generate(
         **command,
         "input": version.body,
         "market": p.market,
+        "story_count": count,
+        "applicationConstraints": {"storyCount": count},
+        "sourceIdea": version.body["text"],
     }
+    persist_story_count(db, pid, count)
     snapshot.update(configuration(db, p, "story.generate", snapshot))
     snapshot["review_configuration"] = automatic_configuration(db, p, "story", snapshot)
     job = enqueue(db, p, idempotency_key, command, "story.generate", snapshot)
     from shortfilm.finishing.service import invalidate_completed
+
     invalidate_completed(db, pid)
     db.commit()
     return job
@@ -249,6 +300,7 @@ def send_message(
     job = enqueue(db, p, idempotency_key, command, command["kind"], snapshot)
     db.add(Message(item_id=iid, job_id=job.id, role="user", text=body.text))
     from shortfilm.finishing.service import invalidate_completed
+
     invalidate_completed(db, pid)
     db.commit()
     return job
@@ -307,6 +359,7 @@ def apply_proposal(pid: UUID, proposal_id: UUID, db: Session = Depends(session))
         )
     proposal.applied_version_id = v.id
     from shortfilm.finishing.service import invalidate_completed
+
     invalidate_completed(db, pid)
     db.commit()
     return content_out(db, item)

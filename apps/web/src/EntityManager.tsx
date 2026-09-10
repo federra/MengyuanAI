@@ -1,3 +1,4 @@
+import { trapDialogFocus } from "./dialogFocus";
 import { useEffect, useRef, useState } from "react";
 import { ReferenceImages } from "./ReferenceImages";
 import { api, unwrap } from "./api";
@@ -141,6 +142,7 @@ export function EntityManager({ pid }: { pid: string }) {
         ))}
       </div>
       <dialog
+        onKeyDown={trapDialogFocus}
         ref={dialog}
         className="settings-dialog entity-dialog"
         aria-labelledby="entity-title"

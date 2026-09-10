@@ -728,13 +728,12 @@ test("review round: assistant modes preserve drafts and QC is in director", asyn
   page,
 }) => {
   await page.getByRole("button", { name: "1　创意" }).click();
-  await page.getByLabel("创意修改要求").fill("保留创意草稿");
-  await page.getByRole("button", { name: "悬浮创意助手" }).click();
-  await expect(page.locator(".editor-with-director.floating")).toBeVisible();
-  await page.getByRole("button", { name: "收起创意助手" }).click();
-  await expect(page.locator(".editor-with-director.closed")).toBeVisible();
-  await page.getByRole("button", { name: "展开创意助手" }).click();
-  await expect(page.getByLabel("创意修改要求")).toHaveValue("保留创意草稿");
+  await page.getByLabel("一句话创意").fill("保留创意草稿");
+  await expect(page.getByRole("button", { name: "悬浮创意助手" })).toHaveCount(
+    0,
+  );
+  await page.getByLabel("UI主题").selectOption("dark");
+  await expect(page.getByLabel("一句话创意")).toHaveValue("保留创意草稿");
   for (const stage of ["script", "board"]) {
     const item = {
       ...story,
@@ -1520,6 +1519,7 @@ test("M2 media submission preserves command after lost response and keeps explic
     return route.fulfill({ status: 202, json: { id: "audio-job" } });
   });
   await setupMediaBoard(page);
+  await page.getByText("配音设置", { exact: true }).click();
   await page
     .getByRole("combobox", { name: "配音表现", exact: true })
     .selectOption("happy");
@@ -1532,6 +1532,7 @@ test("M2 media submission preserves command after lost response and keeps explic
   await page.reload();
   await page.getByRole("button", { name: "继续创作 →" }).click();
   await page.getByRole("button", { name: "4　分镜" }).click();
+  await page.getByText("配音设置", { exact: true }).click();
   await expect(
     page.getByRole("combobox", { name: "配音表现", exact: true }),
   ).toHaveValue("happy");
@@ -1540,10 +1541,12 @@ test("M2 media submission preserves command after lost response and keeps explic
     .click();
   await expect.poll(() => keys.length).toBe(2);
   expect(keys[1]).toBe(keys[0]);
-  await expect(page.getByRole("textbox", { name: "台词", exact: true })).toHaveValue(
-    "原始台词",
-  );
-  await page.getByRole("textbox", { name: "台词", exact: true }).fill("未保存草稿");
+  await expect(
+    page.getByRole("textbox", { name: "台词", exact: true }),
+  ).toHaveValue("原始台词");
+  await page
+    .getByRole("textbox", { name: "台词", exact: true })
+    .fill("未保存草稿");
   await expect(
     page.getByRole("button", { name: "生成第1段配音", exact: true }),
   ).toBeDisabled();
@@ -1599,9 +1602,11 @@ test("M2 media reload renders exact stored audio video and stale state", async (
     .screenshot({ path: "test-results/m2-media-workbench.png" });
 });
 
-test("asset AK SK are write-only and never enter browser drafts", async ({ page }) => {
+test("asset AK SK are write-only and never enter browser drafts", async ({
+  page,
+}) => {
   let saved = false;
-  await page.route("**/settings/asset-credentials", async route => {
+  await page.route("**/settings/asset-credentials", async (route) => {
     if (route.request().method() === "PUT") {
       const body = route.request().postDataJSON();
       expect(body.access_key).toBe("dummy-asset-ak");
@@ -1609,99 +1614,683 @@ test("asset AK SK are write-only and never enter browser drafts", async ({ page 
       expect(body.bucket).toBe("mengyuanaibucket");
       saved = true;
     }
-    await route.fulfill({json: {configured:saved,revision:saved ? 1 : 0,configuration:null,connection_state:"not_tested"}});
+    await route.fulfill({
+      json: {
+        configured: saved,
+        revision: saved ? 1 : 0,
+        configuration: null,
+        connection_state: "not_tested",
+      },
+    });
   });
-  await page.getByRole("button", {name:"系统设置",exact:true}).click();
-  await page.getByRole("button", {name:/大模型配置/}).click();
-  await page.getByRole("button", {name:"生视频",exact:true}).click();
-  await page.getByText("方舟素材上传与审核配置", {exact:true}).click();
-  const ak = page.getByLabel("素材 Access Key",{exact:true});
-  const sk = page.getByLabel("素材 Secret Key",{exact:true});
-  await expect(ak).toHaveAttribute("type","password");
-  await ak.fill("dummy-asset-ak"); await sk.fill("dummy-asset-sk");
-  expect(await page.evaluate(()=>JSON.stringify(localStorage))).not.toContain("dummy-asset");
-  await page.getByRole("button",{name:"保存素材配置与 AK/SK",exact:true}).click();
-  await expect(ak).toHaveValue(""); await expect(sk).toHaveValue("");
+  await page.getByRole("button", { name: "系统设置", exact: true }).click();
+  await page.getByRole("button", { name: /大模型配置/ }).click();
+  await page.getByRole("button", { name: "生视频", exact: true }).click();
+  await page.getByText("方舟素材上传与审核配置", { exact: true }).click();
+  const ak = page.getByLabel("素材 Access Key", { exact: true });
+  const sk = page.getByLabel("素材 Secret Key", { exact: true });
+  await expect(ak).toHaveAttribute("type", "password");
+  await ak.fill("dummy-asset-ak");
+  await sk.fill("dummy-asset-sk");
+  expect(await page.evaluate(() => JSON.stringify(localStorage))).not.toContain(
+    "dummy-asset",
+  );
+  await page
+    .getByRole("button", { name: "保存素材配置与 AK/SK", exact: true })
+    .click();
+  await expect(ak).toHaveValue("");
+  await expect(sk).toHaveValue("");
   await expect(page.getByRole("status")).toContainText("尚未验证");
-  await page.route("**/settings/asset-credentials", route => route.fulfill({json:{
-    configured:true, revision:2, configuration:{bucket:"changed-remote-bucket",region:"cn-beijing",project_name:"another-project"},connection_state:"not_tested"
-  }}));
-  await page.getByRole("button",{name:"读取最新素材配置基准（保留输入）",exact:true}).click();
-  await expect(page.getByLabel("TOS 桶名",{exact:true})).toHaveValue("mengyuanaibucket");
-  await expect(page.getByRole("button",{name:"检查已保存的读取权限（可能产生请求费）",exact:true})).toBeDisabled();
+  await page.route("**/settings/asset-credentials", (route) =>
+    route.fulfill({
+      json: {
+        configured: true,
+        revision: 2,
+        configuration: {
+          bucket: "changed-remote-bucket",
+          region: "cn-beijing",
+          project_name: "another-project",
+        },
+        connection_state: "not_tested",
+      },
+    }),
+  );
+  await page
+    .getByRole("button", {
+      name: "读取最新素材配置基准（保留输入）",
+      exact: true,
+    })
+    .click();
+  await expect(page.getByLabel("TOS 桶名", { exact: true })).toHaveValue(
+    "mengyuanaibucket",
+  );
+  await expect(
+    page.getByRole("button", {
+      name: "检查已保存的读取权限（可能产生请求费）",
+      exact: true,
+    }),
+  ).toBeDisabled();
 });
 
-
-test('M3 saves export draft, restores unsaved edits and blocks incomplete media', async ({ page }) => {
-  const draft = { board_version_id: null, filename: '我的作品', clips: [], fps: 24, fit: 'pad', narration: true, subtitles: true, original_audio: false, voice_volume: 1, original_volume: .5, music_file_id: null, music_volume: .15, continuity_ack: false };
-  let state = { revision: 0, draft, specification: { width: 1280, height: 720, aspect_ratio: '16:9', resolution: '720P' }, blockers: ['请先确认当前分镜'], timeline: [], exports: [] };
-  await page.route('**/finishing', async route => {
-    if (route.request().method() === 'PUT') {
-      state = { ...state, revision: state.revision + 1, draft: route.request().postDataJSON().draft };
+test("M3 saves export draft, restores unsaved edits and blocks incomplete media", async ({
+  page,
+}) => {
+  const draft = {
+    board_version_id: null,
+    filename: "我的作品",
+    clips: [],
+    fps: 24,
+    fit: "pad",
+    narration: true,
+    subtitles: true,
+    original_audio: false,
+    voice_volume: 1,
+    original_volume: 0.5,
+    music_file_id: null,
+    music_volume: 0.15,
+    continuity_ack: false,
+  };
+  let state = {
+    revision: 0,
+    draft,
+    specification: {
+      width: 1280,
+      height: 720,
+      aspect_ratio: "16:9",
+      resolution: "720P",
+    },
+    blockers: ["请先确认当前分镜"],
+    timeline: [],
+    exports: [],
+  };
+  await page.route("**/finishing", async (route) => {
+    if (route.request().method() === "PUT") {
+      state = {
+        ...state,
+        revision: state.revision + 1,
+        draft: route.request().postDataJSON().draft,
+      };
     }
     await route.fulfill({ json: state });
   });
-  await page.getByRole('button', { name: /5.*导出/ }).click();
-  await page.getByLabel('成片文件名').fill('我的三镜');
-  await page.getByRole('button', { name: '保存剪辑' }).click();
-  await expect(page.getByText('已保存剪辑 v1', { exact: true })).toBeVisible();
-  await expect(page.getByRole('button', { name: '生成真实 MP4' })).toBeDisabled();
-  await page.getByLabel('成片文件名').fill('未保存的剪辑');
+  await page.getByRole("button", { name: /5.*导出/ }).click();
+  await page.getByLabel("成片文件名").fill("我的三镜");
+  await page.getByRole("button", { name: "保存剪辑" }).click();
+  await expect(page.getByText("已保存剪辑 v1", { exact: true })).toBeVisible();
+  await expect(
+    page.getByRole("button", { name: "生成真实 MP4" }),
+  ).toBeDisabled();
+  await page.getByLabel("成片文件名").fill("未保存的剪辑");
   await page.reload();
-  await page.getByRole('button', { name: '继续创作 →' }).click();
-  await expect(page.getByLabel('成片文件名')).toHaveValue('未保存的剪辑');
+  await page.getByRole("button", { name: "继续创作 →" }).click();
+  await expect(page.getByLabel("成片文件名")).toHaveValue("未保存的剪辑");
 });
 
 function finishingFixture() {
-  return { revision: 0, draft: { board_version_id: null, filename: '初始剪辑', clips: [], fps: 24, fit: 'pad', narration: true, subtitles: true, original_audio: false, voice_volume: 1, original_volume: .5, music_file_id: null, music_volume: .15, continuity_ack: false }, specification: { width: 1280, height: 720, aspect_ratio: '16:9', resolution: '720P' }, blockers: ['缺少视频'], timeline: [], exports: [] };
+  return {
+    revision: 0,
+    draft: {
+      board_version_id: null,
+      filename: "初始剪辑",
+      clips: [],
+      fps: 24,
+      fit: "pad",
+      narration: true,
+      subtitles: true,
+      original_audio: false,
+      voice_volume: 1,
+      original_volume: 0.5,
+      music_file_id: null,
+      music_volume: 0.15,
+      continuity_ack: false,
+    },
+    specification: {
+      width: 1280,
+      height: 720,
+      aspect_ratio: "16:9",
+      resolution: "720P",
+    },
+    blockers: ["缺少视频"],
+    timeline: [],
+    exports: [],
+  };
 }
 
-test('M3 late polling cannot roll back saved revision', async ({ page }) => {
+test("M3 late polling cannot roll back saved revision", async ({ page }) => {
   let state = finishingFixture();
   let hold = false;
   let held = false;
   let release = () => {};
-  await page.route('**/finishing', async route => {
-    if (route.request().method() === 'PUT') {
-      state = { ...state, revision: 1, draft: route.request().postDataJSON().draft };
+  await page.route("**/finishing", async (route) => {
+    if (route.request().method() === "PUT") {
+      state = {
+        ...state,
+        revision: 1,
+        draft: route.request().postDataJSON().draft,
+      };
       await route.fulfill({ json: state });
     } else {
       const snapshot = structuredClone(state);
-      if (hold && !held) { held = true; await new Promise<void>(resolve => { release = resolve; }); }
+      if (hold && !held) {
+        held = true;
+        await new Promise<void>((resolve) => {
+          release = resolve;
+        });
+      }
       await route.fulfill({ json: snapshot });
     }
   });
-  await page.getByRole('button', { name: /5.*导出/ }).click();
-  await expect(page.getByLabel('成片文件名')).toHaveValue('初始剪辑');
+  await page.getByRole("button", { name: /5.*导出/ }).click();
+  await expect(page.getByLabel("成片文件名")).toHaveValue("初始剪辑");
   hold = true;
   await expect.poll(() => held).toBe(true);
-  await page.getByLabel('成片文件名').fill('新保存');
-  await page.getByRole('button', { name: '保存剪辑' }).click();
-  await expect(page.getByText('已保存剪辑 v1', { exact: true })).toBeVisible();
+  await page.getByLabel("成片文件名").fill("新保存");
+  await page.getByRole("button", { name: "保存剪辑" }).click();
+  await expect(page.getByText("已保存剪辑 v1", { exact: true })).toBeVisible();
   release();
   await page.waitForTimeout(250);
-  await expect(page.getByText('已保存剪辑 v1', { exact: true })).toBeVisible();
-  await expect(page.getByRole('button', { name: '保留草稿，使用最新保存基准' })).toHaveCount(0);
+  await expect(page.getByText("已保存剪辑 v1", { exact: true })).toBeVisible();
+  await expect(
+    page.getByRole("button", { name: "保留草稿，使用最新保存基准" }),
+  ).toHaveCount(0);
 });
 
-test('M3 late music upload cannot overwrite a reentered draft', async ({ page }) => {
+test("M3 late music upload cannot overwrite a reentered draft", async ({
+  page,
+}) => {
   let release = () => {};
   let started = false;
-  await page.route('**/finishing', route => route.fulfill({ json: finishingFixture() }));
-  await page.route('**/finishing/music', async route => {
+  await page.route("**/finishing", (route) =>
+    route.fulfill({ json: finishingFixture() }),
+  );
+  await page.route("**/finishing/music", async (route) => {
     started = true;
-    await new Promise<void>(resolve => { release = resolve; });
-    await route.fulfill({ json: { id: 'music-file' } });
+    await new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    await route.fulfill({ json: { id: "music-file" } });
   });
-  await page.getByRole('button', { name: /5.*导出/ }).click();
-  await page.getByLabel('上传背景音乐').setInputFiles({ name: 'music.mp3', mimeType: 'audio/mpeg', buffer: Buffer.from('fixture') });
+  await page.getByRole("button", { name: /5.*导出/ }).click();
+  await page.getByLabel("上传背景音乐").setInputFiles({
+    name: "music.mp3",
+    mimeType: "audio/mpeg",
+    buffer: Buffer.from("fixture"),
+  });
   await expect.poll(() => started).toBe(true);
-  await page.getByRole('button', { name: /2.*故事/ }).click();
-  await page.getByRole('button', { name: /5.*导出/ }).click();
-  await page.getByLabel('成片文件名').fill('返回后新草稿');
+  await page.getByRole("button", { name: /2.*故事/ }).click();
+  await page.getByRole("button", { name: /5.*导出/ }).click();
+  await page.getByLabel("成片文件名").fill("返回后新草稿");
   release();
   await page.waitForTimeout(250);
   await page.reload();
-  await page.getByRole('button', { name: '继续创作 →' }).click();
-  await expect(page.getByLabel('成片文件名')).toHaveValue('返回后新草稿');
+  await page.getByRole("button", { name: "继续创作 →" }).click();
+  await expect(page.getByLabel("成片文件名")).toHaveValue("返回后新草稿");
+});
+
+test("V13 six columns place TTS under its dialogue in all themes", async ({
+  page,
+}) => {
+  await setupMediaBoard(page);
+  for (const theme of ["light", "dark", "sky", "noir"]) {
+    await page.getByLabel("UI主题").selectOption(theme);
+    await expect(page.locator(".board-table thead th")).toHaveCount(6);
+    const line = page.locator('[data-line-id="line-media"]');
+    await expect(
+      line.getByRole("button", { name: "生成第1段配音", exact: true }),
+    ).toBeVisible();
+    await expect(
+      page.getByRole("columnheader", { name: "独立音频 TTS" }),
+    ).toHaveCount(0);
+  }
+});
+
+test("V13 shot configuration saves only its overrides and restores focus", async ({
+  page,
+}) => {
+  let settings = {
+    shot_id: "shot-media",
+    board_version_id: "board-media-v1",
+    revision: 0,
+    overrides: {},
+    effective: {
+      model: {
+        value: {
+          provider: "fixture",
+          model: "video-fixture",
+          endpoint: "https://example.test",
+          capability: "video",
+          credential_ref: "VIDEO_KEY",
+        },
+        source: "system",
+        revision: 1,
+      },
+      specification: { aspect_ratio: "16:9", resolution: "720P" },
+    },
+    sources: {
+      model: "system",
+      aspect_ratio: "project",
+      resolution: "project",
+    },
+  };
+  await page.route("**/media/shots/shot-media/settings**", async (route) => {
+    if (route.request().method() === "PUT") {
+      const body = route.request().postDataJSON();
+      expect(body).toMatchObject({
+        board_version_id: "board-media-v1",
+        revision: 0,
+        overrides: { aspect_ratio: "1:1" },
+      });
+      settings = {
+        ...settings,
+        revision: 1,
+        overrides: body.overrides,
+        effective: {
+          ...settings.effective,
+          specification: { aspect_ratio: "1:1", resolution: "720P" },
+        },
+      };
+    }
+    await route.fulfill({ json: settings });
+  });
+  await setupMediaBoard(page);
+  await page.getByRole("button", { name: "本镜生成设置", exact: true }).click();
+  const dialog = page.getByRole("dialog", { name: "本镜生成设置" });
+  await dialog.getByLabel("本镜画幅").selectOption("1:1");
+  await dialog
+    .getByRole("button", { name: "保存本镜设置", exact: true })
+    .click();
+  await expect(dialog.getByRole("status")).toContainText("已保存");
+  await dialog.getByRole("button", { name: "关闭单镜设置" }).click();
+  await expect(
+    page.getByRole("button", { name: "本镜生成设置", exact: true }),
+  ).toBeFocused();
+  await expect(page.locator(".shot-specification")).toContainText("1:1");
+});
+
+test("V13 JSON import replaces the whole table and keeps it after reload", async ({
+  page,
+}) => {
+  const original = await setupMediaBoard(page);
+  let current = original.item;
+  await page.route("**/stages/board", (route) =>
+    route.fulfill({ json: { item: current, confirmation: null, reports: [] } }),
+  );
+  await page.route("**/stages/script", (route) =>
+    route.fulfill({
+      json: {
+        item: { ...story, kind: "script", version_id: "script-v1" },
+        confirmation: { version_id: "script-v1" },
+        reports: [],
+      },
+    }),
+  );
+  const next = {
+    ...original.item,
+    version_id: "board-imported-v2",
+    revision: 2,
+    body: {
+      ...original.item.body,
+      shots: [
+        {
+          ...original.shot,
+          id: "imported-shot",
+          prompt: "导入后整表新镜头",
+          dialogues: [
+            {
+              ...original.shot.dialogues[0],
+              id: "imported-line",
+              text: "全新的台词",
+            },
+          ],
+          dialogue: "全新的台词",
+        },
+      ],
+    },
+  };
+  const stats = { shots: 1, dialogues: 1, assets: 0, totalSeconds: 5 };
+  await page.route("**/storyboard/import/preview", (route) =>
+    route.fulfill({
+      json: {
+        previewId: "preview-1",
+        contentHash: "a".repeat(64),
+        sourceScriptVersionId: "script-v1",
+        baseBoardVersionId: "board-media-v1",
+        stats,
+        warnings: [],
+      },
+    }),
+  );
+  const committed = {
+    boardVersionId: next.version_id,
+    item: next,
+    shots: next.body.shots,
+    idMapping: {},
+    assets: [],
+    stats,
+  };
+  await page.route("**/storyboard/import/commit", async (route) => {
+    current = next;
+    await route.abort("failed");
+  });
+  await page.route("**/storyboard/import/commits/*", (route) =>
+    route.fulfill({ json: committed }),
+  );
+  await page
+    .getByRole("button", { name: "导入分镜 JSON", exact: true })
+    .click();
+  const dialog = page.getByRole("dialog", { name: "导入分镜 JSON" });
+  await dialog.getByLabel("分镜 JSON 文件").setInputFiles({
+    name: "board.json",
+    mimeType: "application/json",
+    buffer: Buffer.from('{"format":"shortfilm-storyboard-import"}'),
+  });
+  await dialog.getByRole("button", { name: "校验并预览", exact: true }).click();
+  await expect(
+    dialog.getByText("1 镜 · 1 句台词 · 0 项素材 · 5 秒"),
+  ).toBeVisible();
+  await dialog.getByLabel("分镜 JSON 文件").setInputFiles({
+    name: "invalid.json",
+    mimeType: "application/json",
+    buffer: Buffer.from([255, 254, 253]),
+  });
+  await expect(dialog.getByRole("alert")).toContainText("UTF-8");
+  await expect(
+    dialog.getByRole("button", { name: "确认整表替换", exact: true }),
+  ).toHaveCount(0);
+  await expect(page.locator('[data-shot-id="shot-media"]')).toHaveCount(1);
+  await dialog.getByLabel("分镜 JSON 文件").setInputFiles({
+    name: "board.json",
+    mimeType: "application/json",
+    buffer: Buffer.from('{"format":"shortfilm-storyboard-import"}'),
+  });
+  await dialog.getByRole("button", { name: "校验并预览", exact: true }).click();
+  await dialog
+    .getByRole("button", { name: "确认整表替换", exact: true })
+    .click();
+  await expect(page.getByLabel("画面描述")).toHaveValue("导入后整表新镜头");
+  await expect(page.locator('[data-shot-id="shot-media"]')).toHaveCount(0);
+  await page.reload();
+  await page.getByRole("button", { name: "继续创作 →" }).click();
+  await page.getByRole("button", { name: "4　分镜" }).click();
+  await expect(page.getByLabel("画面描述")).toHaveValue("导入后整表新镜头");
+});
+
+test("U01–U07 four themes nine pages measured evidence", async ({
+  page,
+  browser,
+}) => {
+  test.setTimeout(120000);
+  const { mkdir, writeFile } = await import("node:fs/promises");
+  const out = new URL("../../../evidence/production/", import.meta.url)
+    .pathname;
+  await mkdir(out, { recursive: true });
+  const measures: unknown[] = [];
+  const board = await setupMediaBoard(page);
+  await page.getByRole("button", { name: "2　故事" }).click();
+  await page.evaluate(
+    (pid) => localStorage.removeItem(`sf.${pid}.stage.board`),
+    project.id,
+  );
+  const shots = Array.from({ length: 11 }, (_, i) => ({
+    ...board.shot,
+    id: `shot-${i}`,
+    prompt: `镜头${i + 1}：邮差沿着石板路寻找未来的自己。保持角色服饰与空间关系一致。`,
+    dialogues: [
+      {
+        ...board.shot.dialogues[0],
+        id: `line-${i}`,
+        text: "这封信来自未来，我会找到答案。",
+      },
+    ],
+  }));
+  await page.route("**/stages/board", (route) =>
+    route.fulfill({
+      json: {
+        item: { ...board.item, body: { ...board.item.body, shots } },
+        confirmation: { version_id: board.item.version_id },
+        reports: [],
+      },
+    }),
+  );
+  await page.route("**/stages/script", (route) =>
+    route.fulfill({
+      json: {
+        item: {
+          ...story,
+          id: "script",
+          kind: "script",
+          version_id: "script-v1",
+          source_version_id: "story-v1",
+          body: {
+            text: "邮差收到未来的来信。\n".repeat(35),
+            scenes: [],
+            estimatedSeconds: 55,
+          },
+        },
+        confirmation: null,
+        reports: [],
+      },
+    }),
+  );
+  await page.route("**/finishing", (route) =>
+    route.fulfill({ json: finishingFixture() }),
+  );
+  await page.route("**/media/shots/*/settings**", (route) =>
+    route.fulfill({
+      json: {
+        revision: 0,
+        overrides: {},
+        effective: {
+          model: { value: null },
+          specification: { aspect_ratio: "16:9", resolution: "720P" },
+        },
+        sources: {},
+      },
+    }),
+  );
+  await page.route("**/api/v1/projects?**", (route) =>
+    route.fulfill({
+      json: {
+        items: [1, 2, 3].map((n) => ({
+          ...project,
+          id: n === 1 ? project.id : `project-${n}`,
+          name: n === 1 ? project.name : `独立验收项目${n}`,
+        })),
+        total: 3,
+        statistics: { total: 3, in_progress: 3, completed: 0, failed_jobs: 0 },
+      },
+    }),
+  );
+  await page.setViewportSize({ width: 1440, height: 900 });
+  async function capture(name: string, theme: string) {
+    await page.evaluate(() => document.fonts.ready);
+    await page.evaluate(() => scrollTo(0, 0));
+    await page.mouse.move(0, 0);
+    await page.evaluate(()=>new Promise<void>(resolve=>requestAnimationFrame(()=>requestAnimationFrame(()=>resolve()))));
+    await page.screenshot({ path: `${out}${name}-${theme}.png` });
+    const value = await page.evaluate(() => {
+      const selectors = [
+        "h1",
+        "h2",
+        ".primary-navigation button",
+        ".stages button",
+        "button.primary",
+        "textarea",
+        ".board-table th",
+        ".inline-tts > button",
+        ".shot-specification",
+      ];
+      return {
+        width: innerWidth,
+        height: innerHeight,
+        scrollWidth: document.documentElement.scrollWidth,
+        nodes: selectors.flatMap((selector) =>
+          Array.from(document.querySelectorAll<HTMLElement>(selector))
+            .filter((e) => e.getClientRects().length)
+            .slice(0, 3)
+            .map((e) => {
+              const s = getComputedStyle(e),
+                r = e.getBoundingClientRect();
+              return {
+                selector,
+                font: s.fontFamily,
+                size: s.fontSize,
+                weight: s.fontWeight,
+                color: s.color,
+                background: s.backgroundColor,
+                height: r.height,
+              };
+            }),
+        ),
+      };
+    });
+    measures.push({ page: name, theme, ...value });
+    expect(
+      value.scrollWidth,
+      `${name}/${theme} page overflow`,
+    ).toBeLessThanOrEqual(value.width);
+  }
+  for (const theme of ["light", "dark", "sky", "noir"]) {
+    await page.getByLabel("UI主题").selectOption(theme);
+    await page
+      .getByRole("navigation", { name: "主导航" })
+      .getByRole("button", { name: "项目", exact: true })
+      .click();
+    await page.getByRole("button", { name: "项目排序" }).count();
+    // Reload the fixture list through a real UI filter action.
+    await page.getByLabel("项目排序").selectOption("name");
+    await page.getByLabel("项目排序").selectOption("updated_desc");
+    await expect(page.locator(".cards article")).toHaveCount(3);
+    await capture("projects", theme);
+    await page.getByRole("button", { name: "继续创作 →" }).first().click();
+    for (const [index, name] of [
+      "creation",
+      "story",
+      "script",
+      "storyboard",
+      "finishing",
+    ].entries()) {
+      await page
+        .getByRole("button", {
+          name: `${index + 1}　${["创意", "故事", "剧本", "分镜", "导出"][index]}`,
+        })
+        .click();
+      await expect(page.locator("main h1")).toBeVisible();
+      if (name === "storyboard")
+        await expect(page.locator(".board-table tbody tr")).toHaveCount(11);
+      if (name === "finishing")
+        await expect(page.getByLabel("成片文件名")).toBeVisible();
+      await capture(name, theme);
+      if (name === "creation") {
+        const fields = await Promise.all([
+          page.getByLabel("story方法").boundingBox(),
+          page.getByLabel("故事数量").boundingBox(),
+          page
+            .getByRole("button", { name: "AI生成故事方案", exact: true })
+            .boundingBox(),
+        ]);
+        expect(
+          Math.max(...fields.map((r) => r!.y)) -
+            Math.min(...fields.map((r) => r!.y)),
+        ).toBeLessThanOrEqual(2);
+      }
+      if (name === "storyboard") {
+        await page
+          .getByRole("button", { name: "本镜生成设置", exact: true })
+          .first()
+          .click();
+        await expect(page.getByLabel("本镜画幅")).toBeVisible();
+        await capture("shot-settings", theme);
+        for (let k = 0; k < 9; k++) {
+          await page.keyboard.press("Tab");
+          expect(
+            await page
+              .getByRole("dialog")
+              .evaluate((el) => el.contains(document.activeElement)),
+          ).toBe(true);
+        }
+        await page.getByRole("button", { name: "关闭单镜设置" }).click();
+        await page
+          .getByRole("button", { name: "导入分镜 JSON", exact: true })
+          .click();
+        await capture("board-import", theme);
+        await page.getByRole("button", { name: "关闭分镜导入" }).click();
+        await page
+          .getByRole("button", { name: "角色管理", exact: true })
+          .click();
+        await capture("elements", theme);
+        await page.getByRole("button", { name: "关闭元素管理" }).click();
+        await page.locator(".board-editor .table-wrap").evaluate((e) => {
+          e.scrollLeft = e.scrollWidth;
+        });
+        await capture("storyboard-right", theme);
+        await page.locator(".board-editor .table-wrap").evaluate((e) => {
+          e.scrollLeft = 0;
+        });
+      }
+    }
+    for (const [label, name] of [
+      ["资产", "assets"],
+      ["任务记录", "tasks"],
+      ["系统设置", "settings"],
+    ]) {
+      await page
+        .getByRole("navigation", { name: "主导航" })
+        .getByRole("button", { name: label, exact: true })
+        .click();
+      await capture(name, theme);
+      if (name === "settings") {
+        await page.getByRole("button",{name:"设置",exact:true}).click();
+        await expect(page.getByRole("tab",{name:"模型",exact:true})).toBeVisible();
+        await capture("settings-model",theme);
+        for (const tab of ["提示词", "风格模板"]) {
+          const control = page.getByRole("tab", { name: tab, exact: true });
+          if (await control.count()) {
+            await control.click();
+            await expect(control).toHaveAttribute("aria-selected","true");
+            await capture(`settings-${tab}`, theme);
+          }
+        }
+        await page.getByRole("dialog",{name:"设置",exact:true}).getByRole("button",{name:"关闭",exact:true}).click();
+      }
+    }
+  }
+  for (const size of [
+    { width: 1280, height: 800 },
+    { width: 1920, height: 1080 },
+    { width: 720, height: 450 },
+  ]) {
+    await page.setViewportSize(size);
+    await page
+      .getByRole("navigation", { name: "主导航" })
+      .getByRole("button", { name: "创作", exact: true })
+      .click();
+    await page.getByRole("button", { name: "1　创意" }).click();
+    await capture(`viewport-${size.width}`, "noir");
+    await expect(
+      page.getByRole("button", { name: "AI生成故事方案", exact: true }),
+    ).toBeVisible();
+  }
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.getByRole("button", { name: "3　剧本" }).click();
+  await page.getByLabel("剧本正文").evaluate((e) => {
+    e.style.height = "1400px";
+  });
+  await page.evaluate(() => scrollTo(0, 600));
+  await expect
+    .poll(async () =>
+      Math.round((await page.locator(".stages").boundingBox())!.y),
+    )
+    .toBe(68);
+  const nav = await page.locator(".stages").boundingBox(),
+    top = await page.locator(".app-topbar").boundingBox();
+  expect(Math.abs(nav!.y - (top!.y + top!.height))).toBeLessThanOrEqual(2);
+  measures.push({
+    browser: browser.version(),
+    reducedMotion: true,
+    zoom200:
+      "720x450 CSS layout viewport equivalent; physical browser zoom separately pending",
+  });
+  await writeFile(`${out}measurements.json`, JSON.stringify(measures, null, 2));
 });

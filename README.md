@@ -109,3 +109,9 @@ M2真实图像、逐句配音和三镜前镜尾帧链已验收，最新事实见
 运行继续使用make dev；需FFmpeg、ffprobe及中文字体。本机使用Arial Unicode，Linux安装fonts-noto-cjk，或设置SHORTFILM_SUBTITLE_FONT为可读字体路径。容器配置补充字体依赖，但未构建或部署容器。数据库迁移新增export_versions/export_commands，M2既有数据与35个文件哈希核对未变。回退代码不自动降级数据库，恢复数据需使用对应停写备份。
 
 已有真实素材合成可本地播放下载，新增供应商费用0元；这不代表用户一句话完整流程已验收。工程、成片、备份与边界见[M3验收记录](docs/engineering/m3-verification.md)，操作和待批准用量见[用户独立试用](docs/engineering/m3-user-acceptance.md)。
+
+## V12/V13 本地增量检查点（2026-09-10）
+
+隔离分支`codex/v12-v13-ui-alignment`已实现故事数量1～3、最新项目/创意布局、六列分镜逐句TTS、单镜覆盖/独立并发、事务整表JSON导入和四主题公共布局。工程207项后端与40项页面回归通过，供应商调用0；生产服务升级仍待明确授权，用户视觉验收未通过。事实与边界见[增量验收记录](docs/engineering/v12-v13-verification.md)，迁移、最新停写备份和回退步骤见[本地升级方案](docs/engineering/v12-v13-local-upgrade.md)。
+
+独立视频供应商并发默认2，可用`SHORTFILM_MEDIA_VIDEO_CONCURRENCY`设置1～8；未知受理状态保守占位，原任务对账恢复，不盲目重发。导入成功后事务outbox启动建议质检，会使用已配置文本模型；质检失败不撤销导入。不要为UI回归自动点击生成或导入提交。

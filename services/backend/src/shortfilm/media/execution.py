@@ -9,7 +9,7 @@ from datetime import timedelta
 from uuid import NAMESPACE_URL, UUID, uuid5
 
 from PIL import Image
-from sqlalchemy import select
+from sqlalchemy import and_, or_, select, text
 
 from shortfilm.assets.models import ReferenceImage
 from shortfilm.config import settings
@@ -199,6 +199,63 @@ def mark_submitted(jid, token):
         if run.sequence_id and db.get(MediaSequence, run.sequence_id).paused:
             transition(db, job, "waiting_dependency")
             return False
+        if job.kind == "media.video" and not run.submitted:
+            model = job.snapshot["model"]
+            capacity_key = model["provider"] + "/" + model["endpoint"]
+            db.execute(
+                text("SELECT pg_advisory_xact_lock(hashtextextended(:key, 0))"),
+                {"key": "media-capacity:" + capacity_key},
+            )
+            candidates = db.execute(
+                select(Job.project_id, MediaRun.job_id, MediaRun.external_id)
+                .join(MediaRun, Job.id == MediaRun.job_id)
+                .where(
+                    MediaRun.submitted.is_(True),
+                    Job.kind == "media.video",
+                    Job.state.in_(
+                        ("running", "waiting_provider", "queued", "unknown", "waiting_dependency")
+                    ),
+                    Job.snapshot["model"]["provider"].astext == model["provider"],
+                    Job.snapshot["model"]["endpoint"].astext == model["endpoint"],
+                )
+            ).all()
+            requests = {(pid, external) for pid, _, external in candidates if external}
+            reconciled = set()
+            if requests:
+                reconciled = set(
+                    db.execute(
+                        select(Job.project_id, MediaRun.external_id)
+                        .join(MediaRun, Job.id == MediaRun.job_id)
+                        .where(
+                            Job.project_id.in_({pid for pid, _ in requests}),
+                            MediaRun.external_id.in_({external for _, external in requests}),
+                            Job.snapshot["model"]["provider"].astext == model["provider"],
+                            Job.snapshot["model"]["endpoint"].astext == model["endpoint"],
+                            or_(
+                                Job.state == "succeeded",
+                                and_(Job.state == "cancelled", MediaRun.receipt.is_not(None)),
+                                and_(
+                                    Job.state == "failed",
+                                    Job.error.in_(
+                                        (
+                                            "provider_generation_failed",
+                                            "media_download_failed",
+                                            "media_invalid",
+                                            "last_frame_extraction_failed",
+                                        )
+                                    ),
+                                ),
+                            ),
+                        )
+                    ).all()
+                )
+            # Same-ID reconciliation is one supplier request, even while old unknown history remains.
+            active = len(requests - reconciled) + sum(
+                1 for _, _, external in candidates if not external
+            )
+            if active >= settings.media_video_concurrency:
+                transition(db, job, "waiting_dependency", "supplier_capacity_wait")
+                return False
         run.submitted = True
         return True
 
@@ -343,6 +400,7 @@ def complete(jid, token, raw, receipt):
         )
         transition(db, job, "cancelled" if run.cancelled else "succeeded")
         from shortfilm.finishing.service import invalidate_completed
+
         invalidate_completed(db, project.id)
 
 

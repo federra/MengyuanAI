@@ -1,3 +1,4 @@
+import { ShotSettings } from "./ShotSettings";
 import {
   createContext,
   useContext,
@@ -18,7 +19,7 @@ const states: Record<string, string> = {
   queued: "排队中",
   running: "处理中",
   waiting_provider: "供应商处理中",
-  waiting_dependency: "等待前镜或已暂停",
+  waiting_dependency: "等待依赖、并发空位或已暂停",
   unknown: "受理待核实，未自动重发",
   failed: "失败",
   succeeded: "成功",
@@ -307,6 +308,47 @@ export function MediaToolbar({ body }: { body: Board }) {
       >
         按顺序生成全部镜头
       </button>
+      <button
+        disabled={!m.enabled || m.busy}
+        onClick={() =>
+          void m
+            .run(
+              "/videos/independent",
+              {
+                board_version_id: m.version,
+                shot_ids: body.shots.map((s) => s.id),
+              },
+              "POST",
+              true,
+            )
+            .then((value) => {
+              const result = value as {
+                items: {
+                  shot_id: string;
+                  job_id: string | null;
+                  reason: string | null;
+                }[];
+              };
+              const labels: Record<string, string> = {
+                previous_frame_dependency: "依赖前镜尾帧",
+                current_success: "已有当前视频",
+                active_task: "已有进行中任务",
+                failed_task_retry_required: "已有失败任务，请在原任务重试",
+              };
+              m.notice(
+                result.items
+                  .map(
+                    (item) =>
+                      `镜头${body.shots.findIndex((s) => s.id === item.shot_id) + 1}：${item.job_id ? "已排队" : labels[item.reason || ""] || item.reason || "已跳过"}`,
+                  )
+                  .join("；"),
+              );
+            })
+            .catch(ignore)
+        }
+      >
+        并行生成独立镜头
+      </button>
       <small>
         媒体生成会消耗供应商用量；连续性采用多图参考，前镜尾帧不保证严格首帧一致。
       </small>
@@ -326,7 +368,7 @@ export function MediaToolbar({ body }: { body: Board }) {
                 .catch(ignore)
             }
           >
-            {task.paused ? "继续顺序任务" : "暂停顺序任务"}
+            {task.paused ? "继续批次任务" : "暂停批次任务"}
           </button>
         );
       })}
@@ -466,6 +508,7 @@ export function ShotVideo({
   )?.previous;
   return (
     <section aria-label="镜头视频">
+      <ShotSettings shotId={shot.id} />
       <button
         disabled={
           !m.enabled ||
@@ -555,99 +598,109 @@ export function ShotVideo({
     </section>
   );
 }
-export function ShotAudio({ shot }: { shot: Shot }) {
+export function ShotAudio({ shot, lineId }: { shot: Shot; lineId?: string }) {
   const m = useMedia();
   const [choices, setChoices] = useState<
     Record<string, { emotion: string; speed: number }>
-  >(() => readDraft(`sf.${m.pid}.audio-options.${shot.id}`) || {});
+  >(
+    () =>
+      readDraft(`sf.${m.pid}.audio-options.${shot.id}.${lineId || "all"}`) ||
+      readDraft(`sf.${m.pid}.audio-options.${shot.id}`) ||
+      {},
+  );
   useEffect(
-    () => storeDraft(`sf.${m.pid}.audio-options.${shot.id}`, choices),
-    [choices, m.pid, shot.id],
+    () =>
+      storeDraft(
+        `sf.${m.pid}.audio-options.${shot.id}.${lineId || "all"}`,
+        choices,
+      ),
+    [choices, m.pid, shot.id, lineId],
   );
   return (
     <section aria-label="逐段配音">
       {shot.dialogues.map((line, i) => {
+        if (lineId && line.id !== lineId) return null;
         const binding = m.bindings.find((b) => b.line_id === line.id),
           choice = choices[line.id] || { emotion: "neutral", speed: 1 };
         const outputs = m.results.filter(
           (r) => r.kind === "media.audio" && r.target_id === line.id,
         );
         return (
-          <div className="dialogue-line audio-line" key={line.id}>
-            <strong>
-              第{i + 1}段 · {binding?.name || line.speaker || "未指定角色"}
-            </strong>
-            <label className="field">
-              绑定全片角色
-              <select
-                disabled={!m.enabled || m.busy}
-                value={binding?.entity_id || ""}
-                onChange={(e) =>
-                  void m
-                    .run(
-                      `/line-bindings/${line.id}`,
-                      {
-                        board_version_id: m.version,
-                        entity_id: e.target.value || null,
-                        revision: binding?.revision || 0,
-                      },
-                      "PUT",
-                    )
-                    .catch(ignore)
-                }
-              >
-                <option value="">使用逐段音色</option>
-                {m.entities
-                  .filter((e) => e.kind === "character")
-                  .map((e) => (
-                    <option key={e.id} value={e.id}>
-                      {e.name} · {e.voice || "未设音色"}
+          <div className="audio-line inline-tts" key={line.id}>
+            <details className="tts-options">
+              <summary>配音设置</summary>
+              <label className="field">
+                绑定全片角色
+                <select
+                  disabled={!m.enabled || m.busy}
+                  value={binding?.entity_id || ""}
+                  onChange={(e) =>
+                    void m
+                      .run(
+                        `/line-bindings/${line.id}`,
+                        {
+                          board_version_id: m.version,
+                          entity_id: e.target.value || null,
+                          revision: binding?.revision || 0,
+                        },
+                        "PUT",
+                      )
+                      .catch(ignore)
+                  }
+                >
+                  <option value="">使用逐段音色</option>
+                  {m.entities
+                    .filter((e) => e.kind === "character")
+                    .map((e) => (
+                      <option key={e.id} value={e.id}>
+                        {e.name} · {e.voice || "未设音色"}
+                      </option>
+                    ))}
+                </select>
+              </label>
+              <label className="field">
+                配音表现
+                <select
+                  value={choice.emotion}
+                  onChange={(e) =>
+                    setChoices({
+                      ...choices,
+                      [line.id]: { ...choice, emotion: e.target.value },
+                    })
+                  }
+                >
+                  {Object.entries({
+                    neutral: "平静",
+                    happy: "高兴",
+                    sad: "悲伤",
+                    angry: "愤怒",
+                    fearful: "恐惧",
+                    disgusted: "厌恶",
+                    surprised: "惊讶",
+                  }).map(([value, label]) => (
+                    <option key={value} value={value}>
+                      {label}
                     </option>
                   ))}
-              </select>
-            </label>
-            <label className="field">
-              配音表现
-              <select
-                value={choice.emotion}
-                onChange={(e) =>
-                  setChoices({
-                    ...choices,
-                    [line.id]: { ...choice, emotion: e.target.value },
-                  })
-                }
-              >
-                {Object.entries({
-                  neutral: "平静",
-                  happy: "高兴",
-                  sad: "悲伤",
-                  angry: "愤怒",
-                  fearful: "恐惧",
-                  disgusted: "厌恶",
-                  surprised: "惊讶",
-                }).map(([value, label]) => (
-                  <option key={value} value={value}>
-                    {label}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <label className="field">
-              配音语速
-              <input
-                type="number"
-                min="0.5"
-                max="2"
-                step="0.1"
-                value={choice.speed}
-                onChange={(e) =>
-                  setChoices({
-                    ...choices,
-                    [line.id]: { ...choice, speed: Number(e.target.value) },
-                  })
-                }
-              />
-            </label>
+                </select>
+              </label>
+              <label className="field">
+                配音语速
+                <input
+                  type="number"
+                  min="0.5"
+                  max="2"
+                  step="0.1"
+                  value={choice.speed}
+                  onChange={(e) =>
+                    setChoices({
+                      ...choices,
+                      [line.id]: { ...choice, speed: Number(e.target.value) },
+                    })
+                  }
+                />
+              </label>
+            </details>
             <button
               disabled={
                 !m.enabled ||

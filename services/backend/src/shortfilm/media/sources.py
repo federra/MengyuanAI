@@ -117,7 +117,8 @@ def shot_context(db, project, version, shot, kind, require_refs=False):
     if kind == "image.position":
         refs.pop("positions", None)
     files = []
-    for group in refs.values():
+    for group_name in ("characters", "scenes", "props", "positions"):
+        group = refs.get(group_name, [])
         for fid in group:
             binding = reference_version(db, shot["id"], fid)
             actual = binding.file_id if binding else fid
@@ -130,7 +131,7 @@ def shot_context(db, project, version, shot, kind, require_refs=False):
                 raise HTTPException(409, "参考图未确认或已过期，请重新检查")
             files.append(file)
     source = upstream(db, version)
-    return {
+    result = {
         "shot_id": shot["id"],
         "prompt": shot["prompt"],
         "refs": refs,
@@ -138,6 +139,13 @@ def shot_context(db, project, version, shot, kind, require_refs=False):
         "duration": shot["duration"],
         "script_version_id": str(source.id) if source else None,
     }
+
+    if kind == "media.video":
+        from shortfilm.configuration.service import resolved_project_style
+
+        result["dialogues"] = deepcopy(shot["dialogues"])
+        result["style"] = resolved_project_style(db, project)
+    return result
 
 
 def frozen_configuration(db, project, kind, context):
@@ -153,6 +161,10 @@ def frozen_configuration(db, project, kind, context):
         "media.video": "video",
     }[kind]
     configuration = resolve(db, project, key, "storyboard")
+    if kind == "media.video":
+        from shortfilm.media.shot_settings import effective
+
+        configuration.update(effective(db, project, context["shot_id"]))
     model = configuration["model"]["value"]
     capability = "image" if kind.startswith("image.") else kind.split(".")[1]
     if not model or model.get("capability") != capability:
@@ -169,7 +181,7 @@ def frozen_configuration(db, project, kind, context):
     variables = {
         **context,
         "market": project.market,
-        "specification": project.generation_settings,
+        "specification": configuration["specification"],
         "current_content": context,
         "input": context,
         "source": context,
@@ -195,7 +207,8 @@ def frozen_configuration(db, project, kind, context):
         "kind": kind,
         "configuration": configuration,
         "model": model,
-        "specification": deepcopy(project.generation_settings),
+        "specification": deepcopy(configuration["specification"]),
+        "compiler_version": 2,
         "prompt": prompt,
     }
 
@@ -279,6 +292,28 @@ def source_stale(db, project, snapshot, previous=None, seen=None):
         if kind == "media.audio":
             return snapshot["input"] != line_context(db, project, shot, snapshot["target_id"])
         current = shot_context(db, project, version, shot, kind)
+        if snapshot.get("compiler_version", 1) < 2:
+            # Legacy compilers used JSONB object order. Preserve their comparison order;
+            # immutable supplier snapshots remain untouched, and changed refs still differ.
+            original_order = {
+                f.get("ref_id", f["id"]): i
+                for i, f in enumerate(snapshot["input"].get("files", []))
+            }
+            current["files"].sort(
+                key=lambda f: original_order.get(f.get("ref_id", f["id"]), len(original_order))
+            )
+        if kind == "media.video":
+            if snapshot.get("compiler_version", 1) < 2:
+                current.pop("dialogues", None)
+                current.pop("style", None)
+            from shortfilm.media.shot_settings import effective
+
+            active = effective(db, project, shot["id"])
+            if active["model"]["value"] != snapshot["configuration"]["model"]["value"] or any(
+                active["specification"][k] != snapshot["specification"][k]
+                for k in ("aspect_ratio", "resolution")
+            ):
+                return True
         if current != snapshot["input"]:
             return True
         if kind == "media.video" and any(

@@ -12,6 +12,7 @@ from shortfilm.assets.references import router as references
 from shortfilm.assets.router import router as assets
 from shortfilm.config import settings as runtime_settings
 from shortfilm.configuration.asset_credentials import router as asset_credentials
+from shortfilm.creation.board_import import router as board_import
 from shortfilm.creation.retry import router as retries
 from shortfilm.creation.router import router as creation
 from shortfilm.creation.stages import router as stages
@@ -29,7 +30,7 @@ app = FastAPI(
     description="本地单用户短片工坊：M1故事版本与DeepSeek适配器；真实文本验收及后续成片能力单独验证。",
 )
 logger = logging.getLogger("shortfilm.api")
-for router in (finishing, asset_credentials, projects, files, jobs, settings, creation, retries, stages, assets, references, media_generation):
+for router in (board_import, finishing, asset_credentials, projects, files, jobs, settings, creation, retries, stages, assets, references, media_generation):
     app.include_router(router, prefix="/api/v1")
 
 
