@@ -31,3 +31,19 @@ Let's Encrypt IP 证书路径 `/etc/letsencrypt/live/mengyuan-ip/`，本次证�
 运维检查可运行 `systemctl status mengyuan-api mengyuan-worker-ai mengyuan-worker-media mengyuan-dispatcher mengyuan-redis`；证书检查 `systemctl list-timers mengyuan-cert-renew.timer`。部署回退应先停应用写入并备份当前数据库和媒体，不能仅切换代码来撤销数据库变化。
 
 最终独立浏览器播放检查通过：三段真实视频与两段配音均成功启动、播放时间前进，刷新重开项目后媒体仍保留。初版固定 500ms 的播放断言受网络缓冲影响失败，改用最长 30 秒内实际播放时间前进的条件后通过；此调整仅影响本地核验脚本，没有修改播放器实现。证据保存在本机忽略目录 `.local/deployment/public-verification.json`、`browser-verification.log` 和 `public-app.png`。
+
+## 2026-09-11 当前集成版本覆盖发布
+
+用户本轮明确授权提交、合并main、推送及覆盖原服务器应用。代码提交`e25c96224575dbea73459db500bc0ca6fc59aade`已从codex/v12-v13-ui-alignment快进合并main并推送GitHub；测试代码树与合并后完全相同。原主工作区独立PRD草稿保留。本轮部署M3及后续交互增量，不覆盖服务器数据库为本地数据。
+
+发布前242后端、110页面全量回归通过，OpenAPI一致、构建、静态检查、PRD校验通过。旧测试的确认弹窗及纯文本提示词入口已按已批准的新交互同步，原草稿、来源、幂等恢复断言保留。
+
+服务器新release为`/opt/mengyuanai/releases/e25c962`，`/opt/mengyuanai/current`已切换；原`43af009`目录保留。Python依赖按锁文件安装；新增fonts-noto-cjk，并在shortfilm服务账户下验证中文字体可读取。未更换HTTPS地址、认证账号、密码、证书配置或模型凭据；内部API18010/PG55432/Redis56379继续仅监听环回地址，证书续期timer有效。
+
+成功备份为`/opt/mengyuanai/backups/20260911T065907`，含database.dump、media.tar.gz、private-config.tar.gz及report.json，目录仅root可读。从该备份恢复到隔离库后演练M3导出、分镜JSON、实体工作流迁移，旧表旧列全部行摘要不变；媒体归档解包后29文件哈希一致。正式升级至`20260910_entity_workflow`后再次核对旧行摘要不变，仅另外补入3份风格模板。服务器原11项目、29文件、57成功/2未知/6失败/2取消任务保留，无供应商调用。本地新增项目、素材与数据库未传到服务器。
+
+首次两次尝试分别因迁移命令继承root证书目录及缺少服务认证环境失败，均在开放请求前恢复旧数据库和旧release；对应备份065502、065639保留。最终采用PostgreSQL本机管理通道并SET ROLE至原shortfilm数据库角色，避免读取或更改应用密码。迁移期间临时维护入口阻止新请求；成功后撤销，Nginx原认证配置恢复。运维脚本保留于服务器`/opt/mengyuanai/incoming/upgrade-server.py`，不含密码。
+
+公网验证通过：真实HTTPS证书验证、未认证首页/项目API/健康401；原nathan账号认证后页面、项目API、健康200；11项目及三份风格模板可见，分镜工作台可打开；全部29媒体通过HTTPS下载并逐一SHA-256匹配。浏览器无页面异常，验证无API写入。证据为本机忽略目录`.local/deployment/public-release.json`、`public-release.png`、`public-board.png`、`server-upgrade-report.json`。本轮未调用付费模型或制作新的真实MP4，发布成功不替代最终UI与用户完整主链验收。
+
+回退须重新停写并备份当时新增数据；切回43af009同时恢复对应旧schema备份，不能仅切换代码或在线强行降级。私有配置备份仅用于故障恢复，不写入Git。本条后续文档提交不改变已部署代码e25c962。
