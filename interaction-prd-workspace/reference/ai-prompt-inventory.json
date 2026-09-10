@@ -260,7 +260,8 @@
       "milestone": "M1",
       "status": "engineering-fixture-verified",
       "validation": "49项后端、19项浏览器及实际HTTP文本替身内容链通过；真实DeepSeek密钥未注入，输出质量/耗时/费用待验收"
-    }
+    },
+    "scriptSourceConstraint": "新 board.generate 任务追加应用约束：source.text 完整剧本正文是唯一叙事依据，完整保留场景、人物动作与台词；scenes 仅为派生结构，estimatedSeconds 仅供参考，不得当作固定时长或删减依据。提交前保存返回版本与任务source版本一致；旧模板、历史任务及快照不重写。"
   },
   {
     "id": "P07",

@@ -1,3 +1,9 @@
+import {
+  AI_TEXT,
+  GenerationOutput,
+  notifyTextJob,
+  useTextGeneration,
+} from "./TextGeneration";
 import { ShotReferences } from "./ShotReferences";
 import { BoardImport } from "./BoardImport";
 import { useEffect, useRef, useState } from "react";
@@ -55,7 +61,7 @@ export async function generateStage(
     cmd.done();
     removeDraft(pendingKey);
   }
-  unwrap(result);
+  notifyTextJob(unwrap(result));
   cmd.done();
   removeDraft(pendingKey);
 }
@@ -106,6 +112,11 @@ export function QualityPanel({
       setBusy(false);
     }
   }
+  const reviewJob = useTextGeneration({
+    kind: `${item.kind}.review`,
+    itemId: item.id,
+    versionId: item.version_id,
+  });
   const latest = reports[0];
   return (
     <section className="quality">
@@ -119,6 +130,7 @@ export function QualityPanel({
       </h3>
       {error && <p role="alert">{error}</p>}
       {notice && <p role="status">{notice}</p>}
+      <GenerationOutput label="质检结果" job={reviewJob} />
       {!latest && <p className="muted">暂无质检报告，仍可保留当前版本继续。</p>}
       {reports.map((r) => (
         <details key={r.id} open={r === latest}>
@@ -162,14 +174,19 @@ export function QualityPanel({
             void run(async () => {
               const body = { base_version_id: item.version_id };
               const cmd = durableCommand(`${pid}:review:${item.id}`, body);
-              unwrap(
-                await api.POST("/api/v1/projects/{pid}/contents/{iid}/review", {
-                  params: {
-                    path: path(pid, item.id),
-                    header: { "idempotency-key": cmd.key },
-                  },
-                  body,
-                }),
+              notifyTextJob(
+                unwrap(
+                  await api.POST(
+                    "/api/v1/projects/{pid}/contents/{iid}/review",
+                    {
+                      params: {
+                        path: path(pid, item.id),
+                        header: { "idempotency-key": cmd.key },
+                      },
+                      body,
+                    },
+                  ),
+                ),
               );
               cmd.done();
             })
@@ -198,14 +215,19 @@ export function QualityPanel({
                 text: "",
               };
               const cmd = durableCommand(`${pid}:repair:${item.id}`, body);
-              unwrap(
-                await api.POST("/api/v1/projects/{pid}/contents/{iid}/repair", {
-                  params: {
-                    path: path(pid, item.id),
-                    header: { "idempotency-key": cmd.key },
-                  },
-                  body,
-                }),
+              notifyTextJob(
+                unwrap(
+                  await api.POST(
+                    "/api/v1/projects/{pid}/contents/{iid}/repair",
+                    {
+                      params: {
+                        path: path(pid, item.id),
+                        header: { "idempotency-key": cmd.key },
+                      },
+                      body,
+                    },
+                  ),
+                ),
               );
               cmd.done();
               setNotice("修复建议生成中，完成后在导演助手比较并采用。");
@@ -264,14 +286,6 @@ export function StageWorkbench({
     [error, setError] = useState(""),
     [notice, setNotice] = useState("");
   const [confirmed, setConfirmed] = useState(false);
-  const [generationInstruction, setGenerationInstruction] = useState(
-    () => readDraft<string>(`sf.${pid}.generate.board.instruction`) || "",
-  );
-  useEffect(
-    () =>
-      storeDraft(`sf.${pid}.generate.board.instruction`, generationInstruction),
-    [pid, generationInstruction],
-  );
   const [files, setFiles] = useState<MediaFile[]>([]),
     [versions, setVersions] = useState<components["schemas"]["VersionOut"][]>(
       [],
@@ -281,6 +295,21 @@ export function StageWorkbench({
     >({ messages: [], proposals: [] }),
     [request, setRequest] = useState(readDraft<string>(key + ".message") || ""),
     [mode, setMode] = useState<"fixed" | "closed" | "floating">("fixed");
+  const running = useRef(false);
+  const persisted = useRef<Content | null>(null);
+  const latestServer = useRef<Content | null>(null);
+  const local = useRef({ body, base, source });
+  local.current = { body, base, source };
+  const generating = useTextGeneration({
+    kind: `${stage}.generate`,
+    itemId: item?.id,
+    targetRevision: item?.revision || 0,
+  });
+  const advising = useTextGeneration({
+    kind: [`${stage}.revise`, `${stage}.repair`],
+    itemId: item?.id,
+    versionId: item?.version_id,
+  });
   async function refresh() {
     const epoch = responseEpoch.current;
     const s = unwrap(
@@ -292,7 +321,23 @@ export function StageWorkbench({
       epoch !== responseEpoch.current ||
       (s.item?.revision || 0) < observedRevision.current
     )
-      return s.item;
+      return latestServer.current;
+    latestServer.current = s.item;
+    const previous = persisted.current;
+    const draft = local.current;
+    if (
+      s.item &&
+      (!draft.body ||
+        (previous &&
+          draft.base === previous.revision &&
+          draft.source === (previous.source_version_id || "") &&
+          JSON.stringify(draft.body) === JSON.stringify(previous.body)))
+    ) {
+      persisted.current = s.item;
+      setBody(s.item.body as Body);
+      setBase(s.item.revision);
+      setSource(s.item.source_version_id || "");
+    } else if (!previous && s.item) persisted.current = s.item;
     observedRevision.current = s.item?.revision || 0;
     setItem(s.item);
     setConfirmed(!!s.item && s.confirmation?.version_id === s.item.version_id);
@@ -396,6 +441,8 @@ export function StageWorkbench({
     throw new Error("历史版本缺少来源，请载入最新版本");
   }
   async function run(action: () => Promise<void>) {
+    if (running.current) return;
+    running.current = true;
     setBusy(true);
     setError("");
     setNotice("");
@@ -406,17 +453,94 @@ export function StageWorkbench({
     } catch (e) {
       setError(e instanceof Error ? e.message : "连接中断，草稿与提交记录保留");
     } finally {
+      running.current = false;
       setBusy(false);
     }
   }
   function accept(next: Content) {
+    if (next.revision < observedRevision.current)
+      throw new Error("服务端已有更新版本，草稿已保留，请核对最新正文后继续。");
     responseEpoch.current++;
+    persisted.current = next;
+    latestServer.current = next;
     observedRevision.current = next.revision;
     setItem(next);
     setBody(next.body as Body);
     setBase(next.revision);
     setSource(next.source_version_id || "");
   }
+  async function saveScript(): Promise<Content> {
+    if (
+      !item ||
+      !body ||
+      !String((body as components["schemas"]["ScriptBody"]).text || "").trim()
+    )
+      throw new Error("请填写剧本正文");
+    if (sourceMismatch)
+      throw new Error("剧本来源已变化，草稿保留，请恢复最新正文后核对修改。");
+    if (!dirty && base === item.revision) return item;
+    const payload = { revision: base, source_version_id: source, body };
+    const response = await api.PUT("/api/v1/projects/{pid}/stages/{stage}", {
+      params: { path: { pid, stage } },
+      body: payload,
+    });
+    let next: Content;
+    if (response.response.status === 409) {
+      const latest = await refresh();
+      if (
+        !latest ||
+        latest.source_version_id !== source ||
+        latest.revision !== base + 1 ||
+        latest.body.estimatedSeconds !==
+          (body as components["schemas"]["ScriptBody"]).estimatedSeconds ||
+        String(latest.body.text) !==
+          String((body as components["schemas"]["ScriptBody"]).text)
+      ) {
+        throw new Error("剧本版本冲突，草稿已保留，请核对最新正文后继续。");
+      }
+      next = latest;
+    } else next = unwrap(response);
+    accept(next);
+    storeDraft(key, {
+      body: next.body,
+      revision: next.revision,
+      source: next.source_version_id || "",
+    });
+    return next;
+  }
+  useEffect(() => {
+    if (
+      stage !== "script" ||
+      !loaded ||
+      !dirty ||
+      busy ||
+      error ||
+      generating ||
+      sourceMismatch ||
+      !String(
+        (body as components["schemas"]["ScriptBody"] | null)?.text || "",
+      ).trim()
+    )
+      return;
+    const timer = setTimeout(
+      () =>
+        void run(async () => {
+          await saveScript();
+        }),
+      700,
+    );
+    return () => clearTimeout(timer);
+  }, [
+    stage,
+    loaded,
+    body,
+    base,
+    dirty,
+    busy,
+    error,
+    sourceMismatch,
+    generating,
+  ]);
   return (
     <>
       <div className="page-heading">
@@ -445,7 +569,7 @@ export function StageWorkbench({
           <BoardImport
             pid={pid}
             baseVersion={item?.version_id || null}
-            disabled={!loaded || busy}
+            disabled={!loaded || busy || !!generating}
             preserve={preserveDraft}
             onImported={(next) => {
               storeDraft(key, {
@@ -476,6 +600,10 @@ export function StageWorkbench({
       )}
       {!item || !body ? (
         <section className="empty">
+          <GenerationOutput
+            label={stage === "script" ? "剧本正文" : "分镜内容"}
+            job={generating}
+          />
           <p>
             {!loaded
               ? "读取中…"
@@ -507,7 +635,21 @@ export function StageWorkbench({
             {item.stale && (
               <p role="alert">上游已更新，此版本已过期。请从上游重新生成。</p>
             )}
-            <fieldset disabled={busy} className="editor-fields">
+            {stage === "script" && (
+              <p role="status">
+                {busy
+                  ? "保存中…"
+                  : error
+                    ? "保存失败，草稿已保留"
+                    : dirty
+                      ? "待自动保存"
+                      : "已自动保存"}
+              </p>
+            )}
+            {stage === "board" && (
+              <GenerationOutput label="分镜内容" job={generating} />
+            )}
+            <fieldset disabled={busy || !!generating} className="editor-fields">
               {stage === "script" ? (
                 <>
                   <label className="field">
@@ -515,46 +657,18 @@ export function StageWorkbench({
                     <textarea
                       aria-label="剧本正文"
                       className="story-text"
-                      value={(body as components["schemas"]["ScriptBody"]).text}
+                      readOnly={!!generating}
+                      aria-busy={!!generating}
+                      value={
+                        generating
+                          ? AI_TEXT
+                          : (body as components["schemas"]["ScriptBody"]).text
+                      }
                       onChange={(e) =>
                         setBody({ ...body, text: e.target.value } as Body)
                       }
                     />
                   </label>
-                  <label className="field">
-                    估算秒数
-                    <input
-                      type="number"
-                      value={
-                        (body as components["schemas"]["ScriptBody"])
-                          .estimatedSeconds
-                      }
-                      onChange={(e) =>
-                        setBody({
-                          ...body,
-                          estimatedSeconds: Number(e.target.value),
-                        } as Body)
-                      }
-                    />
-                  </label>
-                  <details>
-                    <summary>场景结构（保存后按正文同步）</summary>
-                    {(body as components["schemas"]["ScriptBody"]).scenes.map(
-                      (s) => (
-                        <div key={s.id}>
-                          <h3>{s.heading}</h3>
-                          {s.actions?.map((a, i) => (
-                            <p key={i}>{a}</p>
-                          ))}
-                          {s.dialogues?.map((d, i) => (
-                            <p key={i}>
-                              {d.speaker} · {d.emotion}：{d.text}
-                            </p>
-                          ))}
-                        </div>
-                      ),
-                    )}
-                  </details>
                 </>
               ) : (
                 <BoardMedia
@@ -580,45 +694,69 @@ export function StageWorkbench({
               )}
             </fieldset>
             <div className="actions">
-              <button
-                disabled={busy || sourceMismatch}
-                onClick={() =>
-                  void run(async () => {
-                    accept(
-                      unwrap(
-                        await api.PUT("/api/v1/projects/{pid}/stages/{stage}", {
-                          params: { path: { pid, stage } },
-                          body: {
-                            revision: base,
-                            source_version_id: source,
-                            body,
-                          },
-                        }),
-                      ),
-                    );
-                    setNotice("已保存新版本。");
-                  })
-                }
-              >
-                保存{stage === "script" ? "剧本" : "分镜"}
-              </button>
-              <button
-                disabled={busy}
-                onClick={() =>
-                  void run(async () => {
-                    const latest = await refresh();
-                    if (latest) {
-                      preserveDraft();
-                      accept(latest);
-                      setNotice(
-                        "已载入最新完整内容及其来源；原草稿保留在下方，可对照复制修改。",
+              {stage === "board" && (
+                <button
+                  disabled={busy || !!generating || sourceMismatch}
+                  onClick={() =>
+                    void run(async () => {
+                      accept(
+                        unwrap(
+                          await api.PUT(
+                            "/api/v1/projects/{pid}/stages/{stage}",
+                            {
+                              params: { path: { pid, stage } },
+                              body: {
+                                revision: base,
+                                source_version_id: source,
+                                body,
+                              },
+                            },
+                          ),
+                        ),
                       );
-                    }
-                  })
-                }
-              >
-                保留草稿并载入最新版本
-              </button>
+                      setNotice("已保存新版本。");
+                    })
+                  }
+                >
+                  保存分镜
+                </button>
+              )}
+              {(stage === "board" ||
+                !!error ||
+                sourceMismatch ||
+                base !== item.revision) && (
+                <button
+                  disabled={busy || !!generating}
+                  onClick={() =>
+                    void run(async () => {
+                      const latest = await refresh();
+                      if (latest) {
+                        preserveDraft();
+                        accept(latest);
+                        setNotice(
+                          "已载入最新完整内容及其来源；原草稿保留在下方，可对照复制修改。",
+                        );
+                      }
+                    })
+                  }
+                >
+                  {stage === "script"
+                    ? "核对并恢复当前版本"
+                    : "保留草稿并载入最新版本"}
+                </button>
+              )}
+              {stage === "script" && error && (
+                <button
+                  disabled={busy || !!generating || sourceMismatch}
+                  onClick={() =>
+                    void run(async () => {
+                      await saveScript();
+                    })
+                  }
+                >
+                  重试保存
+                </button>
+              )}
             </div>
             {preserved.length > 0 && (
               <details className="preserved-drafts">
@@ -645,27 +783,20 @@ export function StageWorkbench({
             {stage === "script" ? (
               <div className="method-actions">
                 <MethodSelector pid={pid} stage="storyboard" />
-                <label className="field">
-                  本次分镜生成要求
-                  <textarea
-                    aria-label="本次分镜生成要求"
-                    disabled={busy}
-                    rows={3}
-                    value={generationInstruction}
-                    onChange={(e) => setGenerationInstruction(e.target.value)}
-                  />
-                </label>
                 <button
                   className="primary"
-                  disabled={busy || dirty || base !== item.revision}
+                  disabled={
+                    busy ||
+                    !!generating ||
+                    sourceMismatch ||
+                    !String(
+                      (body as components["schemas"]["ScriptBody"]).text || "",
+                    ).trim()
+                  }
                   onClick={() =>
                     void run(async () => {
-                      await generateStage(
-                        pid,
-                        "board",
-                        item.version_id,
-                        generationInstruction,
-                      );
+                      const saved = await saveScript();
+                      await generateStage(pid, "board", saved.version_id);
                       onNext();
                     })
                   }
@@ -687,7 +818,7 @@ export function StageWorkbench({
                   </summary>
                   <ContentPreview body={v.body} />
                   <button
-                    disabled={busy}
+                    disabled={busy || !!generating}
                     onClick={() =>
                       void run(async () => {
                         const historicalSource = historySource(v);
@@ -736,13 +867,16 @@ export function StageWorkbench({
               <QualityPanel
                 pid={pid}
                 item={item}
-                disabled={busy || dirty || base !== item.revision}
+                disabled={
+                  busy || !!generating || dirty || base !== item.revision
+                }
                 onChanged={async () => {
                   await refresh();
                   await refreshJobs();
                 }}
               />
 
+              <GenerationOutput label="建议正文" job={advising} />
               <div className="conversation">
                 {conversation.messages.map((m) => (
                   <p className="preserve-text" key={m.id}>
@@ -754,7 +888,7 @@ export function StageWorkbench({
                 修改要求
                 <textarea
                   aria-label="修改要求"
-                  disabled={busy}
+                  disabled={busy || !!generating}
                   value={request}
                   onChange={(e) => setRequest(e.target.value)}
                 />
@@ -766,7 +900,12 @@ export function StageWorkbench({
               <button
                 className="primary"
                 disabled={
-                  busy || dirty || base !== item.revision || !request.trim()
+                  busy ||
+                  !!generating ||
+                  !!advising ||
+                  dirty ||
+                  base !== item.revision ||
+                  !request.trim()
                 }
                 onClick={() =>
                   void run(async () => {
@@ -782,16 +921,18 @@ export function StageWorkbench({
                       `${pid}:message:${item.id}`,
                       input,
                     );
-                    unwrap(
-                      await api.POST(
-                        "/api/v1/projects/{pid}/contents/{iid}/messages",
-                        {
-                          params: {
-                            path: path(pid, item.id),
-                            header: { "idempotency-key": cmd.key },
+                    notifyTextJob(
+                      unwrap(
+                        await api.POST(
+                          "/api/v1/projects/{pid}/contents/{iid}/messages",
+                          {
+                            params: {
+                              path: path(pid, item.id),
+                              header: { "idempotency-key": cmd.key },
+                            },
+                            body: input,
                           },
-                          body: input,
-                        },
+                        ),
                       ),
                     );
                     cmd.done();
@@ -823,6 +964,7 @@ export function StageWorkbench({
                   <button
                     disabled={
                       busy ||
+                      !!generating ||
                       dirty ||
                       base !== item.revision ||
                       !!p.applied_version_id ||
@@ -856,7 +998,7 @@ function ContentPreview({ body }: { body: Record<string, unknown> }) {
   const shots = body.shots as components["schemas"]["Shot"][] | undefined;
   return (
     <div className="preserve-text">
-      {String(body.text || "")}
+      {String((body as components["schemas"]["ScriptBody"]).text || "")}
       {shots?.map((s, i) => (
         <p key={s.id}>
           镜头 {i + 1} · {s.prompt}

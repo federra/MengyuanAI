@@ -550,7 +550,6 @@ test("script and board editing proposal QC continuation stable identities and re
   });
   await page.getByRole("button", { name: "3　剧本" }).click();
   await page.getByLabel("剧本正文").fill("人工改写：邮差开门。");
-  await page.getByRole("button", { name: "保存剧本", exact: true }).click();
   await expect.poll(() => script.revision).toBe(2);
   await page.getByLabel("修改要求").fill("增加犹豫");
   await page.getByRole("button", { name: "发送修改要求" }).click();
@@ -752,7 +751,7 @@ test("review round: assistant modes preserve drafts and QC is in director", asyn
   }
 });
 
-test("review round: script source uses immutable old story and instruction recovery freezes text", async ({
+test("review round: script source uses immutable old story and generation recovery freezes request", async ({
   page,
 }) => {
   const oldVersion = {
@@ -794,19 +793,16 @@ test("review round: script source uses immutable old story and instruction recov
     });
     await route.abort();
   });
-  await page.getByLabel("本次分镜生成要求").fill("保留长镜头");
+  await expect(page.getByLabel("本次分镜生成要求")).toHaveCount(0);
   await page.getByRole("button", { name: "确认剧本并AI生成分镜" }).click();
   await expect.poll(() => requests.length).toBe(1);
-  await page.getByLabel("本次分镜生成要求").fill("新草稿不能改变未确认请求");
   await page.reload();
   await page.getByRole("button", { name: "继续创作 →" }).click();
-  await expect(page.getByLabel("本次分镜生成要求")).toHaveValue(
-    "新草稿不能改变未确认请求",
-  );
+  await expect(page.getByLabel("本次分镜生成要求")).toHaveCount(0);
   await page.getByRole("button", { name: "确认剧本并AI生成分镜" }).click();
   await expect.poll(() => requests.length).toBe(2);
   expect(requests[1]).toEqual(requests[0]);
-  expect(requests[0].body.instruction).toBe("保留长镜头");
+  expect(requests[0].body.instruction).toBe("");
 });
 
 test("review round: pinned prompt revision is displayed and preserved until explicit upgrade", async ({
@@ -1009,7 +1005,12 @@ for (const stage of ["script", "board"] as const) {
     await page.reload();
     await page.getByRole("button", { name: "继续创作 →" }).click();
     await expect(editor).toHaveValue("尚未保存的旧来源编辑");
-    await page.getByRole("button", { name: "保留草稿并载入最新版本" }).click();
+    await page
+      .getByRole("button", {
+        name:
+          stage === "script" ? "核对并恢复当前版本" : "保留草稿并载入最新版本",
+      })
+      .click();
     await expect(editor).toHaveValue("新来源生成的完整内容");
     await page.getByText("保留的草稿（1）", { exact: true }).click();
     await expect(page.getByLabel("保留草稿 1")).toContainText(
@@ -1021,14 +1022,12 @@ for (const stage of ["script", "board"] as const) {
       fullPage: true,
     });
     await editor.fill("基于新来源的人工修改");
-    await page
-      .getByRole("button", {
-        name: stage === "script" ? "保存剧本" : "保存分镜",
-        exact: true,
-      })
-      .click();
+    if (stage === "board")
+      await page.getByRole("button", { name: "保存分镜", exact: true }).click();
     await expect(
-      page.getByText("已保存新版本。", { exact: true }),
+      page.getByText(stage === "script" ? "已自动保存" : "已保存新版本。", {
+        exact: true,
+      }),
     ).toBeVisible();
     expect(saved[0].source_version_id).toBe(source2);
     expect(saved[0].revision).toBe(2);
@@ -1040,12 +1039,7 @@ for (const stage of ["script", "board"] as const) {
       .getByRole("button", { name: "载入为草稿", exact: true })
       .first()
       .click();
-    await expect(
-      page.getByRole("button", {
-        name: stage === "script" ? "保存剧本" : "保存分镜",
-        exact: true,
-      }),
-    ).toBeEnabled();
+    await expect(editor).toBeEnabled();
     // Explicitly loading an old-source history must retain its lineage, never relabel it.
     await page.getByText("v1 · generation", { exact: true }).click();
     await page
@@ -1053,13 +1047,21 @@ for (const stage of ["script", "board"] as const) {
       .last()
       .click();
     await expect(editor).toHaveValue("旧生成内容");
-    await expect(
-      page.getByRole("button", {
-        name: stage === "script" ? "保存剧本" : "保存分镜",
-        exact: true,
-      }),
-    ).toBeDisabled();
-    await page.getByRole("button", { name: "保留草稿并载入最新版本" }).click();
+    if (stage === "board")
+      await expect(
+        page.getByRole("button", { name: "保存分镜", exact: true }),
+      ).toBeDisabled();
+    else {
+      const savesBefore = saved.length;
+      await page.waitForTimeout(850);
+      expect(saved).toHaveLength(savesBefore);
+    }
+    await page
+      .getByRole("button", {
+        name:
+          stage === "script" ? "核对并恢复当前版本" : "保留草稿并载入最新版本",
+      })
+      .click();
     await expect(editor).toHaveValue("基于新来源的人工修改");
     await page.reload();
     await page.getByRole("button", { name: "继续创作 →" }).click();
@@ -1076,14 +1078,12 @@ for (const stage of ["script", "board"] as const) {
         page.getByLabel("保留草稿 3", { exact: true }),
       ).toContainText('"scriptId": "script-v1"');
     await editor.fill("恢复后的再次保存");
-    await page
-      .getByRole("button", {
-        name: stage === "script" ? "保存剧本" : "保存分镜",
-        exact: true,
-      })
-      .click();
+    if (stage === "board")
+      await page.getByRole("button", { name: "保存分镜", exact: true }).click();
     await expect(
-      page.getByText("已保存新版本。", { exact: true }),
+      page.getByText(stage === "script" ? "已自动保存" : "已保存新版本。", {
+        exact: true,
+      }),
     ).toBeVisible();
     expect(saved[1].source_version_id).toBe(source2);
     expect(saved[1].revision).toBe(3);
@@ -2429,3 +2429,261 @@ test("slow story and conversation polls do not overlap or roll back a saved vers
     "慢轮询不能回滚的新版本",
   );
 });
+
+for (const state of [
+  "queued",
+  "running",
+  "waiting_provider",
+  "waiting_dependency",
+]) {
+  test(`inline story generation ${state} keeps the existing candidate editable without saving status`, async ({
+    page,
+  }) => {
+    let jobs: unknown[] = [
+      {
+        id: "inline-job",
+        project_id: project.id,
+        kind: "story.generate",
+        state,
+        snapshot: { idea_version_id: idea.version_id },
+        created_at: project.updated_at,
+      },
+    ];
+    const writes: string[] = [];
+    await page.route("**/jobs", (route) => route.fulfill({ json: jobs }));
+    await page.route("**/stories/story", async (route) => {
+      writes.push(route.request().postData() ?? "");
+      await route.fulfill({ json: story });
+    });
+    await page.getByRole("button", { name: "任务记录", exact: true }).click();
+    await page.getByRole("button", { name: "创作", exact: true }).click();
+    const editor = page.getByLabel("故事正文", { exact: true });
+    const output = page.getByLabel("新故事方案", { exact: true });
+    await expect(output).toHaveValue("AI生成中...");
+    await expect(output).toHaveAttribute("readonly", "");
+    await expect(editor).toHaveValue(story.body.text);
+    await expect(editor).toBeEditable();
+    jobs = [
+      {
+        id: "inline-job",
+        project_id: project.id,
+        kind: "story.generate",
+        state: "failed",
+        snapshot: { idea_version_id: idea.version_id },
+        created_at: project.updated_at,
+      },
+    ];
+    await expect(output).toHaveCount(0);
+    await expect(editor).toHaveValue(story.body.text);
+    expect(writes).toEqual([]);
+  });
+}
+
+test("inline story generation ignores unrelated jobs and unknown results", async ({
+  page,
+}) => {
+  const jobs = [
+    {
+      project_id: "another-project",
+      kind: "story.generate",
+      state: "running",
+      snapshot: { idea_version_id: idea.version_id },
+    },
+    {
+      project_id: project.id,
+      kind: "story.generate",
+      state: "running",
+      snapshot: { idea_version_id: "old-idea" },
+    },
+    ...["unknown", "failed", "succeeded"].map((state) => ({
+      project_id: project.id,
+      kind: "story.generate",
+      state,
+      snapshot: { idea_version_id: idea.version_id },
+    })),
+  ].map((job, i) => ({
+    ...job,
+    id: `unrelated-${i}`,
+    created_at: project.updated_at,
+  }));
+  await page.route("**/jobs", (route) => route.fulfill({ json: jobs }));
+  await page.getByRole("button", { name: "任务记录", exact: true }).click();
+  await page.getByRole("button", { name: "创作", exact: true }).click();
+  await expect(page.getByLabel("故事正文", { exact: true })).toHaveValue(
+    story.body.text,
+  );
+});
+
+test("inline initial story generation has a target textbox before any candidate exists", async ({
+  page,
+}) => {
+  await page.route("**/stories?**", (route) =>
+    route.fulfill({
+      json: {
+        items: [],
+        total: 0,
+        selected_version_id: null,
+        selection_revision: 0,
+      },
+    }),
+  );
+  await page.route("**/stories", (route) =>
+    route.fulfill({
+      json: {
+        items: [],
+        total: 0,
+        selected_version_id: null,
+        selection_revision: 0,
+      },
+    }),
+  );
+  await page.route("**/jobs", (route) =>
+    route.fulfill({
+      json: [
+        {
+          id: "first-job",
+          project_id: project.id,
+          kind: "story.generate",
+          state: "running",
+          snapshot: { idea_version_id: idea.version_id },
+          created_at: project.updated_at,
+        },
+      ],
+    }),
+  );
+  await page.getByRole("button", { name: "任务记录", exact: true }).click();
+  await page.getByRole("button", { name: "创作", exact: true }).click();
+  await expect(page.getByLabel("故事正文", { exact: true })).toHaveValue(
+    "AI生成中...",
+  );
+});
+
+test("inline director generation uses its suggestion textbox and never replaces story text", async ({
+  page,
+}) => {
+  await page.route("**/jobs", (route) =>
+    route.fulfill({
+      json: [
+        {
+          id: "director-job",
+          project_id: project.id,
+          kind: "story.revise",
+          state: "running",
+          snapshot: { item_id: story.id, base_version_id: story.version_id },
+          created_at: project.updated_at,
+        },
+      ],
+    }),
+  );
+  await page.getByRole("button", { name: "任务记录", exact: true }).click();
+  await page.getByRole("button", { name: "创作", exact: true }).click();
+  await expect(page.getByLabel("建议正文", { exact: true })).toHaveValue(
+    "AI生成中...",
+  );
+  await expect(page.getByLabel("故事正文", { exact: true })).toHaveValue(
+    story.body.text,
+  );
+});
+
+for (const stage of ["script", "board"] as const) {
+  for (const operation of ["generate", "revise", "review", "repair"]) {
+    test(`inline ${stage} ${operation} renders only its target and restores after completion`, async ({
+      page,
+    }) => {
+      const item = {
+        ...story,
+        id: stage,
+        kind: stage,
+        version_id: `${stage}-v1`,
+        source_version_id: stage === "script" ? story.version_id : "script-v1",
+        body:
+          stage === "script"
+            ? { text: "原始剧本", scenes: [], estimatedSeconds: 15 }
+            : {
+                schemaVersion: 2,
+                scriptId: "script-v1",
+                shots: [
+                  {
+                    id: "s1",
+                    prompt: "原始画面",
+                    duration: 3,
+                    dialogue: "",
+                    dialogues: [],
+                    refs: {
+                      characters: [],
+                      scenes: [],
+                      props: [],
+                      positions: [],
+                    },
+                  },
+                ],
+              },
+      };
+      let state = "running";
+      const writes: string[] = [];
+      await page.route(`**/stages/${stage}`, async (route) => {
+        if (route.request().method() === "PUT")
+          writes.push(route.request().postData() ?? "");
+        await route.fulfill({
+          json: { item, confirmation: null, reports: [] },
+        });
+      });
+      await page.route("**/jobs", (route) =>
+        route.fulfill({
+          json: [
+            {
+              id: "stage-job",
+              project_id: project.id,
+              kind: `${stage}.${operation}`,
+              state,
+              snapshot: {
+                item_id: item.id,
+                base_version_id: item.version_id,
+                target_revision: 1,
+              },
+              created_at: project.updated_at,
+            },
+          ],
+        }),
+      );
+      await page
+        .getByRole("button", {
+          name: stage === "script" ? "3　剧本" : "4　分镜",
+        })
+        .click();
+      const label =
+        operation === "generate"
+          ? stage === "script"
+            ? "剧本正文"
+            : "分镜内容"
+          : operation === "review"
+            ? "质检结果"
+            : "建议正文";
+      const target = page.getByLabel(label, { exact: true });
+      await expect(target).toHaveValue("AI生成中...");
+      await expect(target).toHaveAttribute("readonly", "");
+      if (operation !== "generate")
+        await expect(
+          page.getByRole("textbox", {
+            name: stage === "script" ? "剧本正文" : "画面描述",
+            exact: true,
+          }),
+        ).toHaveValue(stage === "script" ? "原始剧本" : "原始画面");
+      if (stage === "script" && operation === "generate") {
+        await page.setViewportSize({ width: 1440, height: 900 });
+        for (const theme of ["light", "dark", "sky", "noir"]) {
+          await page.getByLabel("UI主题").selectOption(theme);
+          await page.screenshot({
+            path: `../../evidence/script-loading/${theme}-script-generating.png`,
+            fullPage: true,
+          });
+        }
+      }
+      state = "succeeded";
+      if (stage === "script" && operation === "generate")
+        await expect(target).toHaveValue("原始剧本");
+      else await expect(target).toHaveCount(0);
+      expect(writes).toEqual([]);
+    });
+  }
+}

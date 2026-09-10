@@ -1,3 +1,12 @@
+import {
+  AI_TEXT,
+  TEXT_JOB_EVENT,
+  TextGenerationProvider,
+  findTextJob,
+  useTextGeneration,
+  GenerationOutput,
+  notifyTextJob,
+} from "./TextGeneration";
 import { useEffect, useRef, useState } from "react";
 import { FinishingWorkbench } from "./FinishingWorkbench";
 import { api, unwrap, type Job } from "./api";
@@ -57,6 +66,23 @@ export function StoryWorkbench({
   const [offset, setOffset] = useState(0);
   const [activeId, setActiveId] = useState("");
   const [jobs, setJobs] = useState<Job[]>([]);
+  useEffect(() => {
+    const accepted = (event: Event) => {
+      const job = (event as CustomEvent<Job>).detail;
+      if (!job || job.project_id !== pid) return;
+      pollEpoch.current++;
+      setJobs((current) => [
+        job,
+        ...current.filter((item) => item.id !== job.id),
+      ]);
+    };
+    window.addEventListener(TEXT_JOB_EVENT, accepted);
+    return () => window.removeEventListener(TEXT_JOB_EVENT, accepted);
+  }, [pid]);
+  const storyGeneration = findTextJob(jobs, pid, {
+    kind: "story.generate",
+    sourceVersionId: idea?.version_id,
+  });
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
   const [busy, setBusy] = useState(false);
@@ -307,12 +333,14 @@ export function StoryWorkbench({
       writing_mode: "prompt" as const,
     };
     const cmd = commandKey("generate", body);
-    unwrap(
+    const job = unwrap(
       await api.POST("/api/v1/projects/{pid}/story-batches", {
         params: { path: { pid }, header: { "idempotency-key": cmd.key } },
         body,
       }),
     );
+    notifyTextJob(job);
+    setActiveId("");
     cmd.done();
     setOffset(0);
     setStage("故事");
@@ -320,7 +348,7 @@ export function StoryWorkbench({
     await refresh();
   }
   return (
-    <>
+    <TextGenerationProvider pid={pid} jobs={jobs}>
       <div className="stages">
         {["创意", "故事", "剧本", "分镜", "导出"].map((s, i) => (
           <button
@@ -455,7 +483,13 @@ export function StoryWorkbench({
                   </label>
                   <button
                     className="primary"
-                    disabled={busy || !loaded || !text.trim() || !validCount}
+                    disabled={
+                      busy ||
+                      !!storyGeneration ||
+                      !loaded ||
+                      !text.trim() ||
+                      !validCount
+                    }
                     onClick={() => void run(generate)}
                   >
                     AI生成故事方案
@@ -524,18 +558,39 @@ export function StoryWorkbench({
                 </div>
                 {page.source_mode !== "txt" && (
                   <button
-                    disabled={busy || !loaded || !text.trim() || !validCount}
+                    disabled={
+                      busy ||
+                      !!storyGeneration ||
+                      !loaded ||
+                      !text.trim() ||
+                      !validCount
+                    }
                     onClick={() => void run(generate)}
                   >
                     再生成{validCount ? storyCount : ""}个方案
                   </button>
                 )}
+                <GenerationOutput label="新故事方案" job={storyGeneration} />
               </section>
               <StoryEditor
                 key={active.id}
                 {...{ pid, story: active, refresh, setStage }}
+                generating={false}
               />
             </div>
+          ) : storyGeneration ? (
+            <section className="panel story-editor">
+              <label className="field">
+                故事正文
+                <textarea
+                  aria-label="故事正文"
+                  className="story-text"
+                  aria-busy="true"
+                  readOnly
+                  value={AI_TEXT}
+                />
+              </label>
+            </section>
           ) : (
             <section className="empty">
               <h2>等待你的第一个故事</h2>
@@ -577,7 +632,7 @@ export function StoryWorkbench({
           </details>
         </section>
       )}
-    </>
+    </TextGenerationProvider>
   );
 }
 
@@ -586,10 +641,12 @@ function StoryEditor({
   story,
   refresh,
   setStage,
+  generating,
 }: {
   setStage: (stage: string) => void;
   pid: string;
   story: Content;
+  generating: boolean;
   refresh: () => Promise<void>;
 }) {
   const draftKey = `sf.${pid}.${story.id}`;
@@ -612,6 +669,11 @@ function StoryEditor({
   const [mode, setMode] = useState<"fixed" | "closed" | "floating">("fixed");
 
   const running = useRef(false);
+  const suggestionJob = useTextGeneration({
+    kind: ["story.revise", "story.repair"],
+    itemId: story.id,
+    versionId: story.version_id,
+  });
   const persisted = useRef(story);
   const dirty = JSON.stringify(body) !== JSON.stringify(persisted.current.body);
   useEffect(() => {
@@ -625,6 +687,7 @@ function StoryEditor({
   useEffect(() => {
     if (
       !dirty ||
+      generating ||
       busy ||
       error ||
       !body.text.trim() ||
@@ -640,7 +703,7 @@ function StoryEditor({
       700,
     );
     return () => clearTimeout(timer);
-  }, [body, base, dirty, busy, error]);
+  }, [body, base, dirty, busy, error, generating]);
   useEffect(() => {
     storeDraft(draftKey, { body, revision: base });
   }, [body, base, draftKey]);
@@ -787,7 +850,9 @@ function StoryEditor({
             disabled={busy}
             aria-label="故事正文"
             className="story-text"
-            value={body.text}
+            value={generating ? AI_TEXT : body.text}
+            readOnly={generating}
+            aria-busy={generating}
             maxLength={1048576}
             onChange={(e) => setBody({ ...body, text: e.target.value })}
           />
@@ -830,7 +895,9 @@ function StoryEditor({
           <MethodSelector pid={pid} stage="script" />
           <button
             className="primary"
-            disabled={busy || !body.text.trim() || base !== story.revision}
+            disabled={
+              busy || generating || !body.text.trim() || base !== story.revision
+            }
             onClick={() =>
               void run(async () => {
                 const source = await save();
@@ -906,6 +973,7 @@ function StoryEditor({
               </button>
             ))}
           </div>
+          <GenerationOutput label="建议正文" job={suggestionJob} />
           <div className="conversation">
             {conversation.messages.map((m) => (
               <p key={m.id} className={m.role}>
@@ -941,7 +1009,7 @@ function StoryEditor({
                   text: request,
                 };
                 const cmd = durableCommand(pid + ":message:" + story.id, input);
-                unwrap(
+                const job = unwrap(
                   await api.POST(
                     "/api/v1/projects/{pid}/contents/{iid}/messages",
                     {
@@ -953,6 +1021,7 @@ function StoryEditor({
                     },
                   ),
                 );
+                notifyTextJob(job);
                 cmd.done();
                 setRequest("");
                 setNotice("修改要求已保存，建议生成后可选择采用。");

@@ -25,3 +25,5 @@ playwright-report/
 
 # Local visual and migration evidence
 /evidence/
+
+/interaction-prd-workspace/evidence/
