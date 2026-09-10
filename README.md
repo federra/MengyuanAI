@@ -112,6 +112,8 @@ M2真实图像、逐句配音和三镜前镜尾帧链已验收，最新事实见
 
 ## V12/V13 本地增量检查点（2026-09-10）
 
-隔离分支`codex/v12-v13-ui-alignment`已实现故事数量1～3、最新项目/创意布局、六列分镜逐句TTS、单镜覆盖/独立并发、事务整表JSON导入和四主题公共布局。工程207项后端与40项页面回归通过，供应商调用0；生产服务升级仍待明确授权，用户视觉验收未通过。事实与边界见[增量验收记录](docs/engineering/v12-v13-verification.md)，迁移、最新停写备份和回退步骤见[本地升级方案](docs/engineering/v12-v13-local-upgrade.md)。
+隔离分支`codex/v12-v13-ui-alignment`已实现故事数量1～3、最新项目/创意布局、六列分镜逐句TTS、单镜覆盖/独立并发、事务整表JSON导入和四主题公共布局。工程207项后端与40项页面回归通过，供应商调用0；生产本地服务已在用户授权后从本工作树升级，用户视觉验收未通过。事实与边界见[增量验收记录](docs/engineering/v12-v13-verification.md)，迁移、最新停写备份和回退步骤见[本地升级方案](docs/engineering/v12-v13-local-upgrade.md)。
 
 独立视频供应商并发默认2，可用`SHORTFILM_MEDIA_VIDEO_CONCURRENCY`设置1～8；未知受理状态保守占位，原任务对账恢复，不盲目重发。导入成功后事务outbox启动建议质检，会使用已配置文本模型；质检失败不撤销导入。不要为UI回归自动点击生成或导入提交。
+
+当前5180运行源码位于 /Users/nathan/Codex_Projects/MengyuanAI/.local/ui-v12-v13；复用原媒体/凭据及数据库。后续启动须使用[本地升级记录](docs/engineering/v12-v13-local-upgrade.md)中的显式环境命令，避免原目录旧代码重新接管。
