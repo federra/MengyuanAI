@@ -19,3 +19,9 @@ flowchart TB
   MANUAL --> VERSION{前镜版本仍有效}
   VERSION -->|是| V2
   VERSION -->|否| PAUSE
+
+  RC --> G{是否依赖上一镜尾帧}
+  G -->|是| V1
+  G -->|否| P[合格镜头各建任务，按并发上限提交]
+  P --> RESULT[各镜独立成功 / 失败 / 重试]
+  RESULT --> READY

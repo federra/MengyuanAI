@@ -3,9 +3,9 @@
     "id": "P01",
     "scene": "创意→故事",
     "key": "novel",
-    "inputs": "一句话、写作指令、市场、风格",
-    "output": "三份 title/logline/direction/text",
-    "acceptance": "每批恰好3份；情节方向不同；语言匹配市场",
+    "inputs": "完整一句话（含篇幅要求）、storyCount整数1～3默认3、写作指令、市场、风格",
+    "output": "stories[title/logline/direction/text]，数组长度等于storyCount",
+    "acceptance": "数量严格匹配；多份时剧情方向不同；遵循明确篇幅要求和市场语言",
     "demoStatus": "已演示",
     "engineering": {
       "milestone": "M1",
@@ -40,6 +40,17 @@
         "overrideVersion",
         "effectiveText"
       ]
+    },
+    "storyCountContract": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 3,
+      "default": 3,
+      "scope": "project; frozen per task",
+      "paginationSize": 3,
+      "templateVariable": "{{storyCount}}",
+      "outputValidation": "stories.length === request.storyCount",
+      "legacyTemplates": "preserve versions; applicationConstraints overrides fixed count"
     }
   },
   {
@@ -525,9 +536,9 @@
     "id": "P16",
     "scene": "镜头提示词生成/优化",
     "key": "shotPrompt",
-    "inputs": "镜头、剧本、风格、可用assetIds",
+    "inputs": "镜头描述、剧本、项目有效风格正文/版本、assetIds及图片版本、lineIds及逐段台词",
     "output": "prompt + referencedAssetIds",
-    "acceptance": "正文引用与提交图片严格一一对应",
+    "acceptance": "提示词引用与图片输入严格对应；绑定台词完整；风格正文提供画面指导",
     "demoStatus": "编辑已实现，AI待接入",
     "modelCategory": "text",
     "modelResolution": [
@@ -553,7 +564,7 @@
     "id": "P17",
     "scene": "视频生成",
     "key": "video",
-    "inputs": "镜头提示词、图片、画幅、秒数、前镜尾帧",
+    "inputs": "编译后完整提示词（镜头描述+风格正文+绑定台词）、图片版本/顺序、单镜模型/比例/分辨率/秒数、可选前镜尾帧",
     "output": "videoUri/duration/taskId",
     "acceptance": "参考图版本冻结，尾帧来自指定前镜视频",
     "demoStatus": "已演示",
@@ -582,7 +593,18 @@
       "previousFrameMode": "multi-reference",
       "strictFirstFrame": false,
       "referenceMapping": "ordered actual input images mapped by stable refId; previous video and actual frame version retained"
-    }
+    },
+    "snapshotContract": [
+      "basePrompt",
+      "compiledPrompt",
+      "styleTemplateVersion",
+      "effectiveStyleText",
+      "dialogueIdsAndContent",
+      "assetVersionIds",
+      "orderedReferences",
+      "generationSpec",
+      "providerConfigVersion"
+    ]
   },
   {
     "id": "P18",
@@ -793,7 +815,7 @@
     "inputs": "当前创意、历史对话、修改要求、市场",
     "output": "proposal/changeSummary/baseVersion",
     "acceptance": "用户采用前不改变正文；过期建议拒绝采用",
-    "demoStatus": "已演示",
+    "demoStatus": "历史入口，当前UI已移除",
     "modelCategory": "text",
     "modelResolution": [
       "projectExplicitVideoModel",
@@ -817,7 +839,8 @@
       "milestone": "M1",
       "status": "engineering-fixture-verified",
       "validation": "49项后端、19项浏览器及实际HTTP文本替身内容链通过；真实DeepSeek密钥未注入，输出质量/耗时/费用待验收"
-    }
+    },
+    "currentScope": "V12：创意助手移除，保留历史契约，不再从创意页发起"
   },
   {
     "id": "P26",

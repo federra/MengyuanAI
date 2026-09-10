@@ -81,3 +81,42 @@
 .model-tree .model-tree-node:focus-visible{outline:2px solid var(--accent);outline-offset:-2px}
 .model-tree-children{max-height:210px;overflow:auto;flex-shrink:0}
 .model-tree-children[hidden]{display:none}
+
+/* V12: project-first setup, compact idea workspace and persistent stage navigation. */
+.project-layout{grid-template-columns:minmax(0,1fr)}
+.project-grid{grid-template-columns:repeat(3,minmax(0,1fr))}
+.project-create-fields{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px 20px;align-items:start}
+.project-create-fields .field{margin:0;min-width:0}
+.project-create-fields #project-video-spec{display:contents}
+.project-type-extra{font-size:13px;margin-top:8px}
+.project-field-group>a{display:inline-block;font-size:13px;margin-top:8px}
+#project-create #create-project{width:auto;margin-top:20px;min-width:180px}
+.app-shell.workflow.studio .topbar{height:68px}
+.app-shell.workflow.studio .studio-steps{position:sticky;top:68px;z-index:15;background:var(--bg,var(--surface));padding-top:10px!important;padding-bottom:10px!important}
+.director-panel{top:150px;max-height:calc(100vh - 170px)}
+.idea-layout{display:block}
+.idea-title{display:flex;align-items:baseline;flex-wrap:wrap;gap:14px}
+.idea-title h2{margin:0}
+#idea-content{height:115px;min-height:115px;resize:vertical}
+.generation-action-row.idea-generation-row{flex-direction:row;align-items:end!important;max-width:none;gap:24px;flex-wrap:wrap}
+.idea-generation-row .method-select{flex:0 1 300px;width:300px;min-width:240px}
+.story-generation-controls{display:flex;align-items:end;gap:12px}
+.story-count-label{display:flex;flex-direction:column;gap:7px;font-size:13px;color:var(--muted)}
+#story-count{width:86px;height:44px}
+#start-story{min-height:44px;margin:0!important}
+@media(max-width:1000px){.project-create-fields{grid-template-columns:repeat(2,minmax(0,1fr))}.project-create-fields>a,.project-type-extra{grid-column:auto;grid-row:auto}}
+@media(max-width:700px){.project-grid{grid-template-columns:1fr}.project-create-fields{grid-template-columns:1fr}.idea-generation-row .method-select{flex:1 1 100%}.story-generation-controls{flex-wrap:wrap}}
+.generation-action-row.idea-generation-row{align-items:flex-start!important}
+.story-count-label{font-size:14px;line-height:1.5}
+#story-count::-webkit-inner-spin-button{opacity:1}
+
+/* V13: audio stays inside each dialogue; video metadata uses compact chips. */
+.line-audio-tools{height:28px;display:flex;align-items:center;gap:8px;white-space:nowrap;overflow:hidden}
+.line-audio-tools .text-button{font-size:12px;padding:2px 0!important;min-height:24px}
+.line-audio-tools span{font-size:12px;color:var(--muted)}
+.clip-specs{display:flex;flex-wrap:wrap;gap:5px;margin:8px 0}
+.clip-specs span{font-size:12px;line-height:1.5;border:1px solid var(--border);border-radius:4px;padding:2px 5px;overflow-wrap:anywhere;max-width:100%}
+.prompt-bindings{margin:8px 0;padding:8px;border-left:2px solid var(--accent);background:var(--surface-raised);font-size:13px}
+.prompt-bindings p{font-size:13px;white-space:pre-wrap}.prompt-bindings summary{cursor:pointer}
+#board-json-input{min-height:220px;font-family:ui-monospace,monospace!important}
+#board-import-result{white-space:pre-wrap;overflow-wrap:anywhere}

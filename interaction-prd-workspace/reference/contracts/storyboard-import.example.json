@@ -1,0 +1,57 @@
+{
+  "format": "shortfilm-storyboard-import",
+  "schemaVersion": 1,
+  "shots": [
+    {
+      "id": "shot-1",
+      "duration": 5,
+      "prompt": "中景，角色走进场景，拿起道具。参考 @[person-1] @[scene-1] @[prop-1] @[position-1]",
+      "assets": [
+        {
+          "id": "person-1",
+          "kind": "角色",
+          "name": "主角",
+          "description": "角色外貌与服装"
+        },
+        {
+          "id": "scene-1",
+          "kind": "场景",
+          "name": "房间",
+          "description": "室内环境与光线"
+        },
+        {
+          "id": "prop-1",
+          "kind": "道具",
+          "name": "信件",
+          "description": "关键道具外观"
+        },
+        {
+          "id": "position-1",
+          "kind": "站位",
+          "name": "门边站位",
+          "description": "角色面向室内"
+        }
+      ],
+      "dialogues": [
+        {
+          "id": "line-1",
+          "speaker": "主角",
+          "emotion": "自然",
+          "text": "终于回来了。",
+          "voice": "默认音色"
+        }
+      ],
+      "bindings": {
+        "assetIds": [
+          "person-1",
+          "scene-1",
+          "prop-1",
+          "position-1"
+        ],
+        "dialogueIds": [
+          "line-1"
+        ]
+      }
+    }
+  ]
+}

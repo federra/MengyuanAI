@@ -1,0 +1,23 @@
+{
+  "base_commit": "cad6c2d",
+  "source_branch": "codex/m3-real-export",
+  "hashes": {
+    "AGENTS.md": "b7c9e3e7ca8f7bcffce9cd38d60cff3da52ca76c97d8c46fcb82d0eb29573378",
+    "interaction-prd-workspace/prd/01-product-definition.md": "e947ce55c7e0bc79423460ed2859be97bb35fedcdf6549574b1722c05dc8729b",
+    "interaction-prd-workspace/prd/02-users-and-needs.md": "0c8bad5175fb64458504fc37db09dcb70f8137fc3a161c0514dba7d9bedaf612",
+    "interaction-prd-workspace/prd/03-user-stories-and-journey.md": "0b054e05319ac67b2b879b9dbf323563da747ebab95397b27074a8c151f625d3",
+    "interaction-prd-workspace/prd/04-project-workspace.md": "358604ed46988b8b3a163dd7d57d98957ebb2bc472c007ea6a70015807e9429f",
+    "interaction-prd-workspace/prd/05-ai-configuration.md": "2aab39f758cd6768fb6c144e872b6dc0f5497650ecfdad90488e420c207f5f6f",
+    "interaction-prd-workspace/prd/06-story-development.md": "0efa63eb05294b93ab14f849395c8d22e7619db208f43ff8743d3f7208214777",
+    "interaction-prd-workspace/prd/07-storyboard-review.md": "587ef2ea2e90cb16b138f35a5034fbed8352d15a54603294f3b29b261d3529f1",
+    "interaction-prd-workspace/prd/08-visual-assets.md": "02c604ee02a929895dc5ed564d709141f0a7384536f10fbfdc8087cc15f41438",
+    "interaction-prd-workspace/prd/09-video-generation.md": "c40f894d2d031fc90499f021ba759277478cb7ea41faba9bb7d3a3a64c14a2b4",
+    "interaction-prd-workspace/prd/10-finishing-export.md": "5fdcd8ed380b8aa9dd8ac6f1686bae1a3be212548e66782885cb8af83119c6c6",
+    "interaction-prd-workspace/reference/DESIGN.md": "df7423ec9bea707b51a35d4dc919451008386d495a52c87a9258e6ade94a6215",
+    "interaction-prd-workspace/reference/components-and-states.md": "50d0c30c243c2b5069672329ac4f6193c558a8fadd910ca5591b6710642f5229",
+    "interaction-prd-workspace/reference/ai-prompt-inventory.md": "d7c9aafd3104e2d95469c7363cacfac5a643b8b634329045c5bfdf5b3568be3d",
+    "interaction-prd-workspace/reference/ai-prompt-inventory.json": "1150ade4f5054768340e97ab5440a9ce60b3fa48d89a765bdd5df1c2c8ccb7ab",
+    "interaction-prd-workspace/reference/technical-implementation-plan.md": "6858b76d7db4250101087f1d69fdcfd29a34f3ba020bb8101cc0edeec3e43c01",
+    "interaction-prd-workspace/reference/ui-interaction-acceptance.md": "c77158955b014c84f4ccbf54547dd952c23f2c5df46bb3456557f1dc23b40069"
+  }
+}
